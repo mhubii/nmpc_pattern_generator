@@ -174,21 +174,19 @@ void LIPM::InitializeSystem() {
                     tc_;
 }
 
-FootInterpolation::FootInterpolation(const BaseGenerator& base_generator, double qp_sampling_period, int nb_sampling_previewed,
+FootInterpolation::FootInterpolation(const BaseGenerator& base_generator,
                                      double command_period,
-                                     double feet_distance, double step_height, double step_time, double double_support_time)
-    : t_(qp_sampling_period),
+                                     double step_height, double double_support_time)
+    : t_(base_generator.T()),
       tc_(command_period),
-      feet_distance_(feet_distance),
       step_height_(step_height),
       polynomial_x_(Polynomial5()),
       polynomial_y_(Polynomial5()),
       polynomial_q_(Polynomial5()),
       polynomial_z_(Polynomial4()),
-      tss_(step_time - double_support_time),
+      tss_(base_generator.TStep() - double_support_time),
       tds_(double_support_time),
-      step_time_(step_time),
-      interval_(int(qp_sampling_period/command_period)),
+      interval_(int(base_generator.T()/command_period)),
       base_generator_(base_generator) {
   polynomial_z_.SetParameters(tss_, step_height_, 0., 0.);
 }
@@ -208,7 +206,7 @@ void FootInterpolation::Interpolate(double time, const BaseTypeSupportFoot& curr
   double epsilon = 0.02;
 
   // In case of double support the policy is to stay still.
-  if (time + epsilon < time_limit - step_time_ + t_) {
+  if (time + epsilon < time_limit - base_generator_.TStep() + t_) {
     for (int i = 0; i < interval_; i++) {
       lf_buffer[i] = cur_left;
       rf_buffer[i] = cur_right;
@@ -219,7 +217,7 @@ void FootInterpolation::Interpolate(double time, const BaseTypeSupportFoot& curr
     // single support duration.
     polynomial_z_.SetParameters(tss_, step_height_, cur_right.z, cur_right.dz);
   }
-  else if (time + epsilon > time_limit - step_time_ + t_) {
+  else if (time + epsilon > time_limit - base_generator_.TStep() + t_) {
     // Deal with the lift off time and the landing time. During those
     // period the foot do not move along the x and y axis.
 
@@ -374,16 +372,16 @@ Interpolation::Interpolation(const double tc, const BaseGenerator& base_generato
     cur_left_.x  = base_generator_.Fkx0();
     cur_left_.y  = base_generator_.Fky0();
     cur_left_.q  = base_generator_.Fkq0();
-    cur_right_.x = base_generator_.Fkx0() + fi_.FeetDistance()*sin(base_generator_.Fkq0()); 
-    cur_right_.y = base_generator_.Fky0() - fi_.FeetDistance()*cos(base_generator_.Fkq0());
+    cur_right_.x = base_generator_.Fkx0() + base_generator_.FootDistance()*sin(base_generator_.Fkq0()); 
+    cur_right_.y = base_generator_.Fky0() - base_generator_.FootDistance()*cos(base_generator_.Fkq0());
     cur_right_.q = base_generator_.Fkq0();
   }
   else {
     cur_left_.x  = base_generator_.Fkx0(); 
     cur_left_.y  = base_generator_.Fky0();
     cur_left_.q  = base_generator_.Fkq0();
-    cur_right_.x = base_generator_.Fkx0() - fi_.FeetDistance()*sin(base_generator_.Fkq0());
-    cur_right_.y = base_generator_.Fky0() + fi_.FeetDistance()*cos(base_generator_.Fkq0());
+    cur_right_.x = base_generator_.Fkx0() - base_generator_.FootDistance()*sin(base_generator_.Fkq0());
+    cur_right_.y = base_generator_.Fky0() + base_generator_.FootDistance()*cos(base_generator_.Fkq0());
     cur_right_.q = base_generator_.Fkq0();
   }
 

@@ -15,6 +15,10 @@ foot_width: 0.1
 foot_length: 0.2
 foot_distance: 0.14
 
+# Interpolation.
+command_period: 0.005
+n_still: 30
+
 # Initial values.
 com_x: [0.0 , 0.0, 0.0]
 com_y: [0.04, 0.0, 0.0]

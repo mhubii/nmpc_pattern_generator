@@ -1,21 +1,23 @@
 # Add pattern generator library.
 find_package(qpOASES REQUIRED)
 
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/pattern_generator)
 
 set(SOURCE
-    ${CMAKE_CURRENT_SOURCE_DIR}/base_generator.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/interpolation.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpc_generator.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nmpc_generator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/base_generator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/interpolate.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/interpolation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/mpc_generator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/nmpc_generator.cpp
 )
 
-add_library(pattern_generator SHARED 
+add_library(pattern_generator SHARED
     ${SOURCE} 
 )
 
 target_link_libraries(pattern_generator
     qpOASES
+    yaml-cpp
 )
 
 
@@ -24,6 +26,7 @@ if (${PATTERN_GENERATOR_EXAMPLES})
     set(EXAMPLES
         mpc_generator_example
         nmpc_generator_example
+        interpolation_example
     )
 
     foreach (example ${EXAMPLES})

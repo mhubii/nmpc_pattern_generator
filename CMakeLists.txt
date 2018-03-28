@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 3.8)
 project(heicub_walking)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
@@ -16,7 +17,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 # Download and unpack googletest at configure time.
 enable_testing()
 
-configure_file(CMakeLists.txt.in googletest-download/CMakeLists.txt)
+configure_file(cmake/CMakeLists.txt.in_googletest googletest-download/CMakeLists.txt)
 
 execute_process(COMMAND "${CMAKE_COMMAND}" -G "${CMAKE_GENERATOR}" .
     WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/googletest-download" )
@@ -58,3 +59,23 @@ add_subdirectory(libs/pattern_generator)
 
 
 # Source.
+
+
+# Yaml library.
+# Download and unpack yaml at configure time.
+configure_file(cmake/CMakeLists.txt.in_yaml yaml-download/CMakeLists.txt)
+
+execute_process(COMMAND "${CMAKE_COMMAND}" -G "${CMAKE_GENERATOR}" .
+    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/yaml-download" )
+
+execute_process(COMMAND "${CMAKE_COMMAND}" --build .
+    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/yaml-download" )
+
+
+# Add yaml directly to our build. This adds
+# the following target: yaml-cpp.
+SET(BUILD_SHARED_LIBS ON CACHE BOOL "Build yaml shared library.")
+SET(YAML_CPP_BUILD_TESTS OFF CACHE BOOL "Prevent yaml from building tests.")
+
+add_subdirectory("${CMAKE_BINARY_DIR}/yaml-src"
+                 "${CMAKE_BINARY_DIR}/yaml-build")

@@ -40,6 +40,7 @@ protected:
 // 4th degree polynomial.
 //
 // Code based on the python implemenation of Manuel Kudruss.
+// C++ implementation by Martin Huber.
 class Polynomial4 : public Polynomial
 {
 public:
@@ -66,10 +67,11 @@ public:
 // linearized inverted pendulum (Kajita 2003, Walking).
 //
 // Code based on the python implemenation of Manuel Kudruss.
+// C++ implementation by Martin Huber.
 class LIPM
 {
 public:
-    LIPM(double control_period = 0.1, double command_period = 0.005, double h_com = 0.46);
+    LIPM(double control_period, double command_period, double h_com);
 
     void Interpolate(const double dddc_k_x_0, const double dddc_k_y_0,
                      ComState& cur_com, std::vector<ComState>& com_buffer, std::vector<ZmpState>& zmp_buffer);
@@ -104,20 +106,18 @@ private:
 // the feet trajectory during the QP period.
 //
 // Code based on the python implemenation of Manuel Kudruss.
+// C++ implementation by Martin Huber.
 class FootInterpolation
 {
 public:
-    FootInterpolation(const BaseGenerator& base_generator, double qp_sampling_period = 0.1, int nb_sampling_previewed = 16,
+    FootInterpolation(const BaseGenerator& base_generator,
                       double command_period = 0.005,
-                      double feet_distance = 0.14, double step_height = 0.03, double step_time = 0.8, double double_support_time = 0.1);
+                      double step_height = 0.03, double double_support_time = 0.1);
 
     void Interpolate(double time, const BaseTypeSupportFoot& current_support, 
                      BaseTypeFoot& cur_left, BaseTypeFoot& cur_right,
                      double f_k_x_0, double f_k_y_0, double f_k_q_0,
                      std::vector<BaseTypeFoot>& lf_buffer, std::vector<BaseTypeFoot>& rf_buffer);
-
-    // Getters.
-    inline const double& FeetDistance() const { return feet_distance_; };
 
 private:
     // Compute foot states at time t.
@@ -128,9 +128,6 @@ private:
 
     // Low level control period.
     const double tc_;
-
-    // Normal distance between both feet.
-    const double feet_distance_; 
 
     // Standard maximal step height.
     const double step_height_;
@@ -149,7 +146,6 @@ private:
 
     // Time of double support.
     const double tds_;
-    const double step_time_;
 
     // Number of interpolated samples.
     const int interval_;
