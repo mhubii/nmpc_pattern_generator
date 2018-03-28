@@ -1,13 +1,12 @@
 #include "nmpc_generator.h"
 #include <iostream>
 
-NMPCGenerator::NMPCGenerator(const int n, const double t, const double t_step,
-                             const std::string fsm_state)
-    : BaseGenerator::BaseGenerator(n, t, t_step, fsm_state),
+NMPCGenerator::NMPCGenerator(const std::string config_file_loc)
+    : BaseGenerator::BaseGenerator(config_file_loc),
 
       // qpOASES specific things.
-      cpu_time_(1, 0.01),
-      nwsr_(100),
+      cpu_time_(1, configs_["cpu_time"].as<double>()),
+      nwsr_(configs_["nwsr"].as<int>()),
 
       // Variable dimensions.
       nv_(2*(2*n_ + nf_)),
@@ -114,10 +113,6 @@ void NMPCGenerator::Solve() {
   PostprocessSolution();
 }
 
-void NMPCGenerator::Simulate() {
-  BaseGenerator::Simulate();
-}
-
 PatternGeneratorState NMPCGenerator::Update() {
   // Define time dependent foot selections matrix.
   PatternGeneratorState ret = BaseGenerator::Update();
@@ -128,7 +123,7 @@ PatternGeneratorState NMPCGenerator::Update() {
   return ret;
 }
 
-void NMPCGenerator::Example(const std::string loc) {
+void NMPCGenerator::Example(const std::string config_file_loc, const std::string output_loc) {
   // Example() exemplarily implements a case on how
   // the NMPCGenerator class is ment to be used. 
   //
@@ -136,34 +131,21 @@ void NMPCGenerator::Example(const std::string loc) {
   // generated pattern shall be stored in a .csv file.
   
   // Initialize pattern generator.
-  const int n = 16;
-  const double t = 0.1;
-  const double t_step = 0.8;
-  const std::string fsm_state = "L/R";
-
-  NMPCGenerator nmpc(n, t, t_step, fsm_state);
+  NMPCGenerator nmpc(config_file_loc);
 
   // Pattern generator preparation.
-  nmpc.SetSecurityMargin(0.02, 0.02);
+  nmpc.SetSecurityMargin(nmpc.SecurityMarginX(), 
+                         nmpc.SecurityMarginY());
 
   // Set initial values.
-  Eigen::Vector3d com_x(0., 0., 0.);
-  Eigen::Vector3d com_y(0.04, 0., 0.);
-  double com_z = 0.46;
-  double foot_x = 0.;
-  double foot_y = 0.07;
-  double foot_q = 0.;
-  std::string foot = "left";
-  Eigen::Vector3d com_q(0., 0., 0.);
-
-  PatternGeneratorState pg_state = {com_x,
-                                    com_y,
-                                    com_z,
-                                    foot_x,
-                                    foot_y,
-                                    foot_q,
-                                    foot,
-                                    com_q};
+  PatternGeneratorState pg_state = {nmpc.Ckx0(),
+                                    nmpc.Cky0(),
+                                    nmpc.Hcom(),
+                                    nmpc.Fkx0(),
+                                    nmpc.Fky0(),
+                                    nmpc.Fkq0(),
+                                    nmpc.CurrentSupport().foot,
+                                    nmpc.Ckq0()};
 
   nmpc.SetInitialValues(pg_state);
   Interpolation interpol_nmpc(0.005, nmpc);
@@ -199,7 +181,7 @@ void NMPCGenerator::Example(const std::string loc) {
   }
 
   // Save interpolated results.
-  interpol_nmpc.SaveToFile(loc);
+  interpol_nmpc.SaveToFile(output_loc);
 }
 
 void NMPCGenerator::PreprocessSolution() {
@@ -472,15 +454,15 @@ void NMPCGenerator::CalculateDerivatives() {
       b0d << ubb0drf_;
     }
 
-    // Get support foot and check if it is double support.
-    for (int j = 0; j < nf_; j++) {
-      if (v_kp1_(i, j) == 1) {
-        if (fsm_states_[j] == "D") { // D is always assumed as for now.
-          a0 << a0d;
-          b0 << b0d;
-        }
-      }
-    }
+    // // Get support foot and check if it is double support.
+    // for (int j = 0; j < nf_; j++) {
+    //   if (v_kp1_(i, j) == 1) {
+    //     if (fsm_states_[j] == "D") { // D is never assumed as for now.
+    //       a0 << a0d;
+    //       b0 << b0d;
+    //     }
+    //   }
+    // }
 
     for (int k = 0; k < n_foot_edge_; k++) {
       // Get d_i+1^x(f^theta).
@@ -613,26 +595,26 @@ void NMPCGenerator::SolveQP() {
   // Solve QP first with initialization and after that with hotstart.
   int nwsr_temp  = nwsr_;
   std::vector<double> cpu_time_temp = cpu_time_;
-  
+
   if (qp_is_initialized_) {
-    qp_.hotstart(qp_h_.data(),
-                 qp_g_.data(),
-                 qp_a_.data(),
-                 qp_lb_.data(),
-                 qp_ub_.data(),
-                 qp_lba_.data(),
-                 qp_uba_.data(),
-                 nwsr_temp, cpu_time_temp.data());
+    status_ = qp_.hotstart(qp_h_.data(),
+                           qp_g_.data(),
+                           qp_a_.data(),
+                           qp_lb_.data(),
+                           qp_ub_.data(),
+                           qp_lba_.data(),
+                           qp_uba_.data(),
+                           nwsr_temp, cpu_time_temp.data());
   }
   else {
-    qp_.init(qp_h_.data(),
-             qp_g_.data(),
-             qp_a_.data(),
-             qp_lb_.data(),
-             qp_ub_.data(),
-             qp_lba_.data(),
-             qp_uba_.data(),
-             nwsr_temp, cpu_time_temp.data());
+    status_ = qp_.init(qp_h_.data(),
+                       qp_g_.data(),
+                       qp_a_.data(),
+                       qp_lb_.data(),
+                       qp_ub_.data(),
+                       qp_lba_.data(),
+                       qp_uba_.data(),
+                       nwsr_temp, cpu_time_temp.data());
 
     qp_is_initialized_ = true;
   }

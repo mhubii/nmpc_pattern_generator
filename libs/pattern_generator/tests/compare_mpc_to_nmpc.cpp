@@ -7,57 +7,42 @@
 
 
 // The fixture for testing the class NMPCGenerator.
-class CompareMPCToNMPCTest : public ::testing::Test   {
+class CompareMPCToNMPC : public ::testing::Test   {
     protected:
 
     // Constrtuctor.
-    CompareMPCToNMPCTest() 
-        : n_(16),
-          t_(0.1),
-          t_step_(0.8),
-          fsm_state_("L/R") {
+    CompareMPCToNMPC() {
       // Initialize NMPC and MPC generator.
-      nmpc_generator_ = new NMPCGenerator(n_, t_, t_step_, fsm_state_);
-      mpc_generator_ = new MPCGenerator(n_, t_, t_step_, fsm_state_);
+      nmpc_generator_ = new NMPCGenerator();
+      mpc_generator_ = new MPCGenerator();
 
       // Set security margin.
-      nmpc_generator_->SetSecurityMargin(0.02, 0.02);
-      mpc_generator_->SetSecurityMargin(0.02, 0.02);
+      nmpc_generator_->SetSecurityMargin(nmpc_generator_->SecurityMarginX(), 
+                                         nmpc_generator_->SecurityMarginY());
+      mpc_generator_->SetSecurityMargin(mpc_generator_->SecurityMarginX(), 
+                                        mpc_generator_->SecurityMarginY());
 
       // Set initial values.
-      Eigen::Vector3d com_x(0., 0., 0.);
-      Eigen::Vector3d com_y(0.04, 0., 0.);
-      double com_z = 0.46;
-      double foot_x = 0.;
-      double foot_y = 0.07;
-      double foot_q = 0.;
-      std::string foot = "left";
-      Eigen::Vector3d com_q(0., 0., 0.);
-  
-      pg_state_ = {com_x,
-                   com_y,
-                   com_z,
-                   foot_x,
-                   foot_y,
-                   foot_q,
-                   foot,
-                   com_q};
+      pg_state_ = {nmpc_generator_->Ckx0(),
+                   nmpc_generator_->Cky0(),
+                   nmpc_generator_->Hcom(),
+                   nmpc_generator_->Fkx0(),
+                   nmpc_generator_->Fky0(),
+                   nmpc_generator_->Fkq0(),
+                   nmpc_generator_->CurrentSupport().foot,
+                   nmpc_generator_->Ckq0()};
   
       nmpc_generator_->SetInitialValues(pg_state_);
       mpc_generator_->SetInitialValues(pg_state_);
     }
 
     // Destructor.
-    virtual ~CompareMPCToNMPCTest() {
+    virtual ~CompareMPCToNMPC() {
       delete nmpc_generator_;
+      delete mpc_generator_;
     }
 
     // Member variables. 
-    const int n_;
-    const double t_;
-    const double t_step_;
-    const std::string fsm_state_;
-
     PatternGeneratorState pg_state_;
 
     // NMPC Generator.
@@ -68,7 +53,7 @@ class CompareMPCToNMPCTest : public ::testing::Test   {
 };
 
 // Compare submatrices to MPC generator.
-TEST_F(CompareMPCToNMPCTest, TestCompareSubmatricesToMPC) {
+TEST_F(CompareMPCToNMPC, Submatrices) {
     // Preprocess solutions.
     nmpc_generator_->PreprocessSolution();
     mpc_generator_->PreprocessSolution();
@@ -115,7 +100,7 @@ TEST_F(CompareMPCToNMPCTest, TestCompareSubmatricesToMPC) {
 }
 
 // Compare constraint matrices to MPC generator.
-TEST_F(CompareMPCToNMPCTest, TestCompareConstraintMatricesToMPC) {
+TEST_F(CompareMPCToNMPC, CompareConstraintMatrices) {
     // Set security margin and velocity reference.
     Eigen::Vector3d velocity_reference(0.2, 0.2, 0.2);
 

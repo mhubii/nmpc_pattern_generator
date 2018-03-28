@@ -1,13 +1,12 @@
 #include "mpc_generator.h"
 #include <iostream>
 
-MPCGenerator::MPCGenerator(const int n, const double t, const double t_step,
-                           const std::string fsm_state)
-    : BaseGenerator::BaseGenerator(n, t, t_step, fsm_state),
+MPCGenerator::MPCGenerator(const std::string config_file_loc)
+    : BaseGenerator::BaseGenerator(config_file_loc),
 
       // qpOASES specific things.
-      cpu_time_(1, 0.1),
-      nwsr_(100),
+      cpu_time_(1, configs_["cpu_time"].as<double>()),
+      nwsr_(configs_["nwsr"].as<int>()),
 
       // Constraint dimensions.
       ori_nv_(2*n_),
@@ -50,6 +49,7 @@ MPCGenerator::MPCGenerator(const int n, const double t, const double t_step,
       pos_p_(n_ + nf_) {
   // qpOASES specific things.
   options_.setToMPC();
+  options_.printLevel = qpOASES::PL_LOW;
 
   // Problem setup for orientation.
   ori_dofs_.setZero();
@@ -89,15 +89,7 @@ void MPCGenerator::Solve() {
   PostprocessSolution();
 }
 
-void MPCGenerator::Simulate() {
-  BaseGenerator::Simulate();
-}
-
-PatternGeneratorState MPCGenerator::Update() {
-  return BaseGenerator::Update();
-}
-
-void MPCGenerator::Example(const std::string loc) {
+void MPCGenerator::Example(const std::string config_file_loc, const std::string output_loc) {
   // Example() exemplarily implements a case on how
   // the MPCGenerator class is ment to be used. 
   //
@@ -105,35 +97,22 @@ void MPCGenerator::Example(const std::string loc) {
   // generated pattern shall be stored in a .csv file.
 
   // Instantiate pattern generator.
-  const int n = 16;
-  const double t = 0.1;
-  const double t_step = 0.8;
-  const std::string fsm_state = "L/R";
-
-  MPCGenerator mpc(n, t, t_step, fsm_state);
+  MPCGenerator mpc(config_file_loc);
 
   // Pattern generator preparation.
-  mpc.SetSecurityMargin(0.02, 0.02);
+  mpc.SetSecurityMargin(mpc.SecurityMarginX(), 
+                        mpc.SecurityMarginY());
 
   // Set initial values.
-  Eigen::Vector3d com_x(0., 0., 0.);
-  Eigen::Vector3d com_y(0.04, 0., 0.);
-  double com_z = 0.46;
-  double foot_x = 0.;
-  double foot_y = 0.07;
-  double foot_q = 0.;
-  std::string foot = "left";
-  Eigen::Vector3d com_q(0., 0., 0.);
+  PatternGeneratorState pg_state = {mpc.Ckx0(),
+                                    mpc.Cky0(),
+                                    mpc.Hcom(),
+                                    mpc.Fkx0(),
+                                    mpc.Fky0(),
+                                    mpc.Fkq0(),
+                                    mpc.CurrentSupport().foot,
+                                    mpc.Ckq0()};
 
-  PatternGeneratorState pg_state = {com_x,
-                                    com_y,
-                                    com_z,
-                                    foot_x,
-                                    foot_y,
-                                    foot_q,
-                                    foot,
-                                    com_q};
-  
   mpc.SetInitialValues(pg_state);
   Interpolation interpol_mpc(0.005, mpc);
   Eigen::Vector3d velocity_reference(0.1, 0., 0.1);
@@ -171,7 +150,7 @@ void MPCGenerator::Example(const std::string loc) {
   }
   
   // Save interpolated results.
-  interpol_mpc.SaveToFile(loc);
+  interpol_mpc.SaveToFile(output_loc);
 }
 
 void MPCGenerator::PreprocessSolution() {
@@ -349,24 +328,24 @@ void MPCGenerator::SolveQP() {
 
   // Call QP solver.
   if (ori_qp_is_initialized_) {
-      ori_qp_.hotstart(ori_h_.data(),
-                       ori_g_.data(),
-                       ori_a_.data(),
-                       ori_lb_.data(),
-                       ori_ub_.data(),
-                       ori_lba_.data(),
-                       ori_uba_.data(),
-                       nwsr_temp, cpu_time_temp.data());
+      status_ori_ = ori_qp_.hotstart(ori_h_.data(),
+                                     ori_g_.data(),
+                                     ori_a_.data(),
+                                     ori_lb_.data(),
+                                     ori_ub_.data(),
+                                     ori_lba_.data(),
+                                     ori_uba_.data(),
+                                     nwsr_temp, cpu_time_temp.data());
   }
   else {
-      ori_qp_.init(ori_h_.data(),
-                   ori_g_.data(),
-                   ori_a_.data(),
-                   ori_lb_.data(),
-                   ori_ub_.data(),
-                   ori_lba_.data(),
-                   ori_uba_.data(),
-                   nwsr_temp, cpu_time_temp.data());
+      status_ori_ = ori_qp_.init(ori_h_.data(),
+                                 ori_g_.data(),
+                                 ori_a_.data(),
+                                 ori_lb_.data(),
+                                 ori_ub_.data(),
+                                 ori_lba_.data(),
+                                 ori_uba_.data(),
+                                 nwsr_temp, cpu_time_temp.data());
 
       ori_qp_is_initialized_ = true;
   }
@@ -378,24 +357,24 @@ void MPCGenerator::SolveQP() {
   cpu_time_temp = cpu_time_;
 
   if (pos_qp_is_initialized_) {
-      pos_qp_.hotstart(pos_h_.data(),
-                       pos_g_.data(),
-                       pos_a_.data(),
-                       pos_lb_.data(),
-                       pos_ub_.data(),
-                       pos_lba_.data(),
-                       pos_uba_.data(),
-                       nwsr_temp, cpu_time_temp.data());
+      status_pos_ = pos_qp_.hotstart(pos_h_.data(),
+                                     pos_g_.data(),
+                                     pos_a_.data(),
+                                     pos_lb_.data(),
+                                     pos_ub_.data(),
+                                     pos_lba_.data(),
+                                     pos_uba_.data(),
+                                     nwsr_temp, cpu_time_temp.data());
   }
   else {
-      pos_qp_.init(pos_h_.data(),
-                   pos_g_.data(),
-                   pos_a_.data(),
-                   pos_lb_.data(),
-                   pos_ub_.data(),
-                   pos_lba_.data(),
-                   pos_uba_.data(),
-                   nwsr_temp, cpu_time_temp.data());
+      status_pos_ = pos_qp_.init(pos_h_.data(),
+                                 pos_g_.data(),
+                                 pos_a_.data(),
+                                 pos_lb_.data(),
+                                 pos_ub_.data(),
+                                 pos_lba_.data(),
+                                 pos_uba_.data(),
+                                 nwsr_temp, cpu_time_temp.data());
 
       pos_qp_is_initialized_ = true;
   }

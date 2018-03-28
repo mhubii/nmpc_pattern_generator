@@ -1,4 +1,4 @@
-// helper.h holds some simple structures which
+// utils.h holds some simple structures which
 // are commonly used within this project.
 //
 // Code based on the python implementation of Manuel Kudruss.
@@ -10,6 +10,7 @@
 #include <string>
 #include <fstream>
 #include <Eigen/Dense>
+#include "yaml-cpp/yaml.h"
 
 // Typedefs.
 typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> RowMatrixXd;

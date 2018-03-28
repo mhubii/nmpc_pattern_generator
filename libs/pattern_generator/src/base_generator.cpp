@@ -1,23 +1,22 @@
 #include "base_generator.h"
 #include <iostream>
 
-BaseGenerator::BaseGenerator(const int n, const double t, const double t_step,
-                             const std::string fsm_state = "D")
-    : // Constants.
-      g_(9.81),
-      n_(n), t_(t), t_step_(t_step),
-      fsm_state_(fsm_state),
-      t_window_(n*t), nf_(int(t_window_/t_step)),
+BaseGenerator::BaseGenerator(const std::string config_file_loc)
+    : // Configurations
+      configs_(YAML::LoadFile(config_file_loc)),
+    
+      // Constants.
+      g_(configs_["gravity"].as<double>()),
+      n_(configs_["n"].as<double>()),
+      t_(configs_["t"].as<double>()), 
+      t_step_(configs_["t_step"].as<double>()),
+      t_window_(n_*t_), nf_(int(t_window_/t_step_)),
       time_(0.),
-
-      // Finite state machine.
-      fsm_states_(nf_, fsm_state),
       
       // Objective weights.
-      alpha_(1.),
-      beta_(0.),
-      gamma_(1e-6), 
-      delta_(1e-5),
+      alpha_(configs_["alpha"].as<double>()),
+      gamma_(configs_["gamma"].as<double>()), 
+      delta_(configs_["delta"].as<double>()),
 
       // Center of mass matrices.
         c_kp1_x_(n_),
@@ -120,9 +119,9 @@ BaseGenerator::BaseGenerator(const int n, const double t, const double t_step,
 
       // Position of the foot in the local foot frame.
       n_foot_edge_(4),
-      foot_width_(0.2),
-      foot_height_(0.1),
-      foot_distance_(0.14),
+      foot_width_(configs_["foot_length"].as<double>()),
+      foot_height_(configs_["foot_width"].as<double>()),
+      foot_distance_(configs_["foot_distance"].as<double>()),
 
       // Position of the vertices of the feet in the foot coordinates.
       lfoot_(n_foot_edge_, 2),
@@ -202,9 +201,9 @@ BaseGenerator::BaseGenerator(const int n, const double t, const double t_step,
       // Matrices containing constraints representing a 
       // strictly convex obstacle in space.
       nc_obs_(nf_),
-      x_obs_(10.),
-      y_obs_(10.),
-      r_obs_(0.),
+      x_obs_(configs_["x_pos"].as<double>()),
+      y_obs_(configs_["y_pos"].as<double>()),
+      r_obs_(configs_["radius"].as<double>()),
       r_margin_(0.2 + std::max(foot_width_, foot_height_)),
       co_({x_obs_, y_obs_, r_obs_ + r_margin_ , r_margin_}),
 
@@ -217,10 +216,14 @@ BaseGenerator::BaseGenerator(const int n, const double t, const double t_step,
       v_kp1_0_(n_),
       v_kp1_(n_, nf_) {
   // Center of mass initial values.
-  c_k_x_0_ << 0., 0., 0.;
-  c_k_y_0_ << 0., 0., 0.; 
-  c_k_q_0_.setZero();
-  h_com_0_ = 0.46;
+  std::vector<double> tmp_com_x = configs_["com_x"].as<std::vector<double>>();
+  std::vector<double> tmp_com_y = configs_["com_y"].as<std::vector<double>>();
+  std::vector<double> tmp_com_q = configs_["com_q"].as<std::vector<double>>();
+
+  c_k_x_0_ = Eigen::Vector3d::Map(tmp_com_x.data());
+  c_k_y_0_ = Eigen::Vector3d::Map(tmp_com_y.data());
+  h_com_0_ = configs_["com_z"].as<double>();
+  c_k_q_0_ = Eigen::Vector3d::Map(tmp_com_q.data());
 
   // Center of mass matrices.
     c_kp1_x_.setZero();
@@ -247,9 +250,9 @@ BaseGenerator::BaseGenerator(const int n, const double t, const double t_step,
   local_vel_ref_.setZero();
 
   // Feet matrices.
-  f_k_x_0_ = 0.;
-  f_k_y_0_ = 0.04;
-  f_k_q_0_ = 0.;
+  f_k_x_0_ = configs_["foot_x"].as<double>();
+  f_k_y_0_ = configs_["foot_y"].as<double>();
+  f_k_q_0_ = configs_["foot_q"].as<double>();
 
   f_k_x_.setZero();
   f_k_y_.setZero();
@@ -310,19 +313,13 @@ BaseGenerator::BaseGenerator(const int n, const double t, const double t_step,
   pzs_.setZero();
   pzu_.setZero();
 
-  // Convex hulls used to bound the free placement of the foot.     
-  lf_pos_hull_ << -0.11, 0.14,
-                  -0.10, 0.16, 
-                   0.00, 0.17, 
-                   0.10, 0.16, 
-                   0.11, 0.14;
+  // Convex hulls used to bound the free placement of the foot.
+  std::vector<double> tmp_lf_pos_hull = configs_["left_foot_convex_hull"].as<std::vector<double>>();
+  std::vector<double> tmp_rf_pos_hull = configs_["right_foot_convex_hull"].as<std::vector<double>>();
   
-  rf_pos_hull_ << -0.11, -0.14, 
-                  -0.10, -0.16, 
-                   0.00, -0.17, 
-                   0.10, -0.16, 
-                   0.11, -0.14;
-  
+  lf_pos_hull_ = Eigen::Map<RowMatrixXd>(tmp_lf_pos_hull.data(), 5, 2);
+  rf_pos_hull_ = Eigen::Map<RowMatrixXd>(tmp_rf_pos_hull.data(), 5, 2);
+
   // Set of cartesian equalities.
   a0l_.setZero();
   ubb0l_.setZero();
@@ -339,8 +336,8 @@ BaseGenerator::BaseGenerator(const int n, const double t, const double t_step,
   ubb_foot_.setZero();
 
   // Security margins for cop constraints.
-  security_margin_x_ = 0.02;
-  security_margin_y_ = 0.02;
+  security_margin_x_ = configs_["security_margin"].as<std::vector<double>>()[0];
+  security_margin_y_ = configs_["security_margin"].as<std::vector<double>>()[1];
 
   // Position of the vertices of the feet in the foot coordinates.
   lfoot_.setZero();
@@ -401,7 +398,7 @@ BaseGenerator::BaseGenerator(const int n, const double t, const double t_step,
   lbb_fvel_ineq_.setZero();
 
   // Current support state.
-  current_support_ = {f_k_x_0_, f_k_y_0_, f_k_q_0_, "left"};
+  current_support_ = {f_k_x_0_, f_k_y_0_, f_k_q_0_, configs_["support_foot"].as<std::string>()};
   current_support_.time_limit = 0.;
   current_support_.ds = 0.;
   support_deque_[0].ds = 1;
@@ -1173,15 +1170,15 @@ void BaseGenerator::UpdateCopConstraintTransformation() {
       b0d << ubb0drf_;
     }
 
-    // Get support foot and check if it is double support.
-    for (int j = 0; j < nf_; j++) {
-      if (v_kp1_(i, j) == 1) {
-        if (fsm_states_[j] == "D") {
-          a0 << a0d;
-          b0 << b0d;
-        }
-      }
-    }
+    // // Get support foot and check if it is double support.
+    // for (int j = 0; j < nf_; j++) {
+    //   if (v_kp1_(i, j) == 1) {
+    //     if (fsm_states_[j] == "D") {
+    //       a0 << a0d;
+    //       b0 << b0d;
+    //     }
+    //   }
+    // }
 
     for (int k = 0; k < n_foot_edge_; k++) {
       // Get d_i+1^x(f^theta).

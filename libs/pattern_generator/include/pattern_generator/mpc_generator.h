@@ -6,12 +6,13 @@
 #include "interpolation.h"
 
 #include <qpOASES.hpp>
+#include "yaml-cpp/yaml.h"
 
 // This is a reimplementation of the algorithms presented in:
 //
 // 'Walking without thinking about it', Herdt, A. et al., 2010.
 //
-// A full understanding on how the MPCGenerator class is ment to use,
+// A full understanding on how the MPCGenerator class is ment to be used,
 // can be gained through the Example() function which is implemented in
 // this class.
 //
@@ -34,16 +35,11 @@
 class MPCGenerator : public BaseGenerator
 {
 public:
-    MPCGenerator(const int n, const double t, const double t_step,
-                 const std::string fsm_state);
+    MPCGenerator(const std::string config_file_loc = "../libs/pattern_generator/configs.yaml");
 
     void Solve();
 
-    void Simulate();
-
-    PatternGeneratorState Update();
-
-    static void Example(const std::string loc);
+    static void Example(const std::string config_file_loc, const std::string output_loc);
 
 public:
     void PreprocessSolution();
@@ -64,6 +60,8 @@ public:
     std::vector<double> cpu_time_;
     int nwsr_;
     qpOASES::Options options_;
+    qpOASES::returnValue status_ori_;
+    qpOASES::returnValue status_pos_;
 
     // Constraint dimensions.
     const int ori_nv_;

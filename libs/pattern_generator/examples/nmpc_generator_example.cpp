@@ -5,36 +5,25 @@
 
 int main() {
     // Initialize pattern generator.
-    const int n = 16;
-    const double t = 0.1;
-    const double t_step = 0.8;
-    const std::string fsm_state = "L/R";
+    const std::string config_file_loc = "../libs/pattern_generator/configs.yaml";
 
-    NMPCGenerator nmpc(n, t, t_step, fsm_state);
-
+    NMPCGenerator nmpc(config_file_loc);
 
     // Pattern generator preparation.
-    nmpc.SetSecurityMargin(0.02, 0.02);
-
+    nmpc.SetSecurityMargin(nmpc.SecurityMarginX(), 
+                           nmpc.SecurityMarginY());
 
     // Set initial values.
-    Eigen::Vector3d com_x(0., 0., 0.);
-    Eigen::Vector3d com_y(0.04, 0., 0.);
-    double com_z = 0.46;
-    double foot_x = 0.;
-    double foot_y = 0.07;
-    double foot_q = 0.;
-    std::string foot = "left";
-    Eigen::Vector3d com_q(0., 0., 0.);
+    PatternGeneratorState pg_state = {nmpc.Ckx0(),
+                                      nmpc.Cky0(),
+                                      nmpc.Hcom(),
+                                      nmpc.Fkx0(),
+                                      nmpc.Fky0(),
+                                      nmpc.Fkq0(),
+                                      nmpc.CurrentSupport().foot,
+                                      nmpc.Ckq0()};
 
-    PatternGeneratorState pg_state = {com_x,
-                                    com_y,
-                                    com_z,
-                                    foot_x,
-                                    foot_y,
-                                    foot_q,
-                                    foot,
-                                    com_q};
+    nmpc.SetInitialValues(pg_state);
 
     nmpc.SetInitialValues(pg_state);
     Interpolation interpol_nmpc(0.005, nmpc);

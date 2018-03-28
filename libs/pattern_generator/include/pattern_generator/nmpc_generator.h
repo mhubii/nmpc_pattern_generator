@@ -6,6 +6,7 @@
 #include "interpolation.h"
 
 #include <qpOASES.hpp>
+#include "yaml-cpp/yaml.h"
 
 // Nonlinear Model Predictive Control (NMPC) Pattern Generator,
 // based on the work of Maximilien Naveau et al.:
@@ -13,7 +14,7 @@
 // 'A Reactive Walking Pattern Generator Based on Nonlinear Model
 // Predictive Control'. 
 //
-// A full understanding on how the NMPCGenerator class is ment to use,
+// A full understanding on how the NMPCGenerator class is ment to be used,
 // can be gained through the Example() function which is implemented in
 // this class.
 //
@@ -36,16 +37,13 @@
 class NMPCGenerator : public BaseGenerator
 {
 public:
-    NMPCGenerator(const int n, const double t, const double t_step,
-                  const std::string fsm_state);
+    NMPCGenerator(const std::string config_file_loc = "../libs/pattern_generator/configs.yaml");
 
     void Solve();
-
-    void Simulate();
     
     PatternGeneratorState Update();
 
-    static void Example(const std::string loc);
+    static void Example(const std::string config_file_loc, const std::string output_loc);
 
 public:
     void PreprocessSolution();
@@ -64,6 +62,7 @@ public:
     std::vector<double> cpu_time_;
     int nwsr_;
     qpOASES::Options options_;
+    qpOASES::returnValue status_;
 
     // Variable dimensions.
     const int nv_;

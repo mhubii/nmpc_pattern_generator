@@ -6,6 +6,7 @@
 #include <unsupported/Eigen/CXX11/Tensor>
 #include <vector>
 #include <string>
+#include "yaml-cpp/yaml.h"
 #include "utils.h"
 
 // Base class of walking pattern generator for humanoids, 
@@ -19,26 +20,32 @@
 class BaseGenerator
 {
 public:
-    BaseGenerator(const int n, const double t, const double t_step,
-                  const std::string fsm_state);
+    BaseGenerator(const std::string config_file_loc = "../libs/pattern_generator/configs.yaml");
 
     // Getters.
-    inline const double&              G()              const { return g_;               };
-    inline const double&              T()              const { return t_;               };
-    inline const Eigen::Vector3d&     Ckx0()           const { return c_k_x_0_;         };
-    inline const Eigen::Vector3d&     Cky0()           const { return c_k_y_0_;         };
-    inline const Eigen::Vector3d&     Ckq0()           const { return c_k_q_0_;         };
-    inline const Eigen::VectorXd&     Dddckx()         const { return dddc_k_x_;        };
-    inline const Eigen::VectorXd&     Dddcky()         const { return dddc_k_y_;        };
-    inline const double&              Hcom()           const { return h_com_0_;         };
-    inline const double&              Fkx0()           const { return f_k_x_0_;         };
-    inline const double&              Fky0()           const { return f_k_y_0_;         };
-    inline const double&              Fkq0()           const { return f_k_q_0_;         };
-    inline const Eigen::VectorXd&     Fkx()            const { return f_k_x_;           };
-    inline const Eigen::VectorXd&     Fky()            const { return f_k_y_;           };
-    inline const Eigen::VectorXd&     Fkq()            const { return f_k_q_;           };
-    inline const BaseTypeSupportFoot& CurrentSupport() const { return current_support_; };
-    inline const Eigen::VectorXi&     Vkp10()          const { return v_kp1_0_;         };
+    inline const double&              G()               const { return g_;                 };
+    inline const double&              T()               const { return t_;                 };
+    inline const double&              TStep()           const { return t_step_;            };
+    inline const Eigen::Vector3d&     Ckx0()            const { return c_k_x_0_;           };
+    inline const Eigen::Vector3d&     Cky0()            const { return c_k_y_0_;           };
+    inline const Eigen::Vector3d&     Ckq0()            const { return c_k_q_0_;           };
+    inline const Eigen::VectorXd&     Dddckx()          const { return dddc_k_x_;          };
+    inline const Eigen::VectorXd&     Dddcky()          const { return dddc_k_y_;          };
+    inline const double&              Hcom()            const { return h_com_0_;           };
+    inline const double&              Fkx0()            const { return f_k_x_0_;           };
+    inline const double&              Fky0()            const { return f_k_y_0_;           };
+    inline const double&              Fkq0()            const { return f_k_q_0_;           };
+    inline const Eigen::VectorXd&     Fkx()             const { return f_k_x_;             };
+    inline const Eigen::VectorXd&     Fky()             const { return f_k_y_;             };
+    inline const Eigen::VectorXd&     Fkq()             const { return f_k_q_;             };
+    inline const double&              SecurityMarginX() const { return security_margin_x_; };
+    inline const double&              SecurityMarginY() const { return security_margin_y_; };
+    inline const double&              FootDistance()    const { return foot_distance_;     };
+    inline const BaseTypeSupportFoot& CurrentSupport()  const { return current_support_;   };
+    inline const Eigen::VectorXi&     Vkp10()           const { return v_kp1_0_;           };
+
+
+
 
 public:
     void SetSecurityMargin(const double margin_x, const double margin_y);
@@ -86,6 +93,9 @@ public:
 
     void UpdateFootSelectionMatrices();
 
+    // Configurations.
+    YAML::Node configs_;
+
     // Constants.
     const double g_;
 
@@ -93,17 +103,14 @@ public:
     const int n_;                 // #
     const double t_;              // s
     const double t_step_;         // s
-    const std::string fsm_state_;      // D, L/R, R/L, Lbar/Rbar or Rbar/Lbar
     
     // For internal usage.
     const double t_window_;       // s
     const int nf_;                // #
     double time_;                 // s
-    std::vector<std::string> fsm_states_;   // D, L/R, R/L, Lbar/Rbar or Rbar/Lbar
 
     // Objective weights.
     const double alpha_;
-    const double beta_;
     const double gamma_;
     const double delta_;
 

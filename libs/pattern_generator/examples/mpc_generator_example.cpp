@@ -5,36 +5,23 @@
 
 int main() {
     // Instantiate pattern generator.
-    const int n = 16;
-    const double t = 0.1;
-    const double t_step = 0.8;
-    const std::string fsm_state = "L/R";
+    const std::string config_file_loc = "../configs.yaml";
 
-    MPCGenerator mpc(n, t, t_step, fsm_state);
-
+    MPCGenerator mpc(config_file_loc);
 
     // Pattern generator preparation.
-    mpc.SetSecurityMargin(0.02, 0.02);
-
+    mpc.SetSecurityMargin(mpc.SecurityMarginX(), 
+                          mpc.SecurityMarginY());
 
     // Set initial values.
-    Eigen::Vector3d com_x(0., 0., 0.);
-    Eigen::Vector3d com_y(0.04, 0., 0.);
-    double com_z = 0.46;
-    double foot_x = 0.;
-    double foot_y = 0.07;
-    double foot_q = 0.;
-    std::string foot = "left";
-    Eigen::Vector3d com_q(0., 0., 0.);
-
-    PatternGeneratorState pg_state = {com_x,
-                                    com_y,
-                                    com_z,
-                                    foot_x,
-                                    foot_y,
-                                    foot_q,
-                                    foot,
-                                    com_q};
+    PatternGeneratorState pg_state = {mpc.Ckx0(),
+                                      mpc.Cky0(),
+                                      mpc.Hcom(),
+                                      mpc.Fkx0(),
+                                      mpc.Fky0(),
+                                      mpc.Fkq0(),
+                                      mpc.CurrentSupport().foot,
+                                      mpc.Ckq0()};
 
     mpc.SetInitialValues(pg_state);
     Interpolation interpol_mpc(0.005, mpc);
