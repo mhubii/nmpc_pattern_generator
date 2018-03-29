@@ -18,6 +18,8 @@ foot_distance: 0.14
 # Interpolation.
 command_period: 0.005
 n_still: 30
+t_ds: 0.1
+step_height: 
 
 # Initial values.
 com_x: [0.0 , 0.0, 0.0]
@@ -31,6 +33,8 @@ foot_q: 0.0
 
 # Environment.
 gravity: 9.81
+
+# Obstacle.
 x_pos: 10
 y_pos: 10
 radius: 0

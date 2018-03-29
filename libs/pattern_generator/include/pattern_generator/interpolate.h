@@ -28,8 +28,9 @@ public:
 public:
     void TESTInitializeLIPM();
 
-    // TODO
-    // void TESTInterpolateFeet();
+    void TESTInitializeTrajectories();
+
+    void TESTInterpolateFeet();
 
     void TESTInterpolateLIPM();
 

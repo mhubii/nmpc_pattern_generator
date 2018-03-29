@@ -154,7 +154,7 @@ private:
     const BaseGenerator& base_generator_;
 };
 
-// Interpolation class of walking pattern generator for humoids,
+// Interpolation class of walking pattern generator for humanoids,
 // cf. LAAS-UHEI walking report.
 //
 // Interpolation class provides all methods to interpolate from

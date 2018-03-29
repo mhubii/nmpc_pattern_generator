@@ -23,93 +23,134 @@ TESTInterpolation::TESTInterpolation(BaseGenerator& base_generator)
       n_still_(base_generator.configs_["n_still"].as<int>()),
 
       // Interpolated trajectories.
-      trajectories_(n_still_, 21),
-      trajectories_buffer_(intervals_, 21),
+      trajectories_(21, n_still_*intervals_),
+      trajectories_buffer_(21, intervals_),
 
       // Center of mass.
-      com_x_buffer_(trajectories_buffer_.block(0, 0, intervals_, 3)),
-      com_y_buffer_(trajectories_buffer_.block(0, 3, intervals_, 3)),
-      com_z_buffer_(trajectories_buffer_.block(0, 6, intervals_, 1)),
-      com_q_buffer_(trajectories_buffer_.block(0, 7, intervals_, 3)),
+      com_x_buffer_(trajectories_buffer_.block(0, 0, 3, intervals_)),
+      com_y_buffer_(trajectories_buffer_.block(3, 0, 3, intervals_)),
+      com_z_buffer_(trajectories_buffer_.block(6, 0, 1, intervals_)),
+      com_q_buffer_(trajectories_buffer_.block(7, 0, 3, intervals_)),
   
       // Zero moment point.
-      zmp_x_buffer_(trajectories_buffer_.col(10)),
-      zmp_y_buffer_(trajectories_buffer_.col(11)),
-      zmp_z_buffer_(trajectories_buffer_.col(12)),
+      zmp_x_buffer_(trajectories_buffer_.block(10, 0, 1, intervals_)),
+      zmp_y_buffer_(trajectories_buffer_.block(11, 0, 1, intervals_)),
+      zmp_z_buffer_(trajectories_buffer_.block(12, 0, 1, intervals_)),
   
       // Left foot.
-      lf_x_buffer_(trajectories_buffer_.col(13)),
-      lf_y_buffer_(trajectories_buffer_.col(14)),
-      lf_z_buffer_(trajectories_buffer_.col(15)),
-      lf_q_buffer_(trajectories_buffer_.col(16)),
+      lf_x_buffer_(trajectories_buffer_.block(13, 0, 1, intervals_)),
+      lf_y_buffer_(trajectories_buffer_.block(14, 0, 1, intervals_)),
+      lf_z_buffer_(trajectories_buffer_.block(15, 0, 1, intervals_)),
+      lf_q_buffer_(trajectories_buffer_.block(16, 0, 1, intervals_)),
   
       // Right foot.
-      rf_x_buffer_(trajectories_buffer_.col(17)),
-      rf_y_buffer_(trajectories_buffer_.col(18)),
-      rf_z_buffer_(trajectories_buffer_.col(19)),
-      rf_q_buffer_(trajectories_buffer_.col(20)) {
+      rf_x_buffer_(trajectories_buffer_.block(17, 0, 1, intervals_)),
+      rf_y_buffer_(trajectories_buffer_.block(18, 0, 1, intervals_)),
+      rf_z_buffer_(trajectories_buffer_.block(19, 0, 1, intervals_)),
+      rf_q_buffer_(trajectories_buffer_.block(20, 0, 1, intervals_)) {
 
-  // Interpolated trajectories.
-  // TODO
+    // Interpolated trajectories.
+    trajectories_.setZero();
+    trajectories_buffer_.setZero();
 
-  // Initialize linear inverted pendulum.
-  a_.setZero();
-  b_.setZero();
-  c_.setZero();
+    // Initialize models.
+    a_.setZero();
+    b_.setZero();
+    c_.setZero();
 
-  ac_.setZero();
-  bc_.setZero();
+    ac_.setZero();
+    bc_.setZero();
 
-  TESTInitializeLIPM();
+    TESTInitializeTrajectories();
+    TESTInitializeLIPM();
 }
 
 void TESTInterpolation::TESTInterpolate() {
     // Interpolate.
     TESTInterpolateLIPM();
-    // TESTInterpolateFeet();
+    TESTInterpolateFeet();
 
-    // Append trajectories.
-    std::cout << trajectories_ << std::endl;
-    trajectories_.conservativeResize(trajectories_.rows(), trajectories_.rows() + intervals_);
-    trajectories_.bottomRows(intervals_) = trajectories_buffer_;
-    std::cout << trajectories_ << std::endl;
+    // Append by buffered trajectories.
+    trajectories_.conservativeResize(trajectories_.rows(), trajectories_.cols() + intervals_);
+    trajectories_.rightCols(intervals_) = trajectories_buffer_;
 }
 
 void TESTInterpolation::TESTInitializeLIPM() {
-  a_ << 1., t_, t_*t_*0.5,
-        0., 1.,        t_,
-        0., 0.,        1.;
 
-  b_ << t_*t_*t_/6.,
-           t_*t_/2.,
-                 t_;
+    // 
+    a_ << 1., t_, t_*t_*0.5,
+          0., 1.,        t_,
+          0., 0.,        1.;
 
-  c_ <<         1.,
-                0.,
-        -h_com_/g_;
+    b_ << t_*t_*t_/6.,
+             t_*t_/2.,
+                   t_;
 
-  ac_ << 1., tc_, tc_*tc_*0.5,
-         0.,  1.,         tc_,
-         0.,  0.,          1.;
+    c_ <<         1.,
+                  0.,
+          -h_com_/g_;
 
-  bc_ << tc_*tc_*tc_/6.,
-             tc_*tc_/2.,
-                    tc_;
+    ac_ << 1., tc_, tc_*tc_*0.5,
+           0.,  1.,         tc_,
+           0.,  0.,          1.;
+
+    bc_ << tc_*tc_*tc_/6.,
+               tc_*tc_/2.,
+                      tc_;
+}
+
+void TESTInterpolation::TESTInitializeTrajectories() {
+    
+    // Initialize the standing still trajectories. Center of mass.
+    com_x_buffer_.colwise() = base_generator_.Ckx0();
+    com_y_buffer_.colwise() = base_generator_.Cky0();
+    com_z_buffer_.setConstant(base_generator_.Hcom());
+    com_q_buffer_.colwise() = base_generator_.Ckq0();
+
+    // Zero moment point.
+    zmp_x_buffer_.setConstant(base_generator_.Ckx0()(0) - base_generator_.Hcom()/g_*base_generator_.Ckx0()(2));
+    zmp_y_buffer_.setConstant(base_generator_.Cky0()(0) - base_generator_.Hcom()/g_*base_generator_.Cky0()(2));
+
+    // Feet, depending on the current support.
+    if (base_generator_.CurrentSupport().foot == "left") { // TODO changed
+        lf_x_buffer_.setConstant(base_generator_.Fkx0());
+        lf_y_buffer_.setConstant(base_generator_.Fky0());
+        lf_q_buffer_.setConstant(base_generator_.Fkq0());
+        rf_x_buffer_.setConstant(base_generator_.Fkx0() + base_generator_.FootDistance()*sin(base_generator_.Fkq0()));
+        rf_y_buffer_.setConstant(base_generator_.Fky0() - base_generator_.FootDistance()*cos(base_generator_.Fkq0()));
+        rf_q_buffer_.setConstant(base_generator_.Fkq0());
+    }
+    else {
+        lf_x_buffer_.setConstant(base_generator_.Fkx0() - base_generator_.FootDistance()*sin(base_generator_.Fkq0())); 
+        lf_y_buffer_.setConstant(base_generator_.Fky0() + base_generator_.FootDistance()*cos(base_generator_.Fkq0()));
+        lf_q_buffer_.setConstant(base_generator_.Fkq0());
+        rf_x_buffer_.setConstant(base_generator_.Fkx0());
+        rf_y_buffer_.setConstant(base_generator_.Fky0());
+        rf_q_buffer_.setConstant(base_generator_.Fkq0());
+    }
+
+    // Unload the buffer.
+    trajectories_ = trajectories_buffer_.replicate(1, n_still_);
 }
 
 void TESTInterpolation::TESTInterpolateLIPM() {
-  // Initialize buffer with current values.
-  com_x_buffer_.row(0) = base_generator_.Ckx0();
-  com_y_buffer_.row(0) = base_generator_.Cky0();
-  zmp_x_buffer_.row(0) = c_.transpose()*base_generator_.Ckx0();
-  zmp_y_buffer_.row(0) = c_.transpose()*base_generator_.Cky0();
 
-  for (int i = 1; i < intervals_; i++) {
-      com_x_buffer_.row(i) << a_*com_x_buffer_.row(i - 1).transpose() + b_*base_generator_.Dddckx()(0);
-      com_y_buffer_.row(i) << a_*com_y_buffer_.row(i - 1).transpose() + b_*base_generator_.Dddcky()(0);
-      zmp_x_buffer_.row(i) << com_x_buffer_.row(i - 1)*c_;
-      zmp_y_buffer_.row(i) << com_y_buffer_.row(i - 1)*c_;
-  }
+    // Initialize buffer with current values.
+    com_x_buffer_.col(0) = base_generator_.Ckx0();
+    com_y_buffer_.col(0) = base_generator_.Cky0();
+    zmp_x_buffer_.col(0) = c_.transpose()*base_generator_.Ckx0();
+    zmp_y_buffer_.col(0) = c_.transpose()*base_generator_.Cky0();
 
-  // TODO
+    for (int i = 1; i < intervals_; i++) { // TODO used ac instead.
+        com_x_buffer_.col(i) = ac_*com_x_buffer_.col(i - 1) + bc_*base_generator_.Dddckx().row(0);
+        com_y_buffer_.col(i) = ac_*com_y_buffer_.col(i - 1) + bc_*base_generator_.Dddcky().row(0);
+        zmp_x_buffer_.col(i) << c_.transpose()*com_x_buffer_.col(i - 1);
+        zmp_y_buffer_.col(i) << c_.transpose()*com_y_buffer_.col(i - 1);
+    }
+
+    // TODO current com?
+}
+
+void TESTInterpolation::TESTInterpolateFeet() {
+
 }
