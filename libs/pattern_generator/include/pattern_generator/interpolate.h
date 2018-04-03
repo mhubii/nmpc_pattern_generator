@@ -2,6 +2,7 @@
 #define TESTINTERPOLATE_H_
 
 #include <Eigen/Dense>
+#include <unsupported/Eigen/Polynomials>
 #include "yaml-cpp/yaml.h"
 
 #include "base_generator.h"
@@ -20,24 +21,29 @@ class TESTInterpolation
 public:
     TESTInterpolation(BaseGenerator& base_generator);
 
-    void TESTInterpolate();
+    void TESTInterpolate(double time);
 
     // Getters.
     inline const Eigen::MatrixXd& Trajectories() const { return trajectories_; };
 
 public:
+    void Set4thOrderCoefficients(Eigen::VectorXd& coef,
+                                 double final_time, double middle_pos,
+                                 double init_pos, double init_vel);
+
+    void Set5thOrderCoefficients(Eigen::VectorXd& coef,
+                                 double final_time, double final_pos,
+                                 double init_pos, double init_vel, double init_acc);
+
+    Eigen::VectorXd Derivative(Eigen::VectorXd& coef);
+
     void TESTInitializeLIPM();
 
     void TESTInitializeTrajectories();
 
-    void TESTInterpolateFeet();
+    void TESTInterpolateFeet(double time);
 
     void TESTInterpolateLIPM();
-
-    // TODO
-    // void TESTInitializePolynomial();
-
-    // void TESTDerivative();
 
     // Base generator.
     const BaseGenerator& base_generator_;
@@ -84,6 +90,12 @@ public:
     Eigen::Ref<Eigen::MatrixXd> rf_y_buffer_;
     Eigen::Ref<Eigen::MatrixXd> rf_z_buffer_;
     Eigen::Ref<Eigen::MatrixXd> rf_q_buffer_;
+
+    // Foot interpolation coefficients.
+    Eigen::VectorXd f_coef_x_;
+    Eigen::VectorXd f_coef_y_;
+    Eigen::VectorXd f_coef_z_;
+    Eigen::VectorXd f_coef_q_;
 
     // Linear inverted pendulum.
     Eigen::Matrix3d a_;
