@@ -15,5 +15,5 @@ int main() {
 
     // New implementation.
     TESTInterpolation TESTinter(base_gen);
-    TESTinter.TESTInterpolate();
+    TESTinter.TESTInterpolate(0.);
 }

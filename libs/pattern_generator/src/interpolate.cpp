@@ -47,11 +47,23 @@ TESTInterpolation::TESTInterpolation(BaseGenerator& base_generator)
       rf_x_buffer_(trajectories_buffer_.block(17, 0, 1, intervals_)),
       rf_y_buffer_(trajectories_buffer_.block(18, 0, 1, intervals_)),
       rf_z_buffer_(trajectories_buffer_.block(19, 0, 1, intervals_)),
-      rf_q_buffer_(trajectories_buffer_.block(20, 0, 1, intervals_)) {
+      rf_q_buffer_(trajectories_buffer_.block(20, 0, 1, intervals_)),
+      
+      // Foot interpolation coefficients.
+      f_coef_x_(5),
+      f_coef_y_(5),
+      f_coef_z_(4),
+      f_coef_q_(5) {
 
     // Interpolated trajectories.
     trajectories_.setZero();
     trajectories_buffer_.setZero();
+      
+    // Foot interpolation coefficients.
+    f_coef_x_.setZero();
+    f_coef_y_.setZero();
+    f_coef_z_.setZero();
+    f_coef_q_.setZero();
 
     // Initialize models.
     a_.setZero();
@@ -65,14 +77,80 @@ TESTInterpolation::TESTInterpolation(BaseGenerator& base_generator)
     TESTInitializeLIPM();
 }
 
-void TESTInterpolation::TESTInterpolate() {
+void TESTInterpolation::TESTInterpolate(double time) {
+    
     // Interpolate.
     TESTInterpolateLIPM();
-    TESTInterpolateFeet();
+    TESTInterpolateFeet(time);
 
     // Append by buffered trajectories.
     trajectories_.conservativeResize(trajectories_.rows(), trajectories_.cols() + intervals_);
     trajectories_.rightCols(intervals_) = trajectories_buffer_;
+}
+
+void Set4thOrderCoefficients(Eigen::VectorXd& coef,
+                             double final_time, double middle_pos,
+                             double init_pos, double init_vel) {
+    
+    // Set the 4th order coefficients for the interpolation.
+    coef(0) = init_pos;
+    coef(1) = init_vel;
+
+    if (final_time == 0.) {
+        coef.tail(3).setZero();
+    }
+    else {
+        coef(2) = (-  4.*init_vel*final_time
+                   - 11.*init_pos
+                   + 16.*middle_pos)/Eigen::numext::pow(final_time, 2.);
+
+        coef(3) = (   5.*init_vel*final_time
+                   + 18.*init_pos
+                   - 32.*middle_pos)/Eigen::numext::pow(final_time, 3.);
+
+        coef(4) = (-  2.*init_vel*final_time
+                   -  8.*init_pos
+                   + 16.*middle_pos)/Eigen::numext::pow(final_time, 4.);
+    }
+}
+
+void Set5thOrderCoefficients(Eigen::VectorXd& coef,
+                             double final_time, double final_pos,
+                             double init_pos, double init_vel, double init_acc) {
+
+    // Set the 5th order coefficients for the interpolation.
+    coef(0) = init_pos;
+    coef(1) = init_vel;
+    coef(2) = init_acc;
+
+    if (final_time == 0.) {
+        coef.tail(3).setZero();
+    }
+    else {
+        coef(3) = (-  1.5*init_acc*final_time*final_time
+                   -  6. *init_vel*final_time
+                   - 10. *(init_pos - final_pos))/Eigen::numext::pow(final_time, 3.);
+        
+        coef(4) = (   1.5*init_acc*final_time*final_time
+                   +  8. *init_vel*final_time
+                   + 15. *(init_pos - final_pos))/Eigen::numext::pow(final_time, 4.);
+        
+        coef(5) = (-  0.5*init_acc*final_time*final_time
+                   -  3. *init_vel*final_time
+                   -  6. *(init_pos - final_pos))/Eigen::numext::pow(final_time, 5.);
+    }
+}
+
+Eigen::VectorXd Derivative(Eigen::VectorXd& coef) {
+    
+    // Calculate the derivative of a coefficient vector.
+    Eigen::VectorXd d_coef = Eigen::VectorXd::Zero(coef.size() - 1);
+
+    for (int i = 0; i < coef.size() - 1; i++) {
+        d_coef(i) = (i + 1)*coef(i + 1);
+    }
+
+    return d_coef;
 }
 
 void TESTInterpolation::TESTInitializeLIPM() {
@@ -115,17 +193,23 @@ void TESTInterpolation::TESTInitializeTrajectories() {
     if (base_generator_.CurrentSupport().foot == "left") { // TODO changed
         lf_x_buffer_.setConstant(base_generator_.Fkx0());
         lf_y_buffer_.setConstant(base_generator_.Fky0());
+        lf_z_buffer_.setZero();
         lf_q_buffer_.setConstant(base_generator_.Fkq0());
+
         rf_x_buffer_.setConstant(base_generator_.Fkx0() + base_generator_.FootDistance()*sin(base_generator_.Fkq0()));
         rf_y_buffer_.setConstant(base_generator_.Fky0() - base_generator_.FootDistance()*cos(base_generator_.Fkq0()));
+        rf_z_buffer_.setZero();
         rf_q_buffer_.setConstant(base_generator_.Fkq0());
     }
     else {
         lf_x_buffer_.setConstant(base_generator_.Fkx0() - base_generator_.FootDistance()*sin(base_generator_.Fkq0())); 
         lf_y_buffer_.setConstant(base_generator_.Fky0() + base_generator_.FootDistance()*cos(base_generator_.Fkq0()));
+        lf_z_buffer_.setZero();
         lf_q_buffer_.setConstant(base_generator_.Fkq0());
+
         rf_x_buffer_.setConstant(base_generator_.Fkx0());
         rf_y_buffer_.setConstant(base_generator_.Fky0());
+        rf_z_buffer_.setZero();
         rf_q_buffer_.setConstant(base_generator_.Fkq0());
     }
 
@@ -151,6 +235,38 @@ void TESTInterpolation::TESTInterpolateLIPM() {
     // TODO current com?
 }
 
-void TESTInterpolation::TESTInterpolateFeet() {
+void TESTInterpolation::TESTInterpolateFeet(double time) {
+
+    // Double or single support.
+    double time_preview = base_generator_.Vkp10().sum()*t_;
+
+    if (base_generator_.TStep() < time_preview) {
+
+        // Stay still in case of double support.
+        lf_x_buffer_.setConstant(lf_x_buffer_(1, intervals_));
+        lf_y_buffer_.setConstant(lf_y_buffer_(1, intervals_));
+        lf_z_buffer_.setConstant(lf_z_buffer_(1, intervals_));
+        lf_q_buffer_.setConstant(lf_q_buffer_(1, intervals_));
+
+        rf_x_buffer_.setConstant(rf_x_buffer_(1, intervals_));
+        rf_y_buffer_.setConstant(rf_y_buffer_(1, intervals_));
+        rf_z_buffer_.setConstant(rf_z_buffer_(1, intervals_));
+        rf_q_buffer_.setConstant(rf_q_buffer_(1, intervals_));
+    }
+    else if (base_generator_.TStep() > time_preview) {
+
+        // Left or right support.
+        if (base_generator_.CurrentSupport().foot == "left") {
+
+        }
+        else {
+
+        }
+    }
+    
+    
+    
+    
+    // Compute x, y, z, and q coordinates for each foot in buffer.
 
 }
