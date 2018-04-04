@@ -31,12 +31,14 @@ int main() {
 
     nmpc.SetInitialValues(pg_state);
     TESTInterpolation interpol_nmpc(nmpc);
+    //Interpolation interpol_nmpc(0.005, nmpc);
     Eigen::Vector3d velocity_reference(0.1, 0., 0.);
 
 
     // Pattern generator event loop.
     for (int i = 0; i < 200; i++) {
         std::cout << "Iteration: " << i << std::endl;
+        //double time = i*0.1;
 
 
         // Change reference velocities.
@@ -70,4 +72,5 @@ int main() {
     // Save interpolated results.
     Eigen::MatrixXd traj = interpol_nmpc.Trajectories().transpose();
     WriteCsv("example_nmpc_generator_interpolated_results.csv", traj);
+    //interpol_nmpc.SaveToFile("example_nmpc_generator_interpolated_results.csv");
 }

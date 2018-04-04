@@ -166,25 +166,6 @@ void TESTInterpolation::Derivative(const Eigen::MatrixBase<Derived>& coef, Eigen
     }
 }
 
-void TESTInterpolation::EvaluateInterpolationXYQ(double& f_x, double& f_dx, double& f_ddx, 
-                              double& f_y, double& f_dy, double& f_ddy,
-                              double& f_q, double& f_dq, double& f_ddq, 
-                              double time) {
-    
-    // Evaluate the polynomials for the interpolations at time.
-    f_x = Eigen::poly_eval(f_coef_x_, time);
-    f_y = Eigen::poly_eval(f_coef_y_, time);
-    f_q = Eigen::poly_eval(f_coef_q_, time);
-
-    f_dx = Eigen::poly_eval(f_coef_dx_, time);
-    f_dy = Eigen::poly_eval(f_coef_dy_, time);
-    f_dq = Eigen::poly_eval(f_coef_dq_, time);
-
-    f_ddx = Eigen::poly_eval(f_coef_ddx_, time);
-    f_ddy = Eigen::poly_eval(f_coef_ddy_, time);
-    f_ddq = Eigen::poly_eval(f_coef_ddq_, time);
-}
-
 void TESTInterpolation::InitializeLIPM() {
 
     // TODO needed?
@@ -280,7 +261,7 @@ void TESTInterpolation::InterpolateFeet() {
         const double t_till_drop_down = base_generator_.Vkp10().sum()*t_ - t_transition;
 
         // Indicates the current time inside the single support phase.
-        const double t_current = base_generator_.Vkp10().sum()*t_ - t_ss_;
+        const double t_current = t_ss_ - base_generator_.Vkp10().sum()*t_;
 
         // Left or right foot.
         if (base_generator_.CurrentSupport().foot == "left") {
@@ -325,14 +306,10 @@ void TESTInterpolation::InterpolateFeet() {
             Derivative(f_coef_dq_, f_coef_ddq_);
 
             for (int i = 0; i < intervals_; i++) {
-                                
-                // Evaluate interpolations for x, y, and q during the t_moving period.
-                if (t_current + i*tc_ > t_transition && t_current + i*tc_ < t_ss_ - t_transition) {
-                    // EvaluateInterpolationXYQ(rf_x_buffer_(0, i), rf_dx_buffer_(0, i), rf_dx_buffer_(0, i),
-                    //                          rf_y_buffer_(0, i), rf_dy_buffer_(0, i), rf_dy_buffer_(0, i),
-                    //                          rf_q_buffer_(0, i), rf_dq_buffer_(0, i), rf_dq_buffer_(0, i),
-                    //                          i*tc_);
 
+                if (t_current + i*tc_ > t_transition && t_current + i*tc_ < t_ss_ - t_transition) {
+                    
+                    // Evaluate interpolations for x, y, and q during the t_moving period.
                     rf_x_buffer_(0, i) = Eigen::poly_eval(f_coef_x_, i*tc_);
                     rf_y_buffer_(0, i) = Eigen::poly_eval(f_coef_y_, i*tc_);
                     rf_q_buffer_(0, i) = Eigen::poly_eval(f_coef_q_, i*tc_);
@@ -345,6 +322,21 @@ void TESTInterpolation::InterpolateFeet() {
                     rf_ddy_buffer_(0, i) = Eigen::poly_eval(f_coef_ddy_, i*tc_);
                     rf_ddq_buffer_(0, i) = Eigen::poly_eval(f_coef_ddq_, i*tc_);
                 }
+                else {
+
+                    // Dont move in x, y, and q directions during transitions.
+                    rf_x_buffer_.setConstant(rf_x_buffer_(0, intervals_ - 1));
+                    rf_y_buffer_.setConstant(rf_y_buffer_(0, intervals_ - 1));
+                    rf_q_buffer_.setConstant(rf_q_buffer_(0, intervals_ - 1));
+
+                    rf_dx_buffer_.setZero();
+                    rf_dy_buffer_.setZero();
+                    rf_dq_buffer_.setZero();
+
+                    rf_ddx_buffer_.setZero();
+                    rf_ddy_buffer_.setZero();
+                    rf_ddq_buffer_.setZero();
+                }
 
                 // Evaluate interpolations for z during the whole single support period.
                 rf_z_buffer_(0, i)   = Eigen::poly_eval(f_coef_z_, t_current + i*tc_);
@@ -353,7 +345,7 @@ void TESTInterpolation::InterpolateFeet() {
             }
         }
         else {
-            
+
             // Set the coefficients for the interpolation.
             Set5thOrderCoefficients(f_coef_x_,
                                     t_till_drop_down, 
@@ -394,13 +386,10 @@ void TESTInterpolation::InterpolateFeet() {
             Derivative(f_coef_dq_, f_coef_ddq_);
 
             for (int i = 0; i < intervals_; i++) {
-                                
-                // Evaluate interpolations for x, y, and q during the t_moving period.
+
                 if (t_current + i*tc_ > t_transition && t_current + i*tc_ < t_ss_ - t_transition) {
-                    // EvaluateInterpolationXYQ(lf_x_buffer_(0, i), lf_dx_buffer_(0, i), lf_ddx_buffer_(0, i), 
-                    //                          lf_y_buffer_(0, i), lf_dy_buffer_(0, i), lf_ddy_buffer_(0, i),
-                    //                          lf_q_buffer_(0, i), lf_dq_buffer_(0, i), lf_ddq_buffer_(0, i),
-                    //                          i*tc_);
+                    
+                    // Evaluate interpolations for x, y, and q during the t_moving period.
                     lf_x_buffer_(0, i) = Eigen::poly_eval(f_coef_x_, i*tc_);
                     lf_y_buffer_(0, i) = Eigen::poly_eval(f_coef_y_, i*tc_);
                     lf_q_buffer_(0, i) = Eigen::poly_eval(f_coef_q_, i*tc_);
@@ -412,6 +401,21 @@ void TESTInterpolation::InterpolateFeet() {
                     lf_ddx_buffer_(0, i) = Eigen::poly_eval(f_coef_ddx_, i*tc_);
                     lf_ddy_buffer_(0, i) = Eigen::poly_eval(f_coef_ddy_, i*tc_);
                     lf_ddq_buffer_(0, i) = Eigen::poly_eval(f_coef_ddq_, i*tc_);
+                }
+                else {
+
+                    // Dont move in x, y, and q directions during transitions.
+                    lf_x_buffer_.setConstant(lf_x_buffer_(0, intervals_ - 1));
+                    lf_y_buffer_.setConstant(lf_y_buffer_(0, intervals_ - 1));
+                    lf_q_buffer_.setConstant(lf_q_buffer_(0, intervals_ - 1));
+
+                    lf_dx_buffer_.setZero();
+                    lf_dy_buffer_.setZero();
+                    lf_dq_buffer_.setZero();
+
+                    lf_ddx_buffer_.setZero();
+                    lf_ddy_buffer_.setZero();
+                    lf_ddq_buffer_.setZero();
                 }
 
                 // Evaluate interpolations for z during the whole single support period.
@@ -474,9 +478,9 @@ void TESTInterpolation::Set5thOrderCoefficients(Eigen::MatrixBase<Derived>& coef
                                                 double init_pos, double init_vel, double init_acc) {
 
     // Set the 5th order coefficients for the interpolation.
-    coef(0) = init_pos;
-    coef(1) = init_vel;
-    coef(2) = init_acc;
+    coef(0) =     init_pos;
+    coef(1) =     init_vel;
+    coef(2) = 0.5*init_acc;
 
     if (final_time == 0.) {
         coef.tail(3).setZero();

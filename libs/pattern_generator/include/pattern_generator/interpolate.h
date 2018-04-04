@@ -30,11 +30,6 @@ public:
     template <typename Derived>
     void Derivative(const Eigen::MatrixBase<Derived>& coef, Eigen::MatrixBase<Derived>& dcoef);
 
-    void EvaluateInterpolationXYQ(double& f_x, double& f_dx, double& f_ddx, 
-                                  double& f_y, double& f_dy, double& f_ddy,
-                                  double& f_q, double& f_dq, double& f_ddq, 
-                                  double time);
-
     void InitializeLIPM();
 
     void InitializeTrajectories();
