@@ -1,12 +1,12 @@
 #ifndef NMPC_GENERATOR_H_
 #define NMPC_GENERATOR_H_
 
+#include <qpOASES.hpp>
+#include "yaml-cpp/yaml.h"
+
 #include "base_generator.h"
 #include "utils.h"
 #include "interpolation.h"
-
-#include <qpOASES.hpp>
-#include "yaml-cpp/yaml.h"
 
 // Nonlinear Model Predictive Control (NMPC) Pattern Generator,
 // based on the work of Maximilien Naveau et al.:

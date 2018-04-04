@@ -59,23 +59,3 @@ add_subdirectory(libs/pattern_generator)
 
 
 # Source.
-
-
-# Yaml library.
-# Download and unpack yaml at configure time.
-configure_file(cmake/CMakeLists.txt.in_yaml yaml-download/CMakeLists.txt)
-
-execute_process(COMMAND "${CMAKE_COMMAND}" -G "${CMAKE_GENERATOR}" .
-    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/yaml-download" )
-
-execute_process(COMMAND "${CMAKE_COMMAND}" --build .
-    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/yaml-download" )
-
-
-# Add yaml directly to our build. This adds
-# the following target: yaml-cpp.
-SET(BUILD_SHARED_LIBS ON CACHE BOOL "Build yaml shared library.")
-SET(YAML_CPP_BUILD_TESTS OFF CACHE BOOL "Prevent yaml from building tests.")
-
-add_subdirectory("${CMAKE_BINARY_DIR}/yaml-src"
-                 "${CMAKE_BINARY_DIR}/yaml-build")

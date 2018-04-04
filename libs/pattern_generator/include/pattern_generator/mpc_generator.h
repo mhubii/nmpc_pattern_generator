@@ -1,12 +1,12 @@
 #ifndef MPC_GENERATOR_H_
 #define MPC_GENERATOR_H_
 
+#include <qpOASES.hpp>
+#include "yaml-cpp/yaml.h"
+
 #include "base_generator.h"
 #include "utils.h"
 #include "interpolation.h"
-
-#include <qpOASES.hpp>
-#include "yaml-cpp/yaml.h"
 
 // This is a reimplementation of the algorithms presented in:
 //

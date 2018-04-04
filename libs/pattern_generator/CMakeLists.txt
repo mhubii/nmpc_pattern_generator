@@ -1,5 +1,6 @@
 # Add pattern generator library.
 find_package(qpOASES REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/pattern_generator)
 
