@@ -1,448 +1,488 @@
 #include "interpolation.h"
+
 #include <iostream>
 
-Polynomial::Polynomial(const int degree) 
-    : degree_(degree),
-      coef_(degree + 1),
-      ft_(0.) {
-  coef_.setZero();
-}
+Interpolation::Interpolation(BaseGenerator& base_generator)
+    : // Base generator.
+      base_generator_(base_generator),
 
-double Polynomial::Compute(double& time) {
-  if (time > ft_) {
-    time = ft_;
-  }
-  else if (time < 0.) {
-    time = 0.;
-  }
+      // Constants.
+      g_(base_generator.configs_["gravity"].as<double>()),
 
-  double r = 0.;
-  double t = 1.;
+      // Preview control period t_, and command period tc_.
+      t_(base_generator.T()),
+      tc_(base_generator.configs_["command_period"].as<double>()),
 
-  for (int i = 0; i < coef_.size(); i++) {
-    r += coef_(i)*t;
-    t *= time;
-  }
+      // Double support time.
+      t_ds_(base_generator_.configs_["t_ds"].as<double>()),
+      t_ss_(base_generator_.TStep() - t_ds_),
 
-  return r;
-}
-
-double Polynomial::ComputeDerivative(double& time) {
-  if (time > ft_) {
-    time = ft_;
-  }
-  else if (time < 0.) {
-    time = 0.;
-  }
-
-  double r = 0.;
-  double t = 1.;
-
-  for (int i = 1; i < coef_.size(); i++) {
-    r += i*coef_(i)*t;
-    t *= time;
-  }
-
-  return r;
-}
-
-double Polynomial::ComputeSecondDerivative(double& time) {
-  if (time > ft_) {
-    time = ft_;
-  }
-  else if (time < 0.) {
-    time = 0.;
-  }
-
-  double r = 0.;
-  double t = 1.;
-
-  for (int i = 2; i < coef_.size(); i++) {
-    r += i*(i - 1)*coef_(i)*t;
-    t *= time;
-  }
-
-  return r;
-}
-
-Polynomial4::Polynomial4()
-    : Polynomial(4) {
-  SetParameters(ft_, 0., 0., 0.);
-}
-
-void Polynomial4::SetParameters(double final_time, double middle_position, 
-                                double initial_position, double initial_speed) {
-  ft_ = final_time;
-  coef_(0) = initial_position;
-  coef_(1) = initial_speed;
-
-  double t = ft_*ft_;
-
-  if (t == 0.) {
-    coef_.tail(3).setZero();
-  }
-  else {
-    coef_(2) = (-4.*initial_speed*ft_ - 11.*initial_position + 16.*middle_position)/t; 
-    t *= ft_;
-    coef_(3) = ( 5.*initial_speed*ft_ + 18.*initial_position - 32.*middle_position)/t;
-    t *= ft_;
-    coef_(4) = (-2.*initial_speed*ft_ -  8.*initial_position + 16.*middle_position)/t;
-  }
-}
-
-Polynomial5::Polynomial5()
-    : Polynomial(5) {
-  SetParameters(ft_, 0., 0., 0., 0.);
-}
-
-void Polynomial5::SetParameters(double final_time, double final_position,
-                                double initial_position, double initial_speed, double initial_acceleration) {
-  ft_ = final_time;
-  coef_(0) = initial_position;
-  coef_(1) = initial_speed;
-  coef_(2) = initial_acceleration*0.5;
-
-  double t = ft_*ft_*ft_;
-
-  if (t == 0.) {
-    coef_.tail(3).setZero();
-  }
-  else {
-    coef_(3) = (-1.5*initial_acceleration*ft_*ft_ - 6.*initial_speed*ft_ - 10.*initial_position + 10.*final_position)/t;
-    t *= ft_;
-    coef_(4) = ( 1.5*initial_acceleration*ft_*ft_ + 8.*initial_speed*ft_ + 15.*initial_position - 15.*final_position)/t;
-    t *= ft_;
-    coef_(5) = (-0.5*initial_acceleration*ft_*ft_ - 3.*initial_speed*ft_ -  6.*initial_position +  6.*final_position)/t;
-  }
-}
-
-LIPM::LIPM(double control_period, double command_period, double h_com)
-    : tc_(control_period),
-      t_(command_period),
-      h_com_(h_com),
+      // Center of mass initial values.
+      h_com_(base_generator_.Hcom()),
+  
+      // Number of interpolation intervals.
+      intervals_(int(t_/tc_)),
       
-      interval_(int(control_period/command_period)) {
-  // For t_ sampling interpolation.
-  a_.setZero();
-  b_.setZero();
-  c_.setZero();
+      // Number of intervals that the robot stays still in the beginning.
+      n_still_(base_generator.configs_["n_still"].as<int>()),
 
-  // For tc_ sampling interpolation.
-  ac_.setZero();
-  bc_.setZero();
+      // Step height while walking.
+      step_height_(base_generator_.configs_["step_height"].as<double>()),
 
-  InitializeSystem();
-}
+      // Interpolated trajectories.
+      trajectories_(21, n_still_*intervals_),
+      trajectories_buffer_(21, intervals_),
 
-void LIPM::Interpolate(const double dddc_k_x_0, const double dddc_k_y_0,
-                       ComState& cur_com, std::vector<ComState>& com_buffer, std::vector<ZmpState>& zmp_buffer) {
-  com_buffer[0].x = cur_com.x;
-  com_buffer[0].y = cur_com.y;
-  zmp_buffer[0].x = c_.transpose()*cur_com.x;
-  zmp_buffer[0].y = c_.transpose()*cur_com.y;
-
-  for (int i = 1; i < interval_; i++) {
-    com_buffer[i].x = a_*com_buffer[i - 1].x + b_*dddc_k_x_0;
-    com_buffer[i].y = a_*com_buffer[i - 1].y + b_*dddc_k_y_0;
-    zmp_buffer[i].x = c_.transpose()*com_buffer[i].x;
-    zmp_buffer[i].y = c_.transpose()*com_buffer[i].y;
-  }
-
-  cur_com.x = ac_*cur_com.x + bc_*dddc_k_x_0;
-  cur_com.y = ac_*cur_com.y + bc_*dddc_k_y_0;
-}
-
-void LIPM::InitializeSystem() {
-  a_ << 1., t_, t_*t_*0.5,
-        0., 1.,        t_,
-        0., 0.,        1.;
-
-  b_ << t_*t_*t_/6.,
-           t_*t_/2.,
-                 t_;
-
-  c_ <<         1.,
-                0.,
-        -h_com_/g_;
-
-  ac_ << 1., tc_, tc_*tc_*0.5,
-         0.,  1.,         tc_,
-         0.,  0.,          1.;
-
-  bc_ << tc_*tc_*tc_/6.,
-             tc_*tc_/2.,
-                    tc_;
-}
-
-FootInterpolation::FootInterpolation(const BaseGenerator& base_generator,
-                                     double command_period,
-                                     double step_height, double double_support_time)
-    : t_(base_generator.T()),
-      tc_(command_period),
-      step_height_(step_height),
-      polynomial_x_(Polynomial5()),
-      polynomial_y_(Polynomial5()),
-      polynomial_q_(Polynomial5()),
-      polynomial_z_(Polynomial4()),
-      tss_(base_generator.TStep() - double_support_time),
-      tds_(double_support_time),
-      interval_(int(base_generator.T()/command_period)),
-      base_generator_(base_generator) {
-  polynomial_z_.SetParameters(tss_, step_height_, 0., 0.);
-}
-
-void FootInterpolation::Interpolate(double time, const BaseTypeSupportFoot& current_support, 
-                                    BaseTypeFoot& cur_left, BaseTypeFoot& cur_right,
-                                    double f_k_x_0, double f_k_y_0, double f_k_q_0,
-                                    std::vector<BaseTypeFoot>& lf_buffer, std::vector<BaseTypeFoot>& rf_buffer) {
-  // Update the current_state to be valid at the next iteration
-  // and fill up the queue containing all the intermediate values.
-  //
-  // |---------------||-------|-----------------------------|-------|
-  // | double        ||             single support phase            |
-  // | support       ||take   |     flying phase            |landing|
-  // | phase         ||off    |                             |       |
-  double time_limit = time + base_generator_.Vkp10().sum()*t_;
-  double epsilon = 0.02;
-
-  // In case of double support the policy is to stay still.
-  if (time + epsilon < time_limit - base_generator_.TStep() + t_) {
-    for (int i = 0; i < interval_; i++) {
-      lf_buffer[i] = cur_left;
-      rf_buffer[i] = cur_right;
-    }
-
-    // We define the z trajectory in the double support phase
-    // to allow the robot to take off and land during the whole
-    // single support duration.
-    polynomial_z_.SetParameters(tss_, step_height_, cur_right.z, cur_right.dz);
-  }
-  else if (time + epsilon > time_limit - base_generator_.TStep() + t_) {
-    // Deal with the lift off time and the landing time. During those
-    // period the foot do not move along the x and y axis.
-
-    // This is counted from the last double support phase.
-    double local_interpolation_start_time = time - (time_limit - tss_);
-
-    // This coefficient indicates how long you allow the foot to take off
-    // and land (in %)
-    double module_support_coefficient = 0.9;
+      // Center of mass.
+      com_x_buffer_(trajectories_buffer_.block(0, 0, 3, intervals_)),
+      com_y_buffer_(trajectories_buffer_.block(3, 0, 3, intervals_)),
+      com_z_buffer_(trajectories_buffer_.block(6, 0, 1, intervals_)),
+      com_q_buffer_(trajectories_buffer_.block(7, 0, 3, intervals_)),
+  
+      // Zero moment point.
+      zmp_x_buffer_(trajectories_buffer_.block(10, 0, 1, intervals_)),
+      zmp_y_buffer_(trajectories_buffer_.block(11, 0, 1, intervals_)),
+      zmp_z_buffer_(trajectories_buffer_.block(12, 0, 1, intervals_)),
+  
+      // Left foot.
+      lf_x_buffer_(trajectories_buffer_.block(13, 0, 1, intervals_)),
+      lf_y_buffer_(trajectories_buffer_.block(14, 0, 1, intervals_)),
+      lf_z_buffer_(trajectories_buffer_.block(15, 0, 1, intervals_)),
+      lf_q_buffer_(trajectories_buffer_.block(16, 0, 1, intervals_)),
+      
+      lf_dx_buffer_(1, intervals_),
+      lf_dy_buffer_(1, intervals_),
+      lf_dz_buffer_(1, intervals_),
+      lf_dq_buffer_(1, intervals_),
     
-    // This time indicates how long the foot will move in x, y and q.
-    double unlocked_swing_period = tss_*module_support_coefficient;
-
-    // This time indicates the time limit when the foot should have reached
-    // lift off enough to move in x, y and q.
-    double end_of_lift_off = 0.5*(tss_ - unlocked_swing_period);
-
-    // This time shows the time when the foot has flight in the air.
-    double swing_time_passed = 0.;
-
-    if (local_interpolation_start_time > end_of_lift_off) {
-      swing_time_passed = local_interpolation_start_time - end_of_lift_off;
-    }
-
-    // This time is the time remaining until landing.
-    double time_interval = unlocked_swing_period - swing_time_passed;
-
-    // Set the polynomials.
-    if (current_support.foot == "left") {
-      polynomial_x_.SetParameters(time_interval, f_k_x_0, cur_right.x, cur_right.dx, cur_right.ddx);
-      polynomial_y_.SetParameters(time_interval, f_k_y_0, cur_right.y, cur_right.dy, cur_right.ddy);
-      polynomial_q_.SetParameters(time_interval, f_k_q_0, cur_right.q, cur_right.dq, cur_right.ddq);
+      lf_ddx_buffer_(1, intervals_),
+      lf_ddy_buffer_(1, intervals_),
+      lf_ddz_buffer_(1, intervals_),
+      lf_ddq_buffer_(1, intervals_),
     
-      for (int i = 0; i < interval_; i++) {
-        // The non swing foot stays still.
-        lf_buffer[i] = cur_left;
-        lf_buffer[i].support_foot = 1;
+      // Right foot.
+      rf_x_buffer_(trajectories_buffer_.block(17, 0, 1, intervals_)),
+      rf_y_buffer_(trajectories_buffer_.block(18, 0, 1, intervals_)),
+      rf_z_buffer_(trajectories_buffer_.block(19, 0, 1, intervals_)),
+      rf_q_buffer_(trajectories_buffer_.block(20, 0, 1, intervals_)),
+      
+      rf_dx_buffer_(1, intervals_),
+      rf_dy_buffer_(1, intervals_),
+      rf_dz_buffer_(1, intervals_),
+      rf_dq_buffer_(1, intervals_),
+    
+      rf_ddx_buffer_(1, intervals_),
+      rf_ddy_buffer_(1, intervals_),
+      rf_ddz_buffer_(1, intervals_),
+      rf_ddq_buffer_(1, intervals_),
 
-        // Interpolation time.
-        double ti = tc_*i;
-        double t_local = local_interpolation_start_time + ti;
+      // Foot interpolation coefficients.
+      f_coef_x_(6),
+      f_coef_y_(6),
+      f_coef_z_(5),
+      f_coef_q_(6),
+      
+      f_coef_dx_(f_coef_x_.size() - 1),
+      f_coef_dy_(f_coef_y_.size() - 1),
+      f_coef_dz_(f_coef_z_.size() - 1),
+      f_coef_dq_(f_coef_q_.size() - 1),
+      
+      f_coef_ddx_(f_coef_dx_.size() - 1),
+      f_coef_ddy_(f_coef_dy_.size() - 1),
+      f_coef_ddz_(f_coef_dz_.size() - 1),
+      f_coef_ddq_(f_coef_dq_.size() - 1) {
 
-        // If we are landing or lifting the foot, do not modify the x,y and q.
-        if (local_interpolation_start_time < end_of_lift_off) {
-          // Remaining time.
-          double tr = ti - end_of_lift_off;
-          ComputeXYQ(rf_buffer[i], tr);
-        }
-        else {
-          ComputeXYQ(rf_buffer[i], ti);
-        }
+    // Interpolated trajectories.
+    trajectories_.setZero();
+    trajectories_buffer_.setZero();
 
-        rf_buffer[i].z   = polynomial_z_.Compute(t_local);
-        rf_buffer[i].dz  = polynomial_z_.ComputeDerivative(t_local);
-        rf_buffer[i].ddz = polynomial_z_.ComputeSecondDerivative(t_local);
-      }
+    // Left foot.
+    lf_dx_buffer_.setZero();
+    lf_dy_buffer_.setZero();
+    lf_dz_buffer_.setZero();
+    lf_dq_buffer_.setZero();
 
-      if (local_interpolation_start_time < end_of_lift_off) {
-        // Compute the next iteration state.
-        ComputeXYQ(cur_right, tc_*interval_ - end_of_lift_off);
-      }
-      else {
-        ComputeXYQ(cur_right, tc_*interval_);
-      }
+    lf_ddx_buffer_.setZero();
+    lf_ddy_buffer_.setZero();
+    lf_ddz_buffer_.setZero();
+    lf_ddq_buffer_.setZero();
+
+    // Right foot.
+    rf_dx_buffer_.setZero();
+    rf_dy_buffer_.setZero();
+    rf_dz_buffer_.setZero();
+    rf_dq_buffer_.setZero();
+
+    rf_ddx_buffer_.setZero();
+    rf_ddy_buffer_.setZero();
+    rf_ddz_buffer_.setZero();
+    rf_ddq_buffer_.setZero();
+      
+    // Foot interpolation coefficients.
+    f_coef_x_.setZero();
+    f_coef_y_.setZero();
+    f_coef_z_.setZero();
+    f_coef_q_.setZero();
+
+    f_coef_dx_.setZero();
+    f_coef_dy_.setZero();
+    f_coef_dz_.setZero();
+    f_coef_dq_.setZero();
+    
+    f_coef_ddx_.setZero();
+    f_coef_ddy_.setZero();
+    f_coef_ddz_.setZero();
+    f_coef_ddq_.setZero();
+
+    // Initialize models.
+    a_.setZero();
+    b_.setZero();
+    c_.setZero();
+
+    InitializeTrajectories();
+    InitializeLIPM();
+}
+
+void Interpolation::Interpolate() {
+    
+    // Interpolate.
+    InterpolateLIPM();
+    InterpolateFeet();
+
+    // Append by buffered trajectories.
+    trajectories_.conservativeResize(trajectories_.rows(), trajectories_.cols() + intervals_);
+    trajectories_.rightCols(intervals_) = trajectories_buffer_;
+}
+
+template <typename Derived>
+void Interpolation::Derivative(const Eigen::MatrixBase<Derived>& coef, Eigen::MatrixBase<Derived>& dcoef) {
+    
+    // Calculate the derivative of a coefficient vector.
+    for (int i = 0; i < coef.rows() - 1; i++) {
+        dcoef(i) = (i + 1)*coef(i + 1);
+    }
+}
+
+void Interpolation::InitializeLIPM() {
+
+    // Taylor time approximations of the linear inverted pendulum.
+    a_ << 1., tc_, tc_*tc_*0.5,
+           0.,  1.,         tc_,
+           0.,  0.,          1.;
+
+    b_ << tc_*tc_*tc_/6.,
+               tc_*tc_/2.,
+                      tc_;
+
+    c_ <<         1.,
+                  0.,
+          -h_com_/g_;
+}
+
+void Interpolation::InitializeTrajectories() {
+    
+    // Initialize the standing still trajectories. Center of mass.
+    com_x_buffer_.colwise() = base_generator_.Ckx0();
+    com_y_buffer_.colwise() = base_generator_.Cky0();
+    com_z_buffer_.setConstant(base_generator_.Hcom());
+    com_q_buffer_.colwise() = base_generator_.Ckq0();
+
+    // Zero moment point.
+    zmp_x_buffer_.setConstant(base_generator_.Ckx0()(0) - base_generator_.Hcom()/g_*base_generator_.Ckx0()(2));
+    zmp_y_buffer_.setConstant(base_generator_.Cky0()(0) - base_generator_.Hcom()/g_*base_generator_.Cky0()(2));
+
+    // Feet, depending on the current support.
+    if (base_generator_.CurrentSupport().foot == "left") {
+        lf_x_buffer_.setConstant(base_generator_.Fkx0());
+        lf_y_buffer_.setConstant(base_generator_.Fky0());
+        lf_z_buffer_.setZero();
+        lf_q_buffer_.setConstant(base_generator_.Fkq0());
+
+        rf_x_buffer_.setConstant(base_generator_.Fkx0() + base_generator_.FootDistance()*sin(base_generator_.Fkq0()));
+        rf_y_buffer_.setConstant(base_generator_.Fky0() - base_generator_.FootDistance()*cos(base_generator_.Fkq0()));
+        rf_z_buffer_.setZero();
+        rf_q_buffer_.setConstant(base_generator_.Fkq0());
     }
     else {
-      polynomial_x_.SetParameters(time_interval, f_k_x_0, cur_left.x, cur_left.dx, cur_left.ddx);
-      polynomial_y_.SetParameters(time_interval, f_k_y_0, cur_left.y, cur_left.dy, cur_left.ddy);
-      polynomial_q_.SetParameters(time_interval, f_k_q_0, cur_left.q, cur_left.dq, cur_left.ddq);
-    
-      for (int i = 0; i < interval_; i++) {
-        // The non swing foot stays still.
-        rf_buffer[i] = cur_right;
-        rf_buffer[i].support_foot = 1;
+        lf_x_buffer_.setConstant(base_generator_.Fkx0() - base_generator_.FootDistance()*sin(base_generator_.Fkq0())); 
+        lf_y_buffer_.setConstant(base_generator_.Fky0() + base_generator_.FootDistance()*cos(base_generator_.Fkq0()));
+        lf_z_buffer_.setZero();
+        lf_q_buffer_.setConstant(base_generator_.Fkq0());
 
-        // Interpolation time.
-        double ti = tc_*i;
-        double t_local = local_interpolation_start_time + ti;
+        rf_x_buffer_.setConstant(base_generator_.Fkx0());
+        rf_y_buffer_.setConstant(base_generator_.Fky0());
+        rf_z_buffer_.setZero();
+        rf_q_buffer_.setConstant(base_generator_.Fkq0());
+    }
 
-        // If we are landing or lifting the foot, do not modify the x,y and q.
-        if (local_interpolation_start_time < end_of_lift_off) {
-          // Remaining time.
-          double tr = ti - end_of_lift_off;
-          ComputeXYQ(lf_buffer[i], tr);
+    // Unload the buffer.
+    trajectories_ = trajectories_buffer_.replicate(1, n_still_);
+}
+
+void Interpolation::InterpolateFeet() {
+
+    // Double or single support.
+    if (base_generator_.TStep() - base_generator_.Vkp10().sum()*t_ < t_ds_) {
+
+        // Double support. Stay still.
+        lf_x_buffer_.setConstant(lf_x_buffer_(0, intervals_ - 1));
+        lf_y_buffer_.setConstant(lf_y_buffer_(0, intervals_ - 1));
+        lf_z_buffer_.setConstant(lf_z_buffer_(0, intervals_ - 1));
+        lf_q_buffer_.setConstant(lf_q_buffer_(0, intervals_ - 1));
+
+        rf_x_buffer_.setConstant(rf_x_buffer_(0, intervals_ - 1));
+        rf_y_buffer_.setConstant(rf_y_buffer_(0, intervals_ - 1));
+        rf_z_buffer_.setConstant(rf_z_buffer_(0, intervals_ - 1));
+        rf_q_buffer_.setConstant(rf_q_buffer_(0, intervals_ - 1));
+
+    }
+    else {
+
+        // Single support. Specify times that split the single support time
+        // further into lift off, moving, and drop down. Lift off and drop
+        // down time periods are called t_transition.
+        const double t_transition = 0.05*t_ss_;
+
+        // Time period t_moving in which the swing foot is moving.
+        const double t_moving = t_ss_ - 2*t_transition;
+
+        // Time left until the foot changes to the drop down transition.
+        const double t_till_drop_down = base_generator_.Vkp10().sum()*t_ - t_transition;
+
+        // Indicates the current time inside the single support phase.
+        const double t_current = t_ss_ - base_generator_.Vkp10().sum()*t_;
+
+        // Left or right foot.
+        if (base_generator_.CurrentSupport().foot == "left") {
+
+            // Set the coefficients for the interpolation.
+            Set5thOrderCoefficients(f_coef_x_,
+                                    t_till_drop_down, 
+                                    base_generator_.Fkx()(0), 
+                                    rf_x_buffer_(0, intervals_ - 1), 
+                                    rf_dx_buffer_(0, intervals_ - 1), 
+                                    rf_ddx_buffer_(0, intervals_ - 1));
+
+            Set5thOrderCoefficients(f_coef_y_, 
+                                    t_till_drop_down,
+                                    base_generator_.Fky()(0), 
+                                    rf_y_buffer_(0, intervals_ - 1), 
+                                    rf_dy_buffer_(0, intervals_ - 1), 
+                                    rf_ddy_buffer_(0, intervals_ - 1));
+
+            Set4thOrderCoefficients(f_coef_z_, 
+                                    t_ss_,
+                                    step_height_, 
+                                    rf_z_buffer_(0, intervals_ - 1), 
+                                    rf_dz_buffer_(0, intervals_ - 1));
+
+            Set5thOrderCoefficients(f_coef_q_,
+                                    t_till_drop_down,
+                                    base_generator_.Fkq()(0), 
+                                    rf_q_buffer_(0, intervals_ - 1), 
+                                    rf_dq_buffer_(0, intervals_ - 1), 
+                                    rf_ddq_buffer_(0, intervals_ - 1));
+
+            // Calculate first and second order derivatives for the velocities and accelerations.
+            Derivative(f_coef_x_, f_coef_dx_);
+            Derivative(f_coef_y_, f_coef_dy_);
+            Derivative(f_coef_z_, f_coef_dz_);
+            Derivative(f_coef_q_, f_coef_dq_);
+
+            Derivative(f_coef_dx_, f_coef_ddx_);
+            Derivative(f_coef_dy_, f_coef_ddy_);
+            Derivative(f_coef_dz_, f_coef_ddz_);
+            Derivative(f_coef_dq_, f_coef_ddq_);
+
+            for (int i = 0; i < intervals_; i++) {
+
+                if (t_current + i*tc_ > t_transition && t_current + i*tc_ < t_ss_ - t_transition) {
+                    
+                    // Evaluate interpolations for x, y, and q during the t_moving period.
+                    rf_x_buffer_(0, i) = Eigen::poly_eval(f_coef_x_, i*tc_);
+                    rf_y_buffer_(0, i) = Eigen::poly_eval(f_coef_y_, i*tc_);
+                    rf_q_buffer_(0, i) = Eigen::poly_eval(f_coef_q_, i*tc_);
+
+                    rf_dx_buffer_(0, i) = Eigen::poly_eval(f_coef_dx_, i*tc_);
+                    rf_dy_buffer_(0, i) = Eigen::poly_eval(f_coef_dy_, i*tc_);
+                    rf_dq_buffer_(0, i) = Eigen::poly_eval(f_coef_dq_, i*tc_);
+
+                    rf_ddx_buffer_(0, i) = Eigen::poly_eval(f_coef_ddx_, i*tc_);
+                    rf_ddy_buffer_(0, i) = Eigen::poly_eval(f_coef_ddy_, i*tc_);
+                    rf_ddq_buffer_(0, i) = Eigen::poly_eval(f_coef_ddq_, i*tc_);
+                }
+                else {
+
+                    // Dont move in x, y, and q directions during transitions.
+                    rf_x_buffer_.setConstant(rf_x_buffer_(0, intervals_ - 1));
+                    rf_y_buffer_.setConstant(rf_y_buffer_(0, intervals_ - 1));
+                    rf_q_buffer_.setConstant(rf_q_buffer_(0, intervals_ - 1));
+
+                    rf_dx_buffer_.setZero();
+                    rf_dy_buffer_.setZero();
+                    rf_dq_buffer_.setZero();
+
+                    rf_ddx_buffer_.setZero();
+                    rf_ddy_buffer_.setZero();
+                    rf_ddq_buffer_.setZero();
+                }
+
+                // Evaluate interpolations for z during the whole single support period.
+                rf_z_buffer_(0, i)   = Eigen::poly_eval(f_coef_z_, t_current + i*tc_);
+                rf_dz_buffer_(0, i)  = Eigen::poly_eval(f_coef_dz_, t_current + i*tc_);
+                rf_ddz_buffer_(0, i) = Eigen::poly_eval(f_coef_ddz_, t_current + i*tc_);
+            }
         }
         else {
-          ComputeXYQ(lf_buffer[i], ti);
+
+            // Set the coefficients for the interpolation.
+            Set5thOrderCoefficients(f_coef_x_,
+                                    t_till_drop_down, 
+                                    base_generator_.Fkx()(0), 
+                                    lf_x_buffer_(0, intervals_ - 1), 
+                                    lf_dx_buffer_(0, intervals_ - 1), 
+                                    lf_ddx_buffer_(0, intervals_ - 1));
+
+            Set5thOrderCoefficients(f_coef_y_, 
+                                    t_till_drop_down,
+                                    base_generator_.Fky()(0), 
+                                    lf_y_buffer_(0, intervals_ - 1), 
+                                    lf_dy_buffer_(0, intervals_ - 1), 
+                                    lf_ddy_buffer_(0, intervals_ - 1));
+
+            Set4thOrderCoefficients(f_coef_z_, 
+                                    t_ss_,
+                                    step_height_, 
+                                    lf_z_buffer_(0, intervals_ - 1), 
+                                    lf_dz_buffer_(0, intervals_ - 1));
+
+            Set5thOrderCoefficients(f_coef_q_,
+                                    t_till_drop_down,
+                                    base_generator_.Fkq()(0), 
+                                    lf_q_buffer_(0, intervals_ - 1), 
+                                    lf_dq_buffer_(0, intervals_ - 1), 
+                                    lf_ddq_buffer_(0, intervals_ - 1));
+
+            // Calculate first and second order derivatives for the velocities and accelerations.
+            Derivative(f_coef_x_, f_coef_dx_);
+            Derivative(f_coef_y_, f_coef_dy_);
+            Derivative(f_coef_z_, f_coef_dz_);
+            Derivative(f_coef_q_, f_coef_dq_);
+
+            Derivative(f_coef_dx_, f_coef_ddx_);
+            Derivative(f_coef_dy_, f_coef_ddy_);
+            Derivative(f_coef_dz_, f_coef_ddz_);
+            Derivative(f_coef_dq_, f_coef_ddq_);
+
+            for (int i = 0; i < intervals_; i++) {
+
+                if (t_current + i*tc_ > t_transition && t_current + i*tc_ < t_ss_ - t_transition) {
+                    
+                    // Evaluate interpolations for x, y, and q during the t_moving period.
+                    lf_x_buffer_(0, i) = Eigen::poly_eval(f_coef_x_, i*tc_);
+                    lf_y_buffer_(0, i) = Eigen::poly_eval(f_coef_y_, i*tc_);
+                    lf_q_buffer_(0, i) = Eigen::poly_eval(f_coef_q_, i*tc_);
+
+                    lf_dx_buffer_(0, i) = Eigen::poly_eval(f_coef_dx_, i*tc_);
+                    lf_dy_buffer_(0, i) = Eigen::poly_eval(f_coef_dy_, i*tc_);
+                    lf_dq_buffer_(0, i) = Eigen::poly_eval(f_coef_dq_, i*tc_);
+
+                    lf_ddx_buffer_(0, i) = Eigen::poly_eval(f_coef_ddx_, i*tc_);
+                    lf_ddy_buffer_(0, i) = Eigen::poly_eval(f_coef_ddy_, i*tc_);
+                    lf_ddq_buffer_(0, i) = Eigen::poly_eval(f_coef_ddq_, i*tc_);
+                }
+                else {
+
+                    // Dont move in x, y, and q directions during transitions.
+                    lf_x_buffer_.setConstant(lf_x_buffer_(0, intervals_ - 1));
+                    lf_y_buffer_.setConstant(lf_y_buffer_(0, intervals_ - 1));
+                    lf_q_buffer_.setConstant(lf_q_buffer_(0, intervals_ - 1));
+
+                    lf_dx_buffer_.setZero();
+                    lf_dy_buffer_.setZero();
+                    lf_dq_buffer_.setZero();
+
+                    lf_ddx_buffer_.setZero();
+                    lf_ddy_buffer_.setZero();
+                    lf_ddq_buffer_.setZero();
+                }
+
+                // Evaluate interpolations for z during the whole single support period.
+                lf_z_buffer_(0, i)   = Eigen::poly_eval(f_coef_z_, t_current + i*tc_);
+                lf_dz_buffer_(0, i)  = Eigen::poly_eval(f_coef_dz_, t_current + i*tc_);
+                lf_ddz_buffer_(0, i) = Eigen::poly_eval(f_coef_ddz_, t_current + i*tc_);
+            }
         }
-
-        lf_buffer[i].z   = polynomial_z_.Compute(t_local);
-        lf_buffer[i].dz  = polynomial_z_.ComputeDerivative(t_local);
-        lf_buffer[i].ddz = polynomial_z_.ComputeSecondDerivative(t_local);
-      }
-
-      if (local_interpolation_start_time < end_of_lift_off) {
-        // Compute the next iteration state.
-        ComputeXYQ(cur_left, tc_*interval_ - end_of_lift_off);
-      }
-      else {
-        ComputeXYQ(cur_left, tc_*interval_);
-      }
     }
-  }
 }
 
-void FootInterpolation::ComputeXYQ(BaseTypeFoot& foot, double t) {
-  // Compute the foot states at time t.
-  foot.  x = polynomial_x_.Compute(t);
-  foot. dx = polynomial_x_.ComputeDerivative(t);
-  foot.ddx = polynomial_x_.ComputeSecondDerivative(t);
+void Interpolation::InterpolateLIPM() {
 
-  foot.  y = polynomial_y_.Compute(t);
-  foot. dy = polynomial_y_.ComputeDerivative(t);
-  foot.ddy = polynomial_y_.ComputeSecondDerivative(t);
+    // Initialize buffer with current values.
+    com_x_buffer_.col(0) = base_generator_.Ckx0();
+    com_y_buffer_.col(0) = base_generator_.Cky0();
+    zmp_x_buffer_.col(0) = c_.transpose()*base_generator_.Ckx0();
+    zmp_y_buffer_.col(0) = c_.transpose()*base_generator_.Cky0();
 
-  foot.  q = polynomial_q_.Compute(t);
-  foot. dq = polynomial_q_.ComputeDerivative(t);
-  foot.ddq = polynomial_q_.ComputeSecondDerivative(t);
+    for (int i = 1; i < intervals_; i++) {
+        com_x_buffer_.col(i) = a_*com_x_buffer_.col(i - 1) + b_*base_generator_.Dddckx().row(0);
+        com_y_buffer_.col(i) = a_*com_y_buffer_.col(i - 1) + b_*base_generator_.Dddcky().row(0);
+        zmp_x_buffer_.col(i) << c_.transpose()*com_x_buffer_.col(i - 1);
+        zmp_y_buffer_.col(i) << c_.transpose()*com_y_buffer_.col(i - 1);
+    }
 }
 
-Interpolation::Interpolation(const double tc, const BaseGenerator& base_generator)
-    : base_generator_(base_generator),
-      
-      t_(base_generator.T()),
-      tc_(tc),
-      interval_(int(t_/tc_)),
-
-      // States used to interpolate.
-      cur_com_({base_generator.Ckx0(),
-                base_generator.Cky0(),
-                base_generator.Hcom(),
-                base_generator.Ckq0()}),
+template <typename Derived>
+void Interpolation::Set4thOrderCoefficients(Eigen::MatrixBase<Derived>& coef,
+                                                double final_time, double middle_pos,
+                                                double init_pos, double init_vel) {
     
-      zmp_({cur_com_.x(0) - cur_com_.z/base_generator.G()*cur_com_.x(2),
-            cur_com_.y(0) - cur_com_.z/base_generator.G()*cur_com_.y(2)}),
-  
-      // Buffers containing the trajectories over 100 ms.
-      com_buffer_(interval_),
-      zmp_buffer_(interval_),
-      lf_buffer_(interval_),
-      rf_buffer_(interval_),
+    // Set the 4th order coefficients for the interpolation.
+    coef(0) = init_pos;
+    coef(1) = init_vel;
 
-      // Buffers containing the full trajectories.
-      com_traj_(30),
-      zmp_traj_(30),
-      lf_traj_(30),
-      rf_traj_(30),
-      
-      lipm_(t_, tc_, cur_com_.z),
-      fi_(base_generator) {
-  if (base_generator_.CurrentSupport().foot == "left") {
-    cur_left_.x  = base_generator_.Fkx0();
-    cur_left_.y  = base_generator_.Fky0();
-    cur_left_.q  = base_generator_.Fkq0();
-    cur_right_.x = base_generator_.Fkx0() + base_generator_.FootDistance()*sin(base_generator_.Fkq0()); 
-    cur_right_.y = base_generator_.Fky0() - base_generator_.FootDistance()*cos(base_generator_.Fkq0());
-    cur_right_.q = base_generator_.Fkq0();
-  }
-  else {
-    cur_left_.x  = base_generator_.Fkx0(); 
-    cur_left_.y  = base_generator_.Fky0();
-    cur_left_.q  = base_generator_.Fkq0();
-    cur_right_.x = base_generator_.Fkx0() - base_generator_.FootDistance()*sin(base_generator_.Fkq0());
-    cur_right_.y = base_generator_.Fky0() + base_generator_.FootDistance()*cos(base_generator_.Fkq0());
-    cur_right_.q = base_generator_.Fkq0();
-  }
-
-  for (int i = 0; i < interval_; i++) {
-    // Buffers containing the trajectories over 100 ms.
-    com_buffer_[i] = cur_com_;
-    zmp_buffer_[i] = zmp_;
-    lf_buffer_[i] = cur_left_;
-    rf_buffer_[i] = cur_right_;
-  }
-
-  for (int i = 0; i < 30; i++) {
-    // Buffers containing the full trajectories.
-    com_traj_[i] = com_buffer_;
-    zmp_traj_[i] = zmp_buffer_;
-    lf_traj_[i] = lf_buffer_;
-    rf_traj_[i] = rf_buffer_;
-  }
-}
-
-void Interpolation::Interpolate(double time) {
-  lipm_.Interpolate(base_generator_.Dddckx()(0), base_generator_.Dddcky()(0),
-                    cur_com_, com_buffer_, zmp_buffer_);
-  
-  fi_.Interpolate(time, base_generator_.CurrentSupport(),
-                  cur_left_, cur_right_,
-                  base_generator_.Fkx()(0), base_generator_.Fky()(0), base_generator_.Fkq()(0),
-                  lf_buffer_, rf_buffer_);
-
-  for (int i = 0; i < lf_buffer_.size(); i++) {
-    com_buffer_[i].q(0) = 0.5*(lf_buffer_[i].  q + rf_buffer_[i].  q);
-    com_buffer_[i].q(1) = 0.5*(lf_buffer_[i]. dq + rf_buffer_[i]. dq);
-    com_buffer_[i].q(2) = 0.5*(lf_buffer_[i].ddq + rf_buffer_[i].ddq);
-  }
-
-  com_traj_.push_back(com_buffer_);
-  zmp_traj_.push_back(zmp_buffer_);
-  lf_traj_.push_back(lf_buffer_);
-  rf_traj_.push_back(rf_buffer_);
-}
-
-void Interpolation::SaveToFile(const std::string loc) {
-  // Save results to .txt file.
-  std::ofstream out(loc.c_str());
-
-  if (out.is_open()) {
-    for (int i = 0; i < com_traj_.size(); i++) {
-      for (int j = 0; j < com_traj_[i].size(); j++) {
-        out << com_traj_[i][j].x(0)  << "," << com_traj_[i][j].x(1) << "," << com_traj_[i][j].x(2) << ","
-            << com_traj_[i][j].y(0)  << "," << com_traj_[i][j].y(1) << "," << com_traj_[i][j].y(2) << ","
-            << com_traj_[i][j].z     << ","
-            << com_traj_[i][j].q(0)  << "," << com_traj_[i][j].q(1) << "," << com_traj_[i][j].q(2) << ","
-            << zmp_traj_[i][j].x     << "," << zmp_traj_[i][j].y    << "," << zmp_traj_[i][j].z    << ","
-            << lf_traj_[i][j].x      << "," << lf_traj_[i][j].y     << "," << lf_traj_[i][j].z     << "," << lf_traj_[i][j].q << ","
-            << rf_traj_[i][j].x      << "," << rf_traj_[i][j].y     << "," << rf_traj_[i][j].z     << "," << rf_traj_[i][j].q
-            << "\r\n";
-      }
+    if (final_time == 0.) {
+        coef.tail(3).setZero();
     }
-    out.close();
-  }
-  else {
-    std::cout << "Unable to open file." << std::endl;
-  }
+    else {
+        coef(2) = (-  4.*init_vel*final_time
+                   - 11.*init_pos
+                   + 16.*middle_pos)/Eigen::numext::pow(final_time, 2.);
+
+        coef(3) = (   5.*init_vel*final_time
+                   + 18.*init_pos
+                   - 32.*middle_pos)/Eigen::numext::pow(final_time, 3.);
+
+        coef(4) = (-  2.*init_vel*final_time
+                   -  8.*init_pos
+                   + 16.*middle_pos)/Eigen::numext::pow(final_time, 4.);
+    }
+}
+
+template <typename Derived>
+void Interpolation::Set5thOrderCoefficients(Eigen::MatrixBase<Derived>& coef,
+                                                double final_time, double final_pos,
+                                                double init_pos, double init_vel, double init_acc) {
+
+    // Set the 5th order coefficients for the interpolation.
+    coef(0) =     init_pos;
+    coef(1) =     init_vel;
+    coef(2) = 0.5*init_acc;
+
+    if (final_time == 0.) {
+        coef.tail(3).setZero();
+    }
+    else {
+        coef(3) = (-  1.5*init_acc*final_time*final_time
+                   -  6. *init_vel*final_time
+                   - 10. *(init_pos - final_pos))/Eigen::numext::pow(final_time, 3.);
+        
+        coef(4) = (   1.5*init_acc*final_time*final_time
+                   +  8. *init_vel*final_time
+                   + 15. *(init_pos - final_pos))/Eigen::numext::pow(final_time, 4.);
+        
+        coef(5) = (-  0.5*init_acc*final_time*final_time
+                   -  3. *init_vel*final_time
+                   -  6. *(init_pos - final_pos))/Eigen::numext::pow(final_time, 5.);
+    }
 }

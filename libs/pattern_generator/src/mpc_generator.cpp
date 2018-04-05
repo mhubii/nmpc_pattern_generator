@@ -114,13 +114,12 @@ void MPCGenerator::Example(const std::string config_file_loc, const std::string 
                                     mpc.Ckq0()};
 
   mpc.SetInitialValues(pg_state);
-  Interpolation interpol_mpc(0.005, mpc);
+  Interpolation interpol_mpc(mpc);
   Eigen::Vector3d velocity_reference(0.1, 0., 0.1);
 
   // Pattern generator event loop.
   for (int i = 0; i < 220; i++) {
     std::cout << "Iteration: " << i << std::endl;
-    double time = i*0.1;
 
     // Change reference velocities.
     if (25 <= i && i < 50) {
@@ -142,7 +141,7 @@ void MPCGenerator::Example(const std::string config_file_loc, const std::string 
     // Solve QP.
     mpc.Solve();
     mpc.Simulate();
-    interpol_mpc.Interpolate(time);
+    interpol_mpc.Interpolate();
 
     // Initial values embedding by internal states and simulation.
     pg_state = mpc.Update();
@@ -150,7 +149,8 @@ void MPCGenerator::Example(const std::string config_file_loc, const std::string 
   }
   
   // Save interpolated results.
-  interpol_mpc.SaveToFile(output_loc);
+  Eigen::MatrixXd trajectories = interpol_mpc.Trajectories().transpose();
+  WriteCsv(output_loc, trajectories);
 }
 
 void MPCGenerator::PreprocessSolution() {

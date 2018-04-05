@@ -6,7 +6,6 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/pattern_generator)
 
 set(SOURCE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/base_generator.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/interpolate.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/interpolation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/mpc_generator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/nmpc_generator.cpp
@@ -27,7 +26,6 @@ if (${PATTERN_GENERATOR_EXAMPLES})
     set(EXAMPLES
         mpc_generator_example
         nmpc_generator_example
-        interpolation_example
     )
 
     foreach (example ${EXAMPLES})

@@ -12,7 +12,7 @@
 #include <Eigen/Dense>
 #include "yaml-cpp/yaml.h"
 
-// Typedefs.
+// Eigen row major storage order to be compatible with qpOASES.
 typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> RowMatrixXd;
 
 // Structs.
@@ -35,38 +35,6 @@ struct BaseTypeSupportFoot {
         return std::tie(x, y, q, foot, ds, step_number, time_limit) !=
                std::tie(rhs.x, rhs.y, rhs.q, rhs.foot, rhs.ds, rhs.step_number, rhs.time_limit);
     }
-};
-
-struct BaseTypeFoot {
-    double x = 0.;
-    double y = 0.;
-    double z = 0.;
-    double q = 0.;
-
-    double dx = 0.;
-    double dy = 0.;
-    double dz = 0.;
-    double dq = 0.;
-
-    double ddx = 0.;
-    double ddy = 0.;
-    double ddz = 0.;
-    double ddq = 0.;
-
-    int support_foot = 0;
-};
-
-struct ComState {
-    Eigen::Vector3d x;
-    Eigen::Vector3d y;
-    double z = 0.46;
-    Eigen::Vector3d q;
-};
-
-struct ZmpState {
-    double x = 0.;
-    double y = 0.;
-    double z = 0.;
 };
 
 struct PatternGeneratorState {

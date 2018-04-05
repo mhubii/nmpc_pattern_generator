@@ -148,13 +148,12 @@ void NMPCGenerator::Example(const std::string config_file_loc, const std::string
                                     nmpc.Ckq0()};
 
   nmpc.SetInitialValues(pg_state);
-  Interpolation interpol_nmpc(0.005, nmpc);
+  Interpolation interpol_nmpc(nmpc);
   Eigen::Vector3d velocity_reference(0.1, 0., 0.);
 
   // Pattern generator event loop.
   for (int i = 0; i < 200; i++) {
     std::cout << "Iteration: " << i << std::endl;
-    double time = i*0.1;
 
     // Change reference velocities.
     if (25 <= i && i < 50) {
@@ -173,7 +172,7 @@ void NMPCGenerator::Example(const std::string config_file_loc, const std::string
     // Solve QP.
     nmpc.Solve();
     nmpc.Simulate();
-    interpol_nmpc.Interpolate(time);
+    interpol_nmpc.Interpolate();
 
     // Initial value embedding by internal states and simulation.
     pg_state = nmpc.Update();
@@ -181,7 +180,8 @@ void NMPCGenerator::Example(const std::string config_file_loc, const std::string
   }
 
   // Save interpolated results.
-  interpol_nmpc.SaveToFile(output_loc);
+  Eigen::MatrixXd trajectories = interpol_nmpc.Trajectories().transpose();
+  WriteCsv(output_loc, trajectories);
 }
 
 void NMPCGenerator::PreprocessSolution() {
