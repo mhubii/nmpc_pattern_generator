@@ -37,8 +37,12 @@ add_subdirectory("${CMAKE_BINARY_DIR}/googletest-src"
                  "${CMAKE_BINARY_DIR}/googletest-build")
 
 
-# Input output library.
-# add_subdirectory(input_output)
+# Input output module library.
+option(IO_MODULE_EXAMPLES "Build input output module examples." ON)
+
+option(IO_MODULE_TESTS "Build input output module tests." ON)
+
+add_subdirectory(io_module)
 
 
 # Inverse kinematics library.
