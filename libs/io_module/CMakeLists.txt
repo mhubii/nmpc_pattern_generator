@@ -1,24 +1,39 @@
 # Add input ouput module library.
+find_package(YARP REQUIRED)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/io_module)
 
 set(SOURCE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/read.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/write.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/network_manager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/reader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/writer.cpp
 )
 
 add_library(io_module SHARED
     ${SOURCE}
 )
 
-#target_link_libraries(io_module
-#    ...
-#)
+target_link_libraries(io_module
+    
+    yaml-cpp
+)
 
 
-# Build exampled.
+# Build examples.
 if (${IO_MODULE_EXAMPLES})
+    set(EXAMPLES
+        test_network_manager
+    )
 
+    foreach (example ${EXAMPLES})
+        add_executable(${example}
+            src/${example}.cpp
+        )
+
+        target_link_libraries(${example}
+            io_module
+        )
+    endforeach(example ${EXAMPLES})
 endif (${IO_MODULE_EXAMPLES})
 
 

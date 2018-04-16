@@ -42,7 +42,7 @@ option(IO_MODULE_EXAMPLES "Build input output module examples." ON)
 
 option(IO_MODULE_TESTS "Build input output module tests." ON)
 
-add_subdirectory(io_module)
+add_subdirectory(libs/io_module)
 
 
 # Inverse kinematics library.
