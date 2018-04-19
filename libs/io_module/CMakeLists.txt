@@ -4,7 +4,6 @@ find_package(YARP REQUIRED)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/io_module)
 
 set(SOURCE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/network_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/reader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/writer.cpp
 )
@@ -14,7 +13,7 @@ add_library(io_module SHARED
 )
 
 target_link_libraries(io_module
-    
+    ${YARP_LIBRARIES}
     yaml-cpp
 )
 
