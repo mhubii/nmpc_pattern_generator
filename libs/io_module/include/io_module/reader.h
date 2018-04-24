@@ -5,7 +5,15 @@
 #include <yarp/os/RateThread.h>
 #include <yarp/os/RFModule.h>
 #include <yarp/os/Network.h>
+<<<<<<< HEAD
 #include <Eigen/Dense>
+=======
+#include <yarp/sig/Vector.h>
+#include <yarp/sig/Matrix.h>
+#include <yarp/os/Time.h>
+#include <yarp/eigen/Eigen.h>
+#include <ncurses.h>
+>>>>>>> 9efb23a88150b355067ba3223d22360128c4404e
 
 #include "network_manager.h"
 #include "utils.h"
@@ -16,12 +24,11 @@
 class Reader
 {
     public:
+        
         // Constructor. Set up the network.
-        Reader() : yarp() {  };
+        Reader();
 
     private:
-        // YARP network.
-        yarp::os::Network yarp;
 
         // Methods to implement for reading from YARP ports.
         virtual void SetConfigs() = 0;
@@ -30,6 +37,7 @@ class Reader
 
         virtual void SetPorts() = 0;
 };
+<<<<<<< HEAD
 #include <iostream>
 // KeyCommands is an implementation of the YARP RFModule
 // for controlling the robots velocity in the terminal
@@ -95,8 +103,40 @@ class KeyCommands : public yarp::os::RFModule
 
 // };
 
+=======
 
 
+// KeyReader implements a simple user interface that
+// supports the user with w, a, s, d controls to write
+// to a port via WriteToPort().
+//
+// Implemented by Martin Huber.
+class KeyReader
+{
+    public:
+        KeyReader();
+
+        ~KeyReader();
+
+    private:
+
+        // Port for sending velocities.
+        yarp::os::BufferedPort<yarp::sig::Vector> port;
+
+        // Read incomming commands and update the velocity.
+        void ReadCommands();
+    
+        // Set velocity.
+        void SetVelocity(Eigen::Vector3d& acc, double t);
+
+        // Write to port.
+        void WriteToPort();
+>>>>>>> 9efb23a88150b355067ba3223d22360128c4404e
+
+        // Accelerations.
+        Eigen::Vector3d acc_w_, acc_a_, acc_s_, acc_d_;
+
+<<<<<<< HEAD
 using namespace std;
 using namespace yarp::os;
 
@@ -155,6 +195,17 @@ public:
         handlerPort.close();
         return true;
     }
+=======
+        // Respective time, accelerated in one direction.
+        double t_iter_;
+
+        // Velocity.
+        yarp::sig::Vector vel_;
+
+        // User interface.
+        WINDOW *win_w_, *win_a_, *win_s_, *win_d_;
+        WINDOW *win_q_, *win_e_, *win_info_, *win_vel_;
+>>>>>>> 9efb23a88150b355067ba3223d22360128c4404e
 };
 
 #endif

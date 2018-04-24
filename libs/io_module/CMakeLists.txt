@@ -1,6 +1,7 @@
 # Add input ouput module library.
 find_package(YARP REQUIRED)
 find_package(OpenCV REQUIRED)
+find_package(Curses REQUIRED)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/io_module)
 
@@ -16,6 +17,7 @@ add_library(io_module SHARED
 target_link_libraries(io_module
     ${YARP_LIBRARIES}
     ${OpenCV_LIBRARIES}
+    ${CURSES_LIBRARIES}
     yaml-cpp
 )
 
