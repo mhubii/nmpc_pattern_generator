@@ -14,12 +14,15 @@
 class NetworkManager
 {
     public:
-        NetworkManager(const std::string config_file_loc);
+        NetworkManager() { yarp::os::Network yarp; };
 
     private:
-        void OpenPorts();
+        // Set configurations, drivers and ports by classes Reader and Writer.
+        virtual void SetConfigs(const std::string config_file_loc) = 0;
 
-        void SetConfigs(const std::string config_file_loc);
+        virtual void SetDrivers() = 0;
+
+        virtual void SetPorts() = 0;
 
         // Configurations.
         YAML::Node configs_;

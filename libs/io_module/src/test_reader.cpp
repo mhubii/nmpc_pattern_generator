@@ -3,19 +3,18 @@
 
 #include "reader.h"
 
-int main() {
-    KeyReader key_reader(4000);
+int main(int argc, char * argv[]) {
+    yarp::os::Network yarp;
 
-    key_reader.start();
+    KeyCommands key_commands;
 
-    bool done = false;
-    double startTime = yarp::os::Time::now();
-    const int SOME_TIME=10;
-    while(!done)
-    {
-        if ((yarp::os::Time::now() - startTime) > SOME_TIME)
-            done = true;
-    }
+    yarp::os::ResourceFinder rf;
+    rf.configure(argc, argv);
+    rf.setVerbose(true);
 
-    key_reader.stop();
+    std::printf("Configuring and starting module. \n");
+    key_commands.runModule(rf);
+    std::printf("Main returning..."); 
+
+    return 0;
 }

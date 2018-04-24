@@ -5,3 +5,5 @@ sensors:
     joints: [0,1,2,3,4,5]
   - part: torso
     joints: [0,1,2]
+  - part: chest
+    cameras: [left, right]
