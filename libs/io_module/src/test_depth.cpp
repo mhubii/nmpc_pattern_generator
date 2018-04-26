@@ -84,19 +84,12 @@ int main() {
     // // Determine disparity.
     // cv::Mat disp;   
 
-<<<<<<< HEAD
-    cv::Ptr<cv::StereoBM> sbm = cv::StereoBM::create(9, 16);
-
-    sbm->compute(cv_left, cv_right, disp);
-    cv::normalize(disp, disp, 0, 255, CV_MINMAX, CV_8U);
-=======
     // cv::StereoBM sbm;
     // sbm.state->SADWindowSize = 9;
     // sbm.state->numberOfDisparities = 16;
 
     // sbm(cv_left, cv_right, disp);
     // cv::normalize(disp, disp, 0, 255, CV_MINMAX, CV_8U);
->>>>>>> 39be5a8d8353015eacc8d54cbfd2b67c31d55566
 
     // cv::namedWindow("test", 1);
     // cv::imshow("test", disp);
