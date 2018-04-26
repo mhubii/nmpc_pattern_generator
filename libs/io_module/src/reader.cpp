@@ -120,10 +120,10 @@ ReadCameras::ReadCameras(int period, const std::string config_file_loc,
     
     // Stereo matching and weighted least square filter.
     l_matcher_ = cv::StereoBM::create(16, 9);
-    r_matcher_ = cv::StereoBM::create(16, 9);
+    r_matcher_ = cv::ximgproc::createRightMatcher(l_matcher_);
     wls_ = cv::ximgproc::createDisparityWLSFilter(l_matcher_);
 
-    wls_->setLambda(1e4);
+    wls_->setLambda(1e3);
     wls_->setSigmaColor(1.5);
 
     // Outgoing velocity.
@@ -170,7 +170,8 @@ void ReadCameras::run() {
     // Perform weighted least squares filtering.
     wls_->filter(l_disp_, img_cv_[parts_[0].cameras[0]], wls_disp_, r_disp_);
 
-    cv::ximgproc::getDisparityVis(wls_disp_, wls_disp_, 1);
+    //cv::ximgproc::getDisparityVis(wls_disp_, wls_disp_, 1);
+    cv::normalize(wls_disp_, wls_disp_, 0, 255, CV_MINMAX, CV_8U);
 
     // Show and or save the depth view.
     if (show_depth_view_) {
@@ -178,7 +179,7 @@ void ReadCameras::run() {
         cv::imshow("Depth View", wls_disp_);
         cv::waitKey(period_);
     }
-    cv::imwrite("/home/mhuber/Documents/depth_view.png", l_disp_);
+
     if (save_depth_view_) {
 
     }

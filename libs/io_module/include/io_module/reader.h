@@ -119,7 +119,7 @@ class ReadCameras : public yarp::os::RateThread
 
         // Stereo matching and weighted least square filter.
         cv::Ptr<cv::StereoBM> l_matcher_;
-        cv::Ptr<cv::StereoBM> r_matcher_;
+        cv::Ptr<cv::StereoMatcher> r_matcher_;
         cv::Ptr<cv::ximgproc::DisparityWLSFilter> wls_;
 
         // Disparity map.
