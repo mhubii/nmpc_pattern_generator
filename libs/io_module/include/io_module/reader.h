@@ -1,109 +1,138 @@
 #ifndef IO_MODULE_READ_H_
 #define IO_MODULE_READ_H_
 
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/core_c.h>
+#include <opencv2/ximgproc.hpp>
+
 #include <stdio.h>
-#include <yarp/os/RateThread.h>
-#include <yarp/os/RFModule.h>
-#include <yarp/os/Network.h>
-<<<<<<< HEAD
-#include <Eigen/Dense>
-=======
-#include <yarp/sig/Vector.h>
-#include <yarp/sig/Matrix.h>
-#include <yarp/os/Time.h>
+#include <yarp/dev/ControlBoardInterfaces.h>
+#include <yarp/dev/FrameGrabberInterfaces.h>
+#include <yarp/dev/PolyDriver.h>
+#include <yarp/os/all.h>
+#include <yarp/sig/all.h>
 #include <yarp/eigen/Eigen.h>
 #include <ncurses.h>
->>>>>>> 9efb23a88150b355067ba3223d22360128c4404e
+#include <yaml-cpp/yaml.h>
 
-#include "network_manager.h"
 #include "utils.h"
 
-// Wrapper class for YARP to read from ports.
+
+// ReadJointsToFile implements a simple reader that
+// reads joints from a YARP interface.
 //
 // Implemented by Martin Huber.
-class Reader
+class ReadJoints : public yarp::os::RateThread
 {
     public:
         
-        // Constructor. Set up the network.
-        Reader();
+        ReadJoints(int period, const std::string config_file_loc = "../libs/io_module/configs.yaml", 
+                   const std::string robot_name = "icubGazeboSim", const std::string out_file_loc = "../libs/io_module/data/states.csv");
+
+        ~ReadJoints();
 
     private:
 
-        // Methods to implement for reading from YARP ports.
-        virtual void SetConfigs() = 0;
+        // Methods to be implemented for RateThread.
+        virtual void run();
 
-        virtual void SetDrivers() = 0;
+        // Write data to file.
+        //WriteCsv();
 
-        virtual void SetPorts() = 0;
+        // Configurations.
+        void UnsetDrivers();
+
+        void SetConfigs();
+
+        void SetDrivers();
+
+        // Robot.
+        const std::string robot_name_;
+
+        // Configurations.
+        YAML::Node configs_;
+
+        // Parts.
+        std::vector<Part> parts_;
+
+        // Output.
+        std::string out_file_loc_;
+
+        // Drivers.
+        std::map<std::string, yarp::dev::PolyDriver*> dd_;
+        std::map<std::string, yarp::dev::IEncoders*> enc_;
 };
-<<<<<<< HEAD
-#include <iostream>
-// KeyCommands is an implementation of the YARP RFModule
-// for controlling the robots velocity in the terminal
-// via the keyboard. Possible commands are listed in the
-// command enum. Precisely, the commands represent accelerations
-// that are in turn converted into velocities.
+
+
+// ReadCameras implements a simple reader that
+// reads camera images from a YARP interface.
 //
 // Implemented by Martin Huber.
-class KeyCommands : public yarp::os::RFModule
+class ReadCameras : public yarp::os::RateThread
 {
     public:
-        // Port to handle messages.
-        yarp::os::Port port;
+        
+        ReadCameras(int period, const std::string config_file_loc = "../libs/io_module/configs.yaml",
+                   const std::string robot_name = "icubGazeboSim", const std::string out_file_loc = "../libs/io_module/data/img",
+                   const std::string out_port_name = "/vel/prediction");
 
-        // Velocity.
-        Eigen::Vector3d vel_;
+        ~ReadCameras();
 
-        // Keyboard commands.
-        enum command : char {UP = 'w', DOWN = 's', LEFT = 'a', RIGHT = 'd'};
+    private:
 
-        // Determines the vel_, given the command.
-        void SetVelocity(command in) {};
+        // Methods to be implemented for RateThread.
+        virtual void run();
 
-        // Methods implemented for the RFModule.
-        double getPeriod() { return 100; };
+        // Configurations.
+        void UnsetDrivers();
 
-        bool updateModule() { std::cout << "update" << std::endl; };
+        void SetConfigs();
 
-        bool respond(const yarp::os::Bottle& command, yarp::os::Bottle& reply) {
-            if (command.get(0).asString() == "quit")
-                return false;
-            else if (command.get(0).asVocab() == UP){
-                std::cout << "Got up." << std::endl;}
-            else if (command.get(0).asVocab() == DOWN){
-                std::cout << "Got down." << std::endl;}
-            else if (command.get(0).asVocab() == LEFT){
-                std::cout << "Got left." << std::endl;}
-            else if (command.get(0).asVocab() == RIGHT){
-                std::cout << "Got right." << std::endl;}
+        void SetDrivers();
 
-            return true;
-        };
+        // Robot.
+        const std::string robot_name_;
 
-        bool configure(yarp::os::ResourceFinder& rf) { 
-            port.open("/in");
-            attach(port);
-            return true; 
-        };
+        // run() is called every period_ ms.
+        int period_;
 
-        bool close() { 
-            port.close();
-            return true; 
-        };
+        // Possible outputs.
+        bool show_depth_view_;
+        bool save_depth_view_;
+
+        // Configurations.
+        YAML::Node configs_;
+
+        // Parts.
+        std::vector<Part> parts_;
+
+        // Output.
+        std::string out_file_loc_;
+
+        // Drivers.
+        std::map<std::string, yarp::dev::PolyDriver*> dd_;
+        std::map<std::string, yarp::dev::IFrameGrabberImage*> grab_;
+
+        // Images of the cameras.
+        std::map<std::string, yarp::sig::ImageOf<yarp::sig::PixelRgb>> img_;
+        std::map<std::string, cv::Mat> img_cv_;
+
+        // Stereo matching and weighted least square filter.
+        cv::Ptr<cv::StereoBM> l_matcher_;
+        cv::Ptr<cv::StereoBM> r_matcher_;
+        cv::Ptr<cv::ximgproc::DisparityWLSFilter> wls_;
+
+        // Disparity map.
+        cv::Mat l_disp_; 
+        cv::Mat r_disp_; 
+        cv::Mat wls_disp_;
+
+        // Outgoing information.
+        yarp::sig::Vector vel_;
+
+        // Outgoing port.
+        yarp::os::BufferedPort<yarp::sig::Vector> port_;
 };
-
-// AppCommands is an implementation of the YARP RFModule
-// for controlling the robots velocity via an app.
-// Possible commands are listed in the command enum.
-//
-// Implemented by Martin Huber.
-// class AppCommands : public yarp::os::RFModule
-// {
-
-// };
-
-=======
 
 
 // KeyReader implements a simple user interface that
@@ -114,6 +143,7 @@ class KeyCommands : public yarp::os::RFModule
 class KeyReader
 {
     public:
+
         KeyReader();
 
         ~KeyReader();
@@ -121,7 +151,7 @@ class KeyReader
     private:
 
         // Port for sending velocities.
-        yarp::os::BufferedPort<yarp::sig::Vector> port;
+        yarp::os::BufferedPort<yarp::sig::Vector> port_;
 
         // Read incomming commands and update the velocity.
         void ReadCommands();
@@ -131,71 +161,10 @@ class KeyReader
 
         // Write to port.
         void WriteToPort();
->>>>>>> 9efb23a88150b355067ba3223d22360128c4404e
 
         // Accelerations.
         Eigen::Vector3d acc_w_, acc_a_, acc_s_, acc_d_;
 
-<<<<<<< HEAD
-using namespace std;
-using namespace yarp::os;
-
-class MyModule:public RFModule
-{
-    Port handlerPort; // a port to handle messages
-    int count;
-public:
-    double getPeriod()
-    {
-        // module periodicity (seconds), called implicitly by the module.
-        return 1.0;
-    }
-    // This is our main function. Will be called periodically every getPeriod() seconds
-    bool updateModule()
-    {
-        count++;
-        cout << "[" << count << "]" << " updateModule..." << endl;
-        return true;
-    }
-    // Message handler. Just echo all received messages.
-    bool respond(const Bottle& command, Bottle& reply)
-    {
-        cout << "Got something, echo is on" << endl;
-        if (command.get(0).asString() == "quit")
-            return false;
-        else
-            reply = command;
-        return true;
-    }
-    // Configure function. Receive a previously initialized
-    // resource finder object. Use it to configure your module.
-    // If you are migrating from the old module, this is the function
-    // equivalent to the "open" method.
-    bool configure(yarp::os::ResourceFinder &rf)
-    {
-        count=0;
-        // optional, attach a port to the module
-        // so that messages received from the port are redirected
-        // to the respond method
-        handlerPort.open("/myModule");
-        attach(handlerPort);
-        return true;
-    }
-    // Interrupt function.
-    bool interruptModule()
-    {
-        cout << "Interrupting your module, for port cleanup" << endl;
-        return true;
-    }
-    // Close function, to perform cleanup.
-    bool close()
-    {
-        // optional, close port explicitly
-        cout << "Calling close function\n";
-        handlerPort.close();
-        return true;
-    }
-=======
         // Respective time, accelerated in one direction.
         double t_iter_;
 
@@ -205,7 +174,6 @@ public:
         // User interface.
         WINDOW *win_w_, *win_a_, *win_s_, *win_d_;
         WINDOW *win_q_, *win_e_, *win_info_, *win_vel_;
->>>>>>> 9efb23a88150b355067ba3223d22360128c4404e
 };
 
 #endif

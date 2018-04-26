@@ -17,18 +17,18 @@ using namespace yarp::dev;
 int main() {
     Network yarp;
 
-    Property config_left;
-    config_left.put("device", "opencv_grabber");
-    config_left.put("local", "/client");
-    config_left.put("remote", "/icubGazeboSim/cam/left");
+    // Property config_left;
+    // config_left.put("device", "opencv_grabber");
+    // config_left.put("local", "/client");
+    // config_left.put("remote", "/icubGazeboSim/cam/left");
 
-    PolyDriver dd_left(config_left);
-    if (!dd_left.isValid()) {
-        printf("Failed to create and configure device\n");
-        return 1;
-    }
+    // PolyDriver dd_left(config_left);
+    // if (!dd_left.isValid()) {
+    //     printf("Failed to create and configure device\n");
+    //     return 1;
+    // }
 
-    // // Left image.
+    // Left image.
     // Property config_left;
     // config_left.put("device", "remote_grabber");
     // config_left.put("local", "/client");
@@ -97,5 +97,5 @@ int main() {
     // // Free storage.
     // cv::waitKey();
 
-    return 0;
+    // return 0;
 }

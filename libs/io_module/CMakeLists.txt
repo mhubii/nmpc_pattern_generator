@@ -25,7 +25,6 @@ target_link_libraries(io_module
 # Build examples.
 if (${IO_MODULE_EXAMPLES})
     set(EXAMPLES
-        test_keyboard
         test_depth
         test_reader
     )

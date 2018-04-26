@@ -2,6 +2,270 @@
 
 #include <iostream>
 
+
+ReadJoints::ReadJoints(int period, const std::string config_file_loc, 
+                       const std::string robot_name, const std::string out_file_loc)
+  : RateThread(period),
+    robot_name_(robot_name),
+    configs_(YAML::LoadFile(config_file_loc)),
+    out_file_loc_(out_file_loc) {
+
+    // Set configurations and drivers.
+    SetConfigs();
+    SetDrivers();
+}
+
+ReadJoints::~ReadJoints() {
+
+    // Unset drivers.
+    UnsetDrivers();
+}
+
+
+void ReadJoints::run() {
+
+    // Run method implemented for RateThread, is called
+    // every period ms. Here we want to read the joints
+    // of the robot defined in parts_.
+    for (const auto& part : parts_) {
+        
+
+        // Then, the read data is sent to the ports
+        // opened in SetDrivers().
+    }
+
+
+    
+}
+
+
+void ReadJoints::UnsetDrivers() {
+
+    // Close driver.
+    for (const auto& part : parts_) {
+        dd_[part.name]->close();
+    }
+
+    // Delete driver.
+    for (const auto& part : parts_) {
+        delete dd_[part.name];
+    }
+}
+
+void ReadJoints::SetConfigs() {
+    
+    // Check for sensors i.e. parts and their joints.
+    for (YAML::const_iterator part = configs_["sensors"].begin();
+         part != configs_["sensors"].end();
+         part++) {
+        
+        if ((*part)["joints"]) {
+
+            parts_.push_back(Part{(*part)["part"].as<std::string>(),
+                                  (*part)["joints"].as<std::vector<int>>(),
+                                  std::vector<std::string>()});
+        }
+    }
+}
+
+
+void ReadJoints::SetDrivers() {
+
+    // Set a driver for each part.
+    for (const auto& part : parts_) {
+
+        std::string local_port = "/client/" + part.name;
+        std::string remote_port = "/" + robot_name_ + "/" + part.name;
+
+        yarp::os::Property options;
+        options.put("device", "remote_controlboard");
+        options.put("local", local_port);
+        options.put("remote", remote_port);
+
+        // Every part is set to position encoder.
+        dd_[part.name] = new yarp::dev::PolyDriver(options);
+        
+        if (!dd_[part.name]->isValid()) 
+        {
+            std::cerr << "Device or ports not available." << std::endl;
+            std::exit(1);
+        }
+
+        // Create IEncoders interfaces for the sensors.
+        bool ok = true;
+
+        yarp::dev::IEncoders* e;
+        ok = ok && dd_[part.name]->view(e);
+        enc_[part.name] = e;
+
+        if (!ok) 
+        {
+            std::cout << "Problems acquiring interfaces" << std::endl;
+            std::exit(1);
+        }
+    }
+}
+
+
+ReadCameras::ReadCameras(int period, const std::string config_file_loc, 
+                         const std::string robot_name, const std::string out_file_loc,
+                         const std::string out_port_name)
+  : RateThread(period),
+    robot_name_(robot_name),
+    period_(period),
+    show_depth_view_(true),
+    save_depth_view_(false),
+    configs_(YAML::LoadFile(config_file_loc)),
+    vel_(3) {
+    
+    // Stereo matching and weighted least square filter.
+    l_matcher_ = cv::StereoBM::create(16, 9);
+    r_matcher_ = cv::StereoBM::create(16, 9);
+    wls_ = cv::ximgproc::createDisparityWLSFilter(l_matcher_);
+
+    wls_->setLambda(1e4);
+    wls_->setSigmaColor(1.5);
+
+    // Outgoing velocity.
+    vel_.zero();
+
+    // Outgoing port.
+    port_.open(out_port_name);
+
+    // Set configurations and drivers.
+    SetConfigs();
+    SetDrivers();
+}
+
+
+ReadCameras::~ReadCameras() {
+
+    // Unset drivers.
+    UnsetDrivers();
+
+    // Close ports.
+    port_.close();
+}
+
+
+void ReadCameras::run() {
+
+    // Read the camera every period_ ms.
+    for (const auto& part : parts_) {
+        for (const auto& camera : part.cameras) {
+            grab_[camera]->getImage(img_[camera]);
+
+            // Convert the images to a format that OpenCV uses.
+            img_cv_[camera] = cv::cvarrToMat(img_[camera].getIplImage());
+
+            // Convert to gray image.
+            cv::cvtColor(img_cv_[camera], img_cv_[camera], cv::COLOR_BGR2GRAY);
+        }
+    }
+
+    // Determine disparity.
+    l_matcher_->compute(img_cv_[parts_[0].cameras[0]], img_cv_[parts_[0].cameras[1]], l_disp_);
+    r_matcher_->compute(img_cv_[parts_[0].cameras[1]], img_cv_[parts_[0].cameras[0]], r_disp_);
+
+    // Perform weighted least squares filtering.
+    wls_->filter(l_disp_, img_cv_[parts_[0].cameras[0]], wls_disp_, r_disp_);
+
+    cv::ximgproc::getDisparityVis(wls_disp_, wls_disp_, 1);
+
+    // Show and or save the depth view.
+    if (show_depth_view_) {
+        cv::namedWindow("Depth View", cv::WINDOW_AUTOSIZE);
+        cv::imshow("Depth View", wls_disp_);
+        cv::waitKey(period_);
+    }
+    cv::imwrite("/home/mhuber/Documents/depth_view.png", l_disp_);
+    if (save_depth_view_) {
+
+    }
+
+    // Apply neural net to the depth view to make a decision.
+    yarp::sig::Vector& data = port_.prepare();
+    data = vel_;
+    port_.write();       
+}
+
+
+void ReadCameras::UnsetDrivers() {
+    
+    // Close driver.
+    for (const auto& part : parts_) {
+        for (const auto& camera : part.cameras) {
+            dd_[camera]->close();
+        }
+    }
+
+    // Delete driver.
+    for (const auto& part : parts_) {
+        for (const auto& camera : part.cameras) {
+            delete dd_[camera];
+        }
+    }
+}
+
+
+void ReadCameras::SetConfigs() {
+    
+    // Check for sensors i.e. parts and their cameras.
+    for (YAML::const_iterator part = configs_["sensors"].begin();
+            part != configs_["sensors"].end();
+            part++) {
+        
+        if ((*part)["cameras"]) {
+            parts_.push_back(Part{(*part)["part"].as<std::string>(),
+                                  std::vector<int>(),
+                                  (*part)["cameras"].as<std::vector<std::string>>()});
+        }
+    }
+}
+
+
+void ReadCameras::SetDrivers() {
+
+    // Set a driver for each camera.
+    for (const auto& part : parts_) {
+        for (const auto& camera : part.cameras) {
+
+            std::string local_port = "/client/cam/" + camera;
+            std::string remote_port = "/" + robot_name_ + "/cam/" + camera;
+
+            yarp::os::Property options;
+            options.put("device", "remote_grabber");
+            options.put("local", local_port);
+            options.put("remote", remote_port);
+
+            dd_[camera] = new yarp::dev::PolyDriver(options);
+
+            if (!dd_[camera]->isValid()) 
+            {
+                std::cerr << "Device or ports not available." << std::endl;
+                std::exit(1);
+            }
+
+            //
+            bool ok = true;
+
+            yarp::dev::IFrameGrabberImage* f;
+            ok = ok && dd_[camera]->view(f);
+            grab_[camera] = f;
+
+            if (!ok) 
+            {
+                std::cout << "Problems acquiring interfaces" << std::endl;
+                std::exit(1);
+            }
+        }
+    }
+}
+
+
+
+
+
 KeyReader::KeyReader() 
     : t_iter_(yarp::os::Time::now()), 
       acc_w_( 0.1, 0.,  0. ),
@@ -11,7 +275,7 @@ KeyReader::KeyReader()
       vel_(3) {
 
   // Open port.
-  port.open("/vel");
+  port_.open("/vel/command");
 
   // Set accelerations and velocity.
   vel_.zero();
@@ -87,7 +351,7 @@ KeyReader::~KeyReader() {
   WriteToPort();
 
   // Close port.
-  port.close();
+  port_.close();
     
   // Release the user interface.
   delwin(win_w_);
@@ -110,6 +374,7 @@ void KeyReader::ReadCommands() {
     // and write them to the port.
     int ch = 0;
     double dt = 0.;
+    double t = 0.;
 
     do {                
         // Read input periodically.
@@ -165,8 +430,7 @@ void KeyReader::SetVelocity(Eigen::Vector3d& acc, double t) {
 void KeyReader::WriteToPort() {
     
     // Write the velocities to the output port.
-    yarp::sig::Vector& data = port.prepare();
-    data = port.prepare();
+    yarp::sig::Vector& data = port_.prepare();
     data = vel_;
-    port.write();
+    port_.write();
 }
