@@ -1,3 +1,13 @@
+# Define motors in use to write to.
+motors:
+  - part: left_leg
+    joints: [0,1,2,3,4,5]
+  - part: right_leg
+    joints: [0,1,2,3,4,5]
+  - part: torso
+    joints: [0,1,2]
+
+# Define sensors in use to read from.
 sensors:
   - part: left_leg
     joints: [0,1,2,3,4,5]
@@ -5,3 +15,6 @@ sensors:
     joints: [0,1,2,3,4,5]
   - part: torso
     joints: [0,1,2]
+  - part: chest
+    cameras: [left, right]
+

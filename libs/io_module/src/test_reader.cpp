@@ -5,6 +5,7 @@
 
 #include "reader.h"
 
+<<<<<<< HEAD
 #include <ncurses.h>
 #include <SDL2/SDL.h>
 
@@ -30,4 +31,21 @@ int main( int argc, char *argv[] ){
         }
     }
     SDL_Quit();
+=======
+int main(int argc, char * argv[]) {
+    yarp::os::Network yarp;
+
+
+    int period = 10;
+    // ReadJoints rj(1000);
+    ReadCameras rc(100);
+
+    // rj.start();
+    rc.start();
+    yarp::os::Time::delay(10);
+    rc.stop();
+    // rj.stop();
+
+    return 0;
+>>>>>>> 39be5a8d8353015eacc8d54cbfd2b67c31d55566
 }
