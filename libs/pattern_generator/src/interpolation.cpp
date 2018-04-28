@@ -167,8 +167,8 @@ void Interpolation::InitializeLIPM() {
 
     // Taylor time approximations of the linear inverted pendulum.
     a_ << 1., tc_, tc_*tc_*0.5,
-           0.,  1.,         tc_,
-           0.,  0.,          1.;
+           0.,  1.,        tc_,
+           0.,  0.,         1.;
 
     b_ << tc_*tc_*tc_/6.,
                tc_*tc_/2.,
@@ -434,8 +434,8 @@ void Interpolation::InterpolateLIPM() {
 
 template <typename Derived>
 void Interpolation::Set4thOrderCoefficients(Eigen::MatrixBase<Derived>& coef,
-                                                double final_time, double middle_pos,
-                                                double init_pos, double init_vel) {
+                                            double final_time, double middle_pos,
+                                            double init_pos, double init_vel) {
     
     // Set the 4th order coefficients for the interpolation.
     coef(0) = init_pos;
@@ -461,8 +461,8 @@ void Interpolation::Set4thOrderCoefficients(Eigen::MatrixBase<Derived>& coef,
 
 template <typename Derived>
 void Interpolation::Set5thOrderCoefficients(Eigen::MatrixBase<Derived>& coef,
-                                                double final_time, double final_pos,
-                                                double init_pos, double init_vel, double init_acc) {
+                                            double final_time, double final_pos,
+                                            double init_pos, double init_vel, double init_acc) {
 
     // Set the 5th order coefficients for the interpolation.
     coef(0) =     init_pos;
