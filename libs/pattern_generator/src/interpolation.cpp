@@ -166,15 +166,9 @@ void Interpolation::Derivative(const Eigen::MatrixBase<Derived>& coef, Eigen::Ma
 void Interpolation::InitializeLIPM() {
 
     // Taylor time approximations of the linear inverted pendulum.
-<<<<<<< HEAD
-    a_ << 1., tc_, tc_*tc_*0.5,
-           0.,  1.,        tc_,
-           0.,  0.,         1.;
-=======
     a_ << 1., tc_,  tc_*tc_*0.5,
            0.,  1.,         tc_,
            0.,  0.,          1.;
->>>>>>> f774e480f054babc05c9d4d6fb2d24fb2af8971b
 
     b_ << tc_*tc_*tc_/6.,
                tc_*tc_/2.,
