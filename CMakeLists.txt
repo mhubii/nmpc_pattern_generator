@@ -46,7 +46,11 @@ add_subdirectory(libs/io_module)
 
 
 # Inverse kinematics library.
-# add_subdirectory(inverse_kinematics)
+option(KINEMATICS_EXAMPLES "Build kinematics examples." ON)
+
+option(KINEMATICS_TESTS "Build kinematics tests." ON)
+
+add_subdirectory(libs/kinematics)
 
 
 # Pattern generator library.

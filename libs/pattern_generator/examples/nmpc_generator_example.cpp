@@ -27,7 +27,7 @@ int main() {
 
     nmpc.SetInitialValues(pg_state);
     Interpolation interpol_nmpc(nmpc);
-    Eigen::Vector3d velocity_reference(0.1, 0., 0.);
+    Eigen::Vector3d velocity_reference(0.02, 0., 0.);
 
 
     // Pattern generator event loop.
@@ -35,16 +35,16 @@ int main() {
         std::cout << "Iteration: " << i << std::endl;
 
 
-        // Change reference velocities.
-        if (25 <= i && i < 50) {
-            velocity_reference << 0.1, 0., 0.1;
-        }
-        else if (50 <= i && i < 150) {
-            velocity_reference << 0.1, 0.1, 0.1;
-        }
-        else if (150 <= i && i < 200) {
-            velocity_reference << 0., 0., 0.;
-        }
+        // // Change reference velocities.
+        // if (25 <= i && i < 50) {
+        //     velocity_reference << 0.1, 0., 0.1;
+        // }
+        // else if (50 <= i && i < 150) {
+        //     velocity_reference << 0.1, 0.1, 0.1;
+        // }
+        // else if (150 <= i && i < 200) {
+        //     velocity_reference << 0., 0., 0.;
+        // }
 
 
         // Set reference velocities.
