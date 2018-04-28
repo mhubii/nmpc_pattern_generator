@@ -161,7 +161,7 @@ void Interpolation::Derivative(const Eigen::MatrixBase<Derived>& coef, Eigen::Ma
     for (int i = 0; i < coef.rows() - 1; i++) {
         dcoef(i) = (i + 1)*coef(i + 1);
     }
-}
+}   
 
 void Interpolation::InitializeLIPM() {
 
