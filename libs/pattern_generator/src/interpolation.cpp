@@ -161,7 +161,7 @@ void Interpolation::Derivative(const Eigen::MatrixBase<Derived>& coef, Eigen::Ma
     for (int i = 0; i < coef.rows() - 1; i++) {
         dcoef(i) = (i + 1)*coef(i + 1);
     }
-}
+}   
 
 void Interpolation::InitializeLIPM() {
 
@@ -446,8 +446,8 @@ void Interpolation::InterpolateLIPM() {
 
 template <typename Derived>
 void Interpolation::Set4thOrderCoefficients(Eigen::MatrixBase<Derived>& coef,
-                                                double final_time, double middle_pos,
-                                                double init_pos, double init_vel) {
+                                            double final_time, double middle_pos,
+                                            double init_pos, double init_vel) {
     
     // Set the 4th order coefficients for the interpolation.
     coef(0) = init_pos;
@@ -473,8 +473,8 @@ void Interpolation::Set4thOrderCoefficients(Eigen::MatrixBase<Derived>& coef,
 
 template <typename Derived>
 void Interpolation::Set5thOrderCoefficients(Eigen::MatrixBase<Derived>& coef,
-                                                double final_time, double final_pos,
-                                                double init_pos, double init_vel, double init_acc) {
+                                            double final_time, double final_pos,
+                                            double init_pos, double init_vel, double init_acc) {
 
     // Set the 5th order coefficients for the interpolation.
     coef(0) =     init_pos;
