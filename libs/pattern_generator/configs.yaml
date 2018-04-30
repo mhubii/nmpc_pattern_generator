@@ -19,11 +19,15 @@ foot_distance: 0.14
 command_period: 0.01
 n_still: 10
 t_ds: 1.
+<<<<<<< HEAD
 step_height: 0.01
+=======
+step_height: 0.03
+>>>>>>> b4834adb3863884f4eeb0fbb5bdb8e43d36cfaf4
 
 # Initial values.
 com_x: [0.0 , 0.0, 0.0]
-com_y: [0.04, 0.0, 0.0]
+com_y: [0.06, 0.0, 0.0]
 com_z: 0.46
 com_q: [0.0 , 0.0, 0.0]
 support_foot: left
@@ -43,7 +47,7 @@ radius: 0
 n: 20
 t: 0.2
 alpha: 1.0
-gamma: 1e-6
+gamma: 1
 delta: 1e-5
 cpu_time: 0.01
 nwsr: 100

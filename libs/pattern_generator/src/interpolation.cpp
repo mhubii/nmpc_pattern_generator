@@ -167,12 +167,12 @@ void Interpolation::InitializeLIPM() {
 
     // Taylor time approximations of the linear inverted pendulum.
     a_ << 1., tc_,  tc_*tc_*0.5,
-           0.,  1.,         tc_,
-           0.,  0.,          1.;
+          0.,  1.,          tc_,
+          0.,  0.,           1.;
 
     b_ << tc_*tc_*tc_/6.,
-               tc_*tc_/2.,
-                      tc_;
+              tc_*tc_/2.,
+                     tc_;
 
     c_ <<         1.,
                   0.,
