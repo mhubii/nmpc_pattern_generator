@@ -24,7 +24,6 @@ target_link_libraries(kinematics
 if (${KINEMATICS_EXAMPLES})
     set(EXAMPLES
         test_inverse_kinematics
-        pattern_to_joint_angles
     )
 
     foreach (example ${EXAMPLES})
