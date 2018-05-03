@@ -1,6 +1,7 @@
 #ifndef KINEMATICS_INVERSE_KINEMATICS_H_
 #define KINEMATICS_INVERSE_KINEMATICS_H_
 
+#include <iostream>
 #include <rbdl/rbdl.h>
 #include <rbdl/addons/urdfreader/urdfreader.h>
 #include <vector>
@@ -22,7 +23,6 @@ class InverseKinematics
                     Eigen::MatrixXd& rf_traj);
 
         // Get joint angles.
-        inline const Eigen::VectorXd& GetQInit() const { return q_init_; };
         inline const Eigen::MatrixXd& GetQTraj() const { return q_traj_; };
 
     public:

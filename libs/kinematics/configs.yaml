@@ -2,11 +2,11 @@
 urdf_loc: ../models/icub_heidelberg01_no_weights.urdf
 
 # Number of pre-initializations for inverse kinematics.
-n_init: 50
+n_init: 10
 
 # Parameters for the inverse kinematics.
 step_tol: 1e-12
-lambda: 1e-3
+lambda: 1e-2
 num_steps: 100
 
 # Body points.

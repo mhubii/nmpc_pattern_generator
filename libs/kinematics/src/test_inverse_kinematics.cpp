@@ -36,11 +36,26 @@ int main() {
     lf_traj  << pattern.row(13), pattern.row(14), pattern.row(15), pattern.row(16);
     rf_traj  << pattern.row(17), pattern.row(18), pattern.row(19), pattern.row(20);
 
-    ik.Invert(q_init, com_traj, lf_traj, rf_traj);
+    Eigen::MatrixXd q_traj(pattern.cols(), 15);
+
+    Eigen::MatrixXd com_cur;
+    Eigen::MatrixXd lf_cur;
+    Eigen::MatrixXd rf_cur;
+
+    for (int i = 0; i < pattern.cols(); i++) {
+        
+        // Get current trajectory time step.
+        com_cur = com_traj.col(i);
+        lf_cur = lf_traj.col(i);
+        rf_cur = rf_traj.col(i);
+
+        // Perform inverse kinematics.
+        ik.Invert(q_init, com_cur, lf_cur, rf_cur);
+
+        // Get results.
+        q_traj.row(i) = ik.GetQTraj().transpose().rightCols(15);
+    }
 
     // Save inverted trajectory.
-    Eigen::MatrixXd q_traj = ik.GetQInit().transpose().rightCols(15);
-
     WriteCsv("joint_angle_trajectories.csv", q_traj);
-
 }

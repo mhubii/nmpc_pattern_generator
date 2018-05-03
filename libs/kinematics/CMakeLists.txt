@@ -15,8 +15,8 @@ add_library(kinematics SHARED
 
 target_link_libraries(kinematics
     yaml-cpp
-    ${rbdl_LIBRARIES}
-    rbdl_urdfreader
+    ${rbdl_LIBRARY}
+    ${rbdl_urdfreader_LIBRARY}
 )
 
 
@@ -24,6 +24,7 @@ target_link_libraries(kinematics
 if (${KINEMATICS_EXAMPLES})
     set(EXAMPLES
         test_inverse_kinematics
+        pattern_to_joint_angles
     )
 
     foreach (example ${EXAMPLES})
