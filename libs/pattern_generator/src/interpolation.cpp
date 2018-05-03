@@ -329,20 +329,35 @@ void Interpolation::InterpolateFeet() {
                     rf_ddy_buffer_(0, i) = Eigen::poly_eval(f_coef_ddy_, i*tc_);
                     rf_ddq_buffer_(0, i) = Eigen::poly_eval(f_coef_ddq_, i*tc_);
                 }
-                else {
+                else if (t_current + i*tc_ < t_transition) {
 
                     // Dont move in x, y, and q directions during transitions.
-                    rf_x_buffer_.setConstant(rf_x_buffer_(0, intervals_));
-                    rf_y_buffer_.setConstant(rf_y_buffer_(0, intervals_));
-                    rf_q_buffer_.setConstant(rf_q_buffer_(0, intervals_));
+                    rf_x_buffer_(0, i) = rf_x_buffer_(0, intervals_);
+                    rf_y_buffer_(0, i) = rf_y_buffer_(0, intervals_);
+                    rf_q_buffer_(0, i) = rf_q_buffer_(0, intervals_);
 
-                    rf_dx_buffer_.setZero();
-                    rf_dy_buffer_.setZero();
-                    rf_dq_buffer_.setZero();
+                    rf_dx_buffer_(0, i) = 0;
+                    rf_dy_buffer_(0, i) = 0;
+                    rf_dq_buffer_(0, i) = 0;
 
-                    rf_ddx_buffer_.setZero();
-                    rf_ddy_buffer_.setZero();
-                    rf_ddq_buffer_.setZero();
+                    rf_ddx_buffer_(0, i) = 0;
+                    rf_ddy_buffer_(0, i) = 0;
+                    rf_ddq_buffer_(0, i) = 0;
+                }
+                else if (t_current + i*tc_ > t_ss_ - t_transition) {
+
+                    // Dont move in x, y, and q directions during transitions.
+                    rf_x_buffer_(0, i) = rf_x_buffer_(0, i - 1);
+                    rf_y_buffer_(0, i) = rf_y_buffer_(0, i - 1);
+                    rf_q_buffer_(0, i) = rf_q_buffer_(0, i - 1);
+
+                    rf_dx_buffer_(0, i) = 0;
+                    rf_dy_buffer_(0, i) = 0;
+                    rf_dq_buffer_(0, i) = 0;
+
+                    rf_ddx_buffer_(0, i) = 0;
+                    rf_ddy_buffer_(0, i) = 0;
+                    rf_ddq_buffer_(0, i) = 0;
                 }
 
                 // Evaluate interpolations for z during the whole single support period.
@@ -403,20 +418,35 @@ void Interpolation::InterpolateFeet() {
                     lf_ddy_buffer_(0, i) = Eigen::poly_eval(f_coef_ddy_, i*tc_);
                     lf_ddq_buffer_(0, i) = Eigen::poly_eval(f_coef_ddq_, i*tc_);
                 }
-                else {
+                else if (t_current + i*tc_ < t_transition) {
 
                     // Dont move in x, y, and q directions during transitions.
-                    lf_x_buffer_.setConstant(lf_x_buffer_(0, intervals_));
-                    lf_y_buffer_.setConstant(lf_y_buffer_(0, intervals_));
-                    lf_q_buffer_.setConstant(lf_q_buffer_(0, intervals_));
+                    lf_x_buffer_(0, i) = lf_x_buffer_(0, intervals_);
+                    lf_y_buffer_(0, i) = lf_y_buffer_(0, intervals_);
+                    lf_q_buffer_(0, i) = lf_q_buffer_(0, intervals_);
 
-                    lf_dx_buffer_.setZero();
-                    lf_dy_buffer_.setZero();
-                    lf_dq_buffer_.setZero();
+                    lf_dx_buffer_(0, i) = 0;
+                    lf_dy_buffer_(0, i) = 0;
+                    lf_dq_buffer_(0, i) = 0;
 
-                    lf_ddx_buffer_.setZero();
-                    lf_ddy_buffer_.setZero();
-                    lf_ddq_buffer_.setZero();
+                    lf_ddx_buffer_(0, i) = 0;
+                    lf_ddy_buffer_(0, i) = 0;
+                    lf_ddq_buffer_(0, i) = 0;
+                }
+                else if (t_current + i*tc_ > t_ss_ - t_transition) {
+
+                    // Dont move in x, y, and q directions during transitions.
+                    lf_x_buffer_(0, i) = lf_x_buffer_(0, i - 1);
+                    lf_y_buffer_(0, i) = lf_y_buffer_(0, i - 1);
+                    lf_q_buffer_(0, i) = lf_q_buffer_(0, i - 1);
+
+                    lf_dx_buffer_(0, i) = 0;
+                    lf_dy_buffer_(0, i) = 0;
+                    lf_dq_buffer_(0, i) = 0;
+
+                    lf_ddx_buffer_(0, i) = 0;
+                    lf_ddy_buffer_(0, i) = 0;
+                    lf_ddq_buffer_(0, i) = 0;
                 }
 
                 // Evaluate interpolations for z during the whole single support period.
