@@ -6,7 +6,7 @@ find_package(rbdl_urdfreader REQUIRED)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/kinematics)
 
 set(SOURCE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/inverse_kinematics.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/kinematics.cpp
 )
 
 add_library(kinematics SHARED

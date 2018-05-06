@@ -1,4 +1,4 @@
-#include "inverse_kinematics.h"
+#include "kinematics.h"
 #include "utils.h"
 
 #include <Eigen/Core>
@@ -9,7 +9,7 @@ int main() {
     // Initialize inverse kinematics.
     const std::string config_file_loc = "../libs/kinematics/configs.yaml";
 
-    InverseKinematics ik(config_file_loc);
+    Kinematics k(config_file_loc);
 
     // Load generated pattern. The pattern is stored in the order:
     //           com                    zmp       lf         rf
@@ -50,10 +50,10 @@ int main() {
         rf_cur = rf_traj.col(i);
 
         // Perform inverse kinematics.
-        ik.Invert(q_init, com_cur, lf_cur, rf_cur);
+        k.Inverse(q_init, com_cur, lf_cur, rf_cur);
 
         // Get results.
-        q_traj.row(i) = ik.GetQTraj().transpose().rightCols(15);
+        q_traj.row(i) = k.GetQTraj().transpose().rightCols(15);
     }
 
     // Save inverted trajectory.

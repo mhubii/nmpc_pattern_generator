@@ -1,5 +1,5 @@
-#ifndef KINEMATICS_INVERSE_KINEMATICS_H_
-#define KINEMATICS_INVERSE_KINEMATICS_H_
+#ifndef KINEMATICS_KINEMATICS_H_
+#define KINEMATICS_KINEMATICS_H_
 
 #include <iostream>
 #include <rbdl/rbdl.h>
@@ -8,22 +8,26 @@
 #include <Eigen/Dense>
 #include <yaml-cpp/yaml.h>
 
-class InverseKinematics
+class Kinematics
 {
     public:
 
-        InverseKinematics(const std::string config_file_loc = "../libs/kinematics/configs.yaml");
+        Kinematics(const std::string config_file_loc = "../libs/kinematics/configs.yaml");
 
-        ~InverseKinematics();
+        ~Kinematics();
+
+        // Perform forward kinematics.
+        void Forward(Eigen::VectorXd& q);
 
         // Perform inverse kinematics on pattern.
-        void Invert(Eigen::VectorXd& q_init,
-                    Eigen::MatrixXd& com_traj,
-                    Eigen::MatrixXd& lf_traj,
-                    Eigen::MatrixXd& rf_traj);
+        void Inverse(Eigen::VectorXd& q_init,
+                     Eigen::MatrixXd& com_traj,
+                     Eigen::MatrixXd& lf_traj,
+                     Eigen::MatrixXd& rf_traj);
 
-        // Get joint angles.
-        inline const Eigen::MatrixXd& GetQTraj() const { return q_traj_; };
+        // Get joint angles, center of mass and other things.
+        inline const RigidBodyDynamics::Math::Vector3d GetCom()   const { return com_; };
+        inline const Eigen::MatrixXd&                  GetQTraj() const { return q_traj_; };
 
     public:
 
@@ -44,13 +48,13 @@ class InverseKinematics
         Eigen::Vector3d rf_bp_;
 
         // Center of mass.
-        RigidBodyDynamics::Math::Vector3d com_real_;
+        RigidBodyDynamics::Math::Vector3d com_;
         double mass_;
 
         // Body id's.
-        uint com_;
-        uint lf_;
-        uint rf_;
+        uint com_id_;
+        uint lf_id_;
+        uint rf_id_;
 
         // Generalized coordinates of model.
         Eigen::VectorXd q_init_;
