@@ -2,6 +2,7 @@
 find_package(YARP REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(Curses REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/io_module)
 
@@ -27,6 +28,7 @@ if (${IO_MODULE_EXAMPLES})
     set(EXAMPLES
         test_depth
         test_reader
+        test_writer
     )
 
     foreach (example ${EXAMPLES})
