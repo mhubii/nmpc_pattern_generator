@@ -10,14 +10,14 @@ int main(int argc, char * argv[]) {
 
 
     int period = 10;
-    // ReadJoints rj(1000);
-    ReadCameras rc(100);
+    ReadJoints rj(1000);
+    // ReadCameras rc(100);
 
-    // rj.start();
-    rc.start();
+    rj.start();
+    //rc.start();
     yarp::os::Time::delay(10);
-    rc.stop();
-    // rj.stop();
+    //rc.stop();
+    rj.stop();
 
     return 0;
 }

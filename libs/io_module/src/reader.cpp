@@ -1,8 +1,5 @@
 #include "reader.h"
 
-#include <iostream>
-
-
 ReadJoints::ReadJoints(int period, const std::string config_file_loc, 
                        const std::string robot_name, const std::string out_file_loc)
   : RateThread(period),
@@ -13,29 +10,69 @@ ReadJoints::ReadJoints(int period, const std::string config_file_loc,
     // Set configurations and drivers.
     SetConfigs();
     SetDrivers();
+
+    // Prepare the output.
+    int joints = 0;
+
+    for (auto& part : parts_) {
+        joints += part.joints.size();
+    }
+
+    q_.resize(joints);
+
+    // Open port to write to.
+    port_.open(port_name_);
+    
+    if (port_.isClosed()) {
+        std::cerr << "Could not open port " << port_name_ << std::endl;
+    }
 }
+
 
 ReadJoints::~ReadJoints() {
 
     // Unset drivers.
     UnsetDrivers();
+
+    // Close ports.
+    port_.close();
 }
 
 
 void ReadJoints::run() {
 
+    bool ok = true;
+    int count = 0;
+
     // Run method implemented for RateThread, is called
     // every period ms. Here we want to read the joints
     // of the robot defined in parts_.
     for (const auto& part : parts_) {
-        
 
-        // Then, the read data is sent to the ports
-        // opened in SetDrivers().
+        // Create an encoder for each joint.
+        int ax = 0;
+        ok = ok && enc_[part.name]->getAxes(&ax);
+        yarp::sig::Vector encoders(ax);
+        
+        // Read the encoders.
+        ok = ok && enc_[part.name]->getEncoders(encoders.data());
+
+        // Store read encoders to q_.
+        for (int i = 0; i < encoders.size(); i++) {
+            q_[count] = encoders[i];
+            count++;
+        }
     }
 
+    // Convert to radians.
+    for (int i = 0; i < q_.size(); i++) {
+        q_[i] *= DEG2RAD;
+    }
 
-    
+    // Send read data to a port.
+    yarp::sig::Vector& data = port_.prepare();
+    data = q_;
+    port_.write();    
 }
 
 
@@ -66,6 +103,9 @@ void ReadJoints::SetConfigs() {
                                   std::vector<std::string>()});
         }
     }
+
+    // Check for the joints port name to write to.
+    port_name_ = configs_["joints_port_read"].as<std::string>();
 }
 
 
