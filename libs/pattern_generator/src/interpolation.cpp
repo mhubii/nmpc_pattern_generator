@@ -314,7 +314,7 @@ void Interpolation::InterpolateFeet() {
 
             for (int i = 0; i <= intervals_; i++) {
 
-                if (t_current + i*tc_ > t_transition && t_current + i*tc_ < t_ss_ - t_transition) {
+                if (t_current + i*tc_ >= t_transition && t_current + i*tc_ < t_ss_ - t_transition) {
 
                     // Evaluate interpolations for x, y, and q during the t_moving period.
                     rf_x_buffer_(0, i) = Eigen::poly_eval(f_coef_x_, i*tc_);
@@ -329,9 +329,9 @@ void Interpolation::InterpolateFeet() {
                     rf_ddy_buffer_(0, i) = Eigen::poly_eval(f_coef_ddy_, i*tc_);
                     rf_ddq_buffer_(0, i) = Eigen::poly_eval(f_coef_ddq_, i*tc_);
                 }
-                else if (t_current + i*tc_ < t_transition) {
+                else if (t_current + i*tc_ <= t_transition) {
 
-                    // Dont move in x, y, and q directions during transitions.
+                    // Dont move in x, y, and q directions during lift off transitions.
                     rf_x_buffer_(0, i) = rf_x_buffer_(0, intervals_);
                     rf_y_buffer_(0, i) = rf_y_buffer_(0, intervals_);
                     rf_q_buffer_(0, i) = rf_q_buffer_(0, intervals_);
@@ -344,9 +344,9 @@ void Interpolation::InterpolateFeet() {
                     rf_ddy_buffer_(0, i) = 0;
                     rf_ddq_buffer_(0, i) = 0;
                 }
-                else if (t_current + i*tc_ > t_ss_ - t_transition) {
+                else if (t_current + i*tc_ >= t_ss_ - t_transition) {
 
-                    // Dont move in x, y, and q directions during transitions.
+                    // Dont move in x, y, and q directions during drop down transitions.
                     rf_x_buffer_(0, i) = rf_x_buffer_(0, i - 1);
                     rf_y_buffer_(0, i) = rf_y_buffer_(0, i - 1);
                     rf_q_buffer_(0, i) = rf_q_buffer_(0, i - 1);
@@ -418,7 +418,7 @@ void Interpolation::InterpolateFeet() {
                     lf_ddy_buffer_(0, i) = Eigen::poly_eval(f_coef_ddy_, i*tc_);
                     lf_ddq_buffer_(0, i) = Eigen::poly_eval(f_coef_ddq_, i*tc_);
                 }
-                else if (t_current + i*tc_ < t_transition) {
+                else if (t_current + i*tc_ <= t_transition) {
 
                     // Dont move in x, y, and q directions during transitions.
                     lf_x_buffer_(0, i) = lf_x_buffer_(0, intervals_);
@@ -433,7 +433,7 @@ void Interpolation::InterpolateFeet() {
                     lf_ddy_buffer_(0, i) = 0;
                     lf_ddq_buffer_(0, i) = 0;
                 }
-                else if (t_current + i*tc_ > t_ss_ - t_transition) {
+                else if (t_current + i*tc_ >= t_ss_ - t_transition) {
 
                     // Dont move in x, y, and q directions during transitions.
                     lf_x_buffer_(0, i) = lf_x_buffer_(0, i - 1);
