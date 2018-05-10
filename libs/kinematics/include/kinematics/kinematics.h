@@ -17,17 +17,23 @@ class Kinematics
         ~Kinematics();
 
         // Perform forward kinematics.
-        void Forward(Eigen::VectorXd& q);
+        void Forward(Eigen::VectorXd&   q,
+                     Eigen::VectorXd&  dq,
+                     Eigen::VectorXd& ddq);
 
         // Perform inverse kinematics on pattern.
-        void Inverse(Eigen::VectorXd& q_init,
-                     Eigen::MatrixXd& com_traj,
+        void Inverse(Eigen::MatrixXd& com_traj,
                      Eigen::MatrixXd& lf_traj,
                      Eigen::MatrixXd& rf_traj);
 
         // Get joint angles, center of mass and other things.
-        inline const RigidBodyDynamics::Math::Vector3d GetCom()   const { return com_; };
+        inline const RigidBodyDynamics::Math::Vector3d GetComPos()   const { return com_pos_; };
+        inline const RigidBodyDynamics::Math::Vector3d GetComVel()   const { return com_vel_; };
+        inline const RigidBodyDynamics::Math::Vector3d GetComAcc()   const { return com_acc_; };
         inline const Eigen::MatrixXd&                  GetQTraj() const { return q_traj_; };
+
+        // Setters.
+        void SetQInit(Eigen::VectorXd& q);
 
     public:
 
@@ -48,7 +54,9 @@ class Kinematics
         Eigen::Vector3d rf_bp_;
 
         // Center of mass.
-        RigidBodyDynamics::Math::Vector3d com_;
+        RigidBodyDynamics::Math::Vector3d com_pos_;
+        RigidBodyDynamics::Math::Vector3d com_vel_;
+        RigidBodyDynamics::Math::Vector3d com_acc_;
         double mass_;
 
         // Body id's.
