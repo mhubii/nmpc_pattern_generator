@@ -34,8 +34,23 @@ Kinematics::~Kinematics() {
 }
 
 
-void Kinematics::Inverse(Eigen::VectorXd& q_init,
-                         Eigen::MatrixXd& com_traj,
+void Kinematics::SetQInit(Eigen::VectorXd& q) {
+
+    // Set q_init_ for feedback.
+    q_init_.rightCols(model_->dof_count) = q;
+}
+
+
+void Kinematics::Forward(Eigen::VectorXd&   q,
+                         Eigen::VectorXd&  dq,
+                         Eigen::VectorXd& ddq) {
+    
+    // Calculate forward kinematics.
+    RigidBodyDynamics::Utils::CalcCenterOfMass(*model_, q, dq, &ddq, mass_, com_pos_, &com_vel_, &com_acc_);  
+}
+
+
+void Kinematics::Inverse(Eigen::MatrixXd& com_traj,
                          Eigen::MatrixXd& lf_traj,
                          Eigen::MatrixXd& rf_traj) {
 
@@ -51,9 +66,9 @@ void Kinematics::Inverse(Eigen::VectorXd& q_init,
         for (int i = 0; i < com_traj.cols(); i++) {
 
             // Use the real com as body point.
-            RigidBodyDynamics::Utils::CalcCenterOfMass(*model_, q_init_, dq_init_, NULL, mass_, com_);
+            RigidBodyDynamics::Utils::CalcCenterOfMass(*model_, q_init_, dq_init_, NULL, mass_, com_pos_);
 
-            cs_.body_points[com_id_] = RigidBodyDynamics::CalcBaseToBodyCoordinates(*model_, q_init_, model_->GetBodyId("chest"), com_);
+            cs_.body_points[com_id_] = RigidBodyDynamics::CalcBaseToBodyCoordinates(*model_, q_init_, model_->GetBodyId("chest"), com_pos_);
     
             // Set position constraints.
             cs_.target_positions[com_id_] = 0.5*(lf_ori_init_ + rf_ori_init_)*com_traj.block(i, 0, 3, 1);
@@ -100,9 +115,6 @@ void Kinematics::Inverse(Eigen::VectorXd& q_init,
         lf_id_ = cs_.AddFullConstraint(model_->GetBodyId("l_sole"), lf_bp_, lf_ori_init_*lf_traj.block(0, 0, 3, 1), lf_ori_init_*lf_ori_);
         rf_id_ = cs_.AddFullConstraint(model_->GetBodyId("r_sole"), rf_bp_, rf_ori_init_*rf_traj.block(0, 0, 3, 1), rf_ori_init_*rf_ori_);
 
-        // Initial guess.
-        q_init_ = q_init;
-
         // Pre-initialize inverse kinematics.
         for (int i = 0; i < n_init_; i++) {
 
@@ -115,9 +127,9 @@ void Kinematics::Inverse(Eigen::VectorXd& q_init,
             q_init_ = q_res_;
             q_traj_.col(0) = q_res_;
     
-            RigidBodyDynamics::Utils::CalcCenterOfMass(*model_, q_init_, dq_init_, NULL, mass_, com_);
+            RigidBodyDynamics::Utils::CalcCenterOfMass(*model_, q_init_, dq_init_, NULL, mass_, com_pos_);
 
-            cs_.body_points[com_id_] = RigidBodyDynamics::CalcBaseToBodyCoordinates(*model_, q_init_, model_->GetBodyId("chest"), com_);
+            cs_.body_points[com_id_] = RigidBodyDynamics::CalcBaseToBodyCoordinates(*model_, q_init_, model_->GetBodyId("chest"), com_pos_);
         }
 
         initialized_ = true;
