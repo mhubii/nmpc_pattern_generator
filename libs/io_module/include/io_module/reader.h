@@ -31,6 +31,9 @@ class ReadJoints : public yarp::os::RateThread
 
         ~ReadJoints();
 
+        // Getters.
+        inline const std::string& GetPortName() const { return port_name_; };
+
     private:
 
         // Methods to be implemented for RateThread.
@@ -61,11 +64,11 @@ class ReadJoints : public yarp::os::RateThread
 
         // Output.
         std::string out_file_loc_;
-        yarp::sig::Vector q_;
+        yarp::sig::Matrix state_;
 
         // Port to write joint angles to.
         std::string port_name_;
-        yarp::os::BufferedPort<yarp::sig::Vector> port_;
+        yarp::os::BufferedPort<yarp::sig::Matrix> port_;
 };
 
 
@@ -153,19 +156,22 @@ class KeyReader
 
         ~KeyReader();
 
+        // Read incomming commands and update the velocity.
+        void ReadCommands();
+
     private:
 
         // Port for sending velocities.
         yarp::os::BufferedPort<yarp::sig::Vector> port_;
-
-        // Read incomming commands and update the velocity.
-        void ReadCommands();
     
         // Set velocity.
         void SetVelocity(Eigen::Vector3d& acc, double t);
 
         // Write to port.
         void WriteToPort();
+
+        // Read from port.
+        void ReadFromPort();
 
         // Accelerations.
         Eigen::Vector3d acc_w_, acc_a_, acc_s_, acc_d_;
