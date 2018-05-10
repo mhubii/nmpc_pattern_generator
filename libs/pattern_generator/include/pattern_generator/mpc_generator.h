@@ -41,6 +41,10 @@ public:
 
     static void Example(const std::string config_file_loc, const std::string output_loc);
 
+    // Getters.
+    inline const qpOASES::returnValue& GetOriStatus() const { return status_ori_; };
+    inline const qpOASES::returnValue& GetPosStatus() const { return status_pos_; };
+
 public:
     void PreprocessSolution();
 
