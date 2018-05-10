@@ -314,7 +314,7 @@ void Interpolation::InterpolateFeet() {
 
             for (int i = 0; i <= intervals_; i++) {
 
-                if (t_current + i*tc_ >= t_transition && t_current + i*tc_ < t_ss_ - t_transition) {
+                if (t_current + i*tc_ > t_transition && t_current + i*tc_ < t_ss_ - t_transition) {
 
                     // Evaluate interpolations for x, y, and q during the t_moving period.
                     rf_x_buffer_(0, i) = Eigen::poly_eval(f_coef_x_, i*tc_);
