@@ -32,6 +32,8 @@ int main() {
     q_init(15) = -0.57;
     q_init(16) = -0.23;
 
+    k.SetQInit(q_init);
+
     com_traj << pattern.row(0), pattern.row(3), pattern.row(6), pattern.row(7);
     lf_traj  << pattern.row(13), pattern.row(14), pattern.row(15), pattern.row(16);
     rf_traj  << pattern.row(17), pattern.row(18), pattern.row(19), pattern.row(20);
@@ -50,7 +52,7 @@ int main() {
         rf_cur = rf_traj.col(i);
 
         // Perform inverse kinematics.
-        k.Inverse(q_init, com_cur, lf_cur, rf_cur);
+        k.Inverse(com_cur, lf_cur, rf_cur);
 
         // Get results.
         q_traj.row(i) = k.GetQTraj().transpose().rightCols(15);
