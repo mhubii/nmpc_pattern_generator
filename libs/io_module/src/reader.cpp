@@ -18,7 +18,7 @@ ReadJoints::ReadJoints(int period, const std::string config_file_loc,
         joints += part.joints.size();
     }
 
-    q_.resize(joints);
+    state_.resize(joints, 3);
 
     // Open port to write to.
     port_.open(port_name_);
@@ -52,26 +52,27 @@ void ReadJoints::run() {
         // Create an encoder for each joint.
         int ax = 0;
         ok = ok && enc_[part.name]->getAxes(&ax);
-        yarp::sig::Vector encoders(ax);
+        yarp::sig::Vector pos(ax);
+        yarp::sig::Vector vel(ax);
+        yarp::sig::Vector acc(ax);
         
         // Read the encoders.
-        ok = ok && enc_[part.name]->getEncoders(encoders.data());
+        ok = ok && enc_[part.name]->getEncoders(pos.data());
+        ok = ok && enc_[part.name]->getEncoderSpeeds(vel.data());
+        ok = ok && enc_[part.name]->getEncoderAccelerations(acc.data());
 
-        // Store read encoders to q_.
-        for (int i = 0; i < encoders.size(); i++) {
-            q_[count] = encoders[i];
+        // Store read encoders to state_.
+        for (int i = 0; i < pos.size(); i++) {
+            state_(count, 0) = pos[i]*DEG2RAD;
+            state_(count, 1) = vel[i]*DEG2RAD;
+            state_(count, 2) = acc[i]*DEG2RAD;
             count++;
         }
     }
 
-    // Convert to radians.
-    for (int i = 0; i < q_.size(); i++) {
-        q_[i] *= DEG2RAD;
-    }
-
     // Send read data to a port.
-    yarp::sig::Vector& data = port_.prepare();
-    data = q_;
+    yarp::sig::Matrix& data = port_.prepare();
+    data =   state_;
     port_.write();    
 }
 
@@ -380,9 +381,6 @@ KeyReader::KeyReader()
   wrefresh(win_e_);
   wrefresh(win_info_);
   wrefresh(win_vel_);
-
-  // Read incomming commands.
-  ReadCommands();
 }
 
 KeyReader::~KeyReader() {
@@ -474,4 +472,10 @@ void KeyReader::WriteToPort() {
     yarp::sig::Vector& data = port_.prepare();
     data = vel_;
     port_.write();
+}
+
+void KeyReader::ReadFromPort() {
+
+    // Respond to possible errors.
+    // Could be qp infeasible, ik infeasible, no control/driver, hardware fault
 }
