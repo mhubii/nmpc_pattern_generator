@@ -25,6 +25,7 @@ int main() {
 
     nmpc.SetInitialValues(pg_state);
     Interpolation interpol_nmpc(nmpc);
+    interpol_nmpc.StoreTrajectories(true);
     Eigen::Vector3d velocity_reference(0.01, 0., 0.);
 
 
@@ -62,6 +63,6 @@ int main() {
 
 
     // Save interpolated results.
-    Eigen::MatrixXd trajectories = interpol_nmpc.Trajectories().transpose();
+    Eigen::MatrixXd trajectories = interpol_nmpc.GetTrajectories().transpose();
     WriteCsv("example_nmpc_generator_interpolated_results.csv", trajectories);
 }
