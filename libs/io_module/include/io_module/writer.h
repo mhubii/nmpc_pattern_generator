@@ -20,6 +20,9 @@ class WriteJoints : public yarp::os::RateThread
 
         ~WriteJoints();
 
+        // Getters.
+        inline const std::string& GetPortName() const { return port_name_; };
+
     private:
 
         // Methods to be implemented for RateThread.
