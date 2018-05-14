@@ -24,7 +24,11 @@ public:
     void Interpolate();
 
     // Getters.
-    inline const Eigen::MatrixXd& Trajectories() const { return trajectories_; };
+    inline const Eigen::MatrixXd& GetTrajectories()       const { return trajectories_; };
+    inline const Eigen::MatrixXd& GetTrajectoriesBuffer() const { return trajectories_buffer_; };
+
+    // Setters.
+    inline void StoreTrajectories(bool store_trajectories) { store_trajectories_ = store_trajectories; };
 
 public:
     template <typename Derived>
@@ -74,6 +78,9 @@ public:
 
     // Step height while walking.
     const double step_height_;
+
+    // Store trajectories.
+    bool store_trajectories_;
 
     // Interpolated trajectories.
     Eigen::MatrixXd trajectories_;

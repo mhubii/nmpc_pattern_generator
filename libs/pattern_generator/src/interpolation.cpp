@@ -33,6 +33,9 @@ Interpolation::Interpolation(BaseGenerator& base_generator)
       trajectories_(21, n_still_*intervals_),
       trajectories_buffer_(21, intervals_ + 1),
 
+      // Don't store trajectories by default.
+      store_trajectories_(false),
+
       // Center of mass.
       com_x_buffer_(trajectories_buffer_.block(0, 0, 3, intervals_)),
       com_y_buffer_(trajectories_buffer_.block(3, 0, 3, intervals_)),
@@ -150,8 +153,10 @@ void Interpolation::Interpolate() {
     InterpolateFeet();
 
     // Append by buffered trajectories.
-    trajectories_.conservativeResize(trajectories_.rows(), trajectories_.cols() + intervals_);
-    trajectories_.rightCols(intervals_) = trajectories_buffer_.leftCols(intervals_);
+    if (store_trajectories_) {
+        trajectories_.conservativeResize(trajectories_.rows(), trajectories_.cols() + intervals_);
+        trajectories_.rightCols(intervals_) = trajectories_buffer_.leftCols(intervals_);
+    }
 }
 
 template <typename Derived>
