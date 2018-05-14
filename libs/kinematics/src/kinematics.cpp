@@ -37,7 +37,7 @@ Kinematics::~Kinematics() {
 void Kinematics::SetQInit(Eigen::VectorXd& q) {
 
     // Set q_init_ for feedback.
-    q_init_.rightCols(model_->dof_count) = q;
+    q_init_ = q;
 }
 
 
@@ -62,18 +62,18 @@ void Kinematics::Inverse(Eigen::MatrixXd& com_traj,
 
     // Check if inverse kinematics has gotten initialized.
     if (initialized_) {
-        
+
         for (int i = 0; i < com_traj.cols(); i++) {
 
             // Use the real com as body point.
             RigidBodyDynamics::Utils::CalcCenterOfMass(*model_, q_init_, dq_init_, NULL, mass_, com_pos_);
 
             cs_.body_points[com_id_] = RigidBodyDynamics::CalcBaseToBodyCoordinates(*model_, q_init_, model_->GetBodyId("chest"), com_pos_);
-    
+
             // Set position constraints.
-            cs_.target_positions[com_id_] = 0.5*(lf_ori_init_ + rf_ori_init_)*com_traj.block(i, 0, 3, 1);
-            cs_.target_positions[lf_id_]  = lf_ori_init_*lf_traj.block(i, 0, 3, 1);
-            cs_.target_positions[rf_id_]  = rf_ori_init_*rf_traj.block(i, 0, 3, 1);
+            cs_.target_positions[com_id_] = 0.5*(lf_ori_init_ + rf_ori_init_)*com_traj.block(0, i, 3, 1);
+            cs_.target_positions[lf_id_]  = lf_ori_init_*lf_traj.block(0, i, 3, 1);
+            cs_.target_positions[rf_id_]  = rf_ori_init_*rf_traj.block(0, i, 3, 1);
 
             // Set orientation constraints.
             com_ori_ = Eigen::AngleAxisd(com_traj(3, i), Eigen::Vector3d::UnitZ());
