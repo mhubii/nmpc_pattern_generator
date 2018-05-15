@@ -3,13 +3,12 @@
 
 #include <yarp/os/RateThread.h>
 
-#include "network_manager.h"
 #include "utils.h"
 
 // Wrapper class for YARP to write to ports.
 //
 // Implemented by Martin Huber
-class Writer : private NetworkManager
+class Writer
 {
     public:
         Writer(const std::string config_file_loc);

@@ -1,7 +1,6 @@
 #include "writer.h"
 
-Writer::Writer(const std::string config_file_loc)
-    : NetworkManager::NetworkManager() {
+Writer::Writer(const std::string config_file_loc) {
 
 }
 
