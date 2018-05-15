@@ -1,8 +1,5 @@
 #include "reader.h"
 
-#include <iostream>
-
-
 ReadJoints::ReadJoints(int period, const std::string config_file_loc, 
                        const std::string robot_name, const std::string out_file_loc)
   : RateThread(period),
@@ -13,29 +10,70 @@ ReadJoints::ReadJoints(int period, const std::string config_file_loc,
     // Set configurations and drivers.
     SetConfigs();
     SetDrivers();
+
+    // Prepare the output.
+    int joints = 0;
+
+    for (auto& part : parts_) {
+        joints += part.joints.size();
+    }
+
+    state_.resize(joints, 3);
+
+    // Open port to write to.
+    port_.open(port_name_);
+    
+    if (port_.isClosed()) {
+        std::cerr << "Could not open port " << port_name_ << std::endl;
+    }
 }
+
 
 ReadJoints::~ReadJoints() {
 
     // Unset drivers.
     UnsetDrivers();
+
+    // Close ports.
+    port_.close();
 }
 
 
 void ReadJoints::run() {
 
+    bool ok = true;
+    int count = 0;
+
     // Run method implemented for RateThread, is called
     // every period ms. Here we want to read the joints
     // of the robot defined in parts_.
     for (const auto& part : parts_) {
-        
 
-        // Then, the read data is sent to the ports
-        // opened in SetDrivers().
+        // Create an encoder for each joint.
+        int ax = 0;
+        ok = ok && enc_[part.name]->getAxes(&ax);
+        yarp::sig::Vector pos(ax);
+        yarp::sig::Vector vel(ax);
+        yarp::sig::Vector acc(ax);
+        
+        // Read the encoders.
+        ok = ok && enc_[part.name]->getEncoders(pos.data());
+        ok = ok && enc_[part.name]->getEncoderSpeeds(vel.data());
+        ok = ok && enc_[part.name]->getEncoderAccelerations(acc.data());
+
+        // Store read encoders to state_.
+        for (int i = 0; i < pos.size(); i++) {
+            state_(count, 0) = pos[i]*DEG2RAD;
+            state_(count, 1) = vel[i]*DEG2RAD;
+            state_(count, 2) = acc[i]*DEG2RAD;
+            count++;
+        }
     }
 
-
-    
+    // Send read data to a port.
+    yarp::sig::Matrix& data = port_.prepare();
+    data =   state_;
+    port_.write();    
 }
 
 
@@ -66,6 +104,9 @@ void ReadJoints::SetConfigs() {
                                   std::vector<std::string>()});
         }
     }
+
+    // Check for the joints port name to write to.
+    port_name_ = configs_["joints_port_read"].as<std::string>();
 }
 
 
@@ -340,9 +381,6 @@ KeyReader::KeyReader()
   wrefresh(win_e_);
   wrefresh(win_info_);
   wrefresh(win_vel_);
-
-  // Read incomming commands.
-  ReadCommands();
 }
 
 KeyReader::~KeyReader() {
@@ -434,4 +472,10 @@ void KeyReader::WriteToPort() {
     yarp::sig::Vector& data = port_.prepare();
     data = vel_;
     port_.write();
+}
+
+void KeyReader::ReadFromPort() {
+
+    // Respond to possible errors.
+    // Could be qp infeasible, ik infeasible, no control/driver, hardware fault
 }

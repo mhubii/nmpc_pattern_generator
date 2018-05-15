@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include "reader.h"
+#include "writer.h"
 
 int main(int argc, char * argv[]) {
     yarp::os::Network yarp;
@@ -11,22 +12,17 @@ int main(int argc, char * argv[]) {
 
     int period = 10;
     ReadJoints rj(1000);
+    WriteJoints wj(1000);
     // ReadCameras rc(100);
 
-<<<<<<< HEAD
-    // rj.start();
-    rc.start();
-    yarp::os::Time::delay(60);
-    rc.stop();
-    //rj.stop();
-    //KeyReader();
-=======
     rj.start();
+    wj.start();
     //rc.start();
+    yarp::os::Network::connect("/joints/read", "/joints/write");
     yarp::os::Time::delay(10);
     //rc.stop();
+    wj.stop();
     rj.stop();
->>>>>>> 5fd66e22f3cef2348c5b7fa0c12a6b6a07d04709
 
     return 0;
 }

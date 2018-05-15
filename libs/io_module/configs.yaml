@@ -18,3 +18,9 @@ sensors:
   - part: chest
     cameras: [left, right]
 
+# Define ports to communicate.
+velocity_port: /velocity
+joints_port_read: /joints/read
+joints_port_write: /joints/write
+
+

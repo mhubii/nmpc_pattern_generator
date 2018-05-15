@@ -45,7 +45,7 @@ option(IO_MODULE_TESTS "Build input output module tests." ON)
 add_subdirectory(libs/io_module)
 
 
-# Inverse kinematics library.
+# Kinematics library.
 option(KINEMATICS_EXAMPLES "Build kinematics examples." ON)
 
 option(KINEMATICS_TESTS "Build kinematics tests." ON)
@@ -66,3 +66,28 @@ add_subdirectory(libs/pattern_generator)
 
 
 # Source.
+set(SOURCES
+    artificially_controlled_walking
+    keyboard_user_interface
+    offline_walking
+    train_artificial_walking
+    user_controlled_walking
+)
+
+foreach (source ${SOURCES})
+    add_executable(${source}
+        src/${source}.cpp
+    )
+
+    target_include_directories(${source}
+        PRIVATE libs/io_module/include/io_module
+        PRIVATE libs/kinematics/include/kinematics
+        PRIVATE libs/pattern_generator/include/pattern_generator
+    )
+
+    target_link_libraries(${source}
+        io_module
+        kinematics
+        pattern_generator
+    )
+endforeach(source ${SOURCES})

@@ -5,6 +5,8 @@
 #include <yarp/os/TypedReaderCallback.h>
 #include <Eigen/Dense>
 
+// Convert to radian.
+#define DEG2RAD M_PI/180.0
 
 // Current status of the pattern generate.
 enum PatternGeneratorStatus { IDLE, PENDING };
@@ -15,15 +17,6 @@ struct Part {
     std::string name;
     std::vector<int> joints;
     std::vector<std::string> cameras;
-};
-
-
-// DepthProcessor.
-class DepthProcessor : public yarp::os::TypedReaderCallback<yarp::os::Bottle>
-{
-    virtual void onRead(yarp::os::Bottle& bottle) {
-        
-    };
 };
 
 #endif

@@ -115,6 +115,7 @@ void MPCGenerator::Example(const std::string config_file_loc, const std::string 
 
   mpc.SetInitialValues(pg_state);
   Interpolation interpol_mpc(mpc);
+  interpol_mpc.StoreTrajectories(true);
   Eigen::Vector3d velocity_reference(0.1, 0., 0.1);
 
   // Pattern generator event loop.
@@ -149,7 +150,7 @@ void MPCGenerator::Example(const std::string config_file_loc, const std::string 
   }
   
   // Save interpolated results.
-  Eigen::MatrixXd trajectories = interpol_mpc.Trajectories().transpose();
+  Eigen::MatrixXd trajectories = interpol_mpc.GetTrajectories().transpose();
   WriteCsv(output_loc, trajectories);
 }
 

@@ -149,6 +149,7 @@ void NMPCGenerator::Example(const std::string config_file_loc, const std::string
 
   nmpc.SetInitialValues(pg_state);
   Interpolation interpol_nmpc(nmpc);
+  interpol_nmpc.StoreTrajectories(true);
   Eigen::Vector3d velocity_reference(0.1, 0., 0.);
 
   // Pattern generator event loop.
@@ -180,7 +181,7 @@ void NMPCGenerator::Example(const std::string config_file_loc, const std::string
   }
 
   // Save interpolated results.
-  Eigen::MatrixXd trajectories = interpol_nmpc.Trajectories().transpose();
+  Eigen::MatrixXd trajectories = interpol_nmpc.GetTrajectories().transpose();
   WriteCsv(output_loc, trajectories);
 }
 
