@@ -7,10 +7,10 @@
 
 // Convert to radian.
 #define DEG2RAD M_PI/180.0
+#define RAD2DEG 180.0/M_PI
 
-// Current status of the pattern generate.
-enum PatternGeneratorStatus { IDLE, PENDING };
-
+// Current status of the writer.
+enum InitialPositionStatus { NOT_STARTED, MOVING, DONE };
 
 // Part of the robot, e.g. the left leg.
 struct Part {
