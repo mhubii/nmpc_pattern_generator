@@ -5,6 +5,7 @@
 #include <yarp/os/all.h>
 #include <yarp/dev/all.h>
 #include <yaml-cpp/yaml.h>
+#include <yarp/eigen/Eigen.h>
 
 #include "utils.h"
 
@@ -21,7 +22,8 @@ class WriteJoints : public yarp::os::RateThread
         ~WriteJoints();
 
         // Getters.
-        inline const std::string& GetPortName() const { return port_name_; };
+        inline const std::string&           GetPortName()              const { return port_name_; };
+        inline const InitialPositionStatus& GetInitialPositionStatus() const { return moving_to_initial_pos_; };
 
     private:
 
@@ -35,6 +37,8 @@ class WriteJoints : public yarp::os::RateThread
 
         void SetDrivers();
 
+        bool SetControlModes(int mode);
+
         // Robot.
         const std::string robot_name_;
 
@@ -46,14 +50,20 @@ class WriteJoints : public yarp::os::RateThread
 
         // Drivers.
         std::map<std::string, yarp::dev::PolyDriver*> dd_;
-        std::map<std::string, yarp::dev::IPositionControl*> pos_;
+        std::map<std::string, yarp::dev::IControlMode2*> con_;
+        std::map<std::string, yarp::dev::IPositionControl2*> pos_c_;
+        std::map<std::string, yarp::dev::IPositionDirect*> pos_d_;
+
+        // Moving to the initial position.
+        InitialPositionStatus moving_to_initial_pos_;
+        double initial_vel_;
 
         // Input.
-        yarp::sig::Vector q_;
+        yarp::sig::Matrix q_;
 
         // Port to read joint angles from.
         std::string port_name_;
-        yarp::os::BufferedPort<yarp::sig::Vector> port_;
+        yarp::os::BufferedPort<yarp::sig::Matrix> port_;
 };
 
 #endif
