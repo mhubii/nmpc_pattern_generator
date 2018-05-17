@@ -141,7 +141,7 @@ void ReadJoints::SetDrivers() {
 
         if (!ok) 
         {
-            std::cout << "Problems acquiring interfaces" << std::endl;
+            std::cout << "Problems acquiring interfaces." << std::endl;
             std::exit(1);
         }
     }
