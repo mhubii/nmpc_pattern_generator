@@ -148,7 +148,7 @@ class ReadCameras : public yarp::os::RateThread
 // to a port via WriteToPort().
 //
 // Implemented by Martin Huber.
-class KeyReader
+class KeyReader : public yarp::os::BufferedPort<yarp::os::Bottle>
 {
     public:
 
@@ -158,6 +158,11 @@ class KeyReader
 
         // Read incomming commands and update the velocity.
         void ReadCommands();
+
+        // Implement BufferedPort methods to communicate with
+        // the robots status.
+        using yarp::os::BufferedPort<yarp::os::Bottle>::onRead;
+        virtual void onRead(yarp::os::Bottle& info);
 
     private:
 
@@ -173,6 +178,9 @@ class KeyReader
         // Read from port.
         void ReadFromPort();
 
+        // Initial position status.
+        InitialPositionStatus init_pos_status_;
+
         // Accelerations.
         Eigen::Vector3d acc_w_, acc_a_, acc_s_, acc_d_;
 
@@ -184,7 +192,11 @@ class KeyReader
 
         // User interface.
         WINDOW *win_w_, *win_a_, *win_s_, *win_d_;
-        WINDOW *win_q_, *win_e_, *win_info_, *win_vel_;
+        WINDOW *win_q_, *win_e_, *win_guide_, *win_info_, *win_vel_;
+        WINDOW *win_inv_;
+
+        // Mutex.
+        yarp::os::Mutex mutex_;
 };
 
 #endif

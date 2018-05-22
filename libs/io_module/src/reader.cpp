@@ -305,11 +305,9 @@ void ReadCameras::SetDrivers() {
 }
 
 
-
-
-
 KeyReader::KeyReader() 
-    : t_iter_(yarp::os::Time::now()), 
+    : init_pos_status_(NOT_STARTED),
+      t_iter_(yarp::os::Time::now()), 
       acc_w_( 0.1, 0.,  0. ),
       acc_a_( 0. , 0.,  0.1),
       acc_s_(-0.1, 0.,  0. ),
@@ -329,20 +327,23 @@ KeyReader::KeyReader()
   cbreak();
   curs_set(0);
 
-
   win_w_ = newwin( 3, 6,  2, 10);
   win_a_ = newwin( 3, 6,  6,  2);
   win_s_ = newwin( 3, 6,  6, 10);
   win_d_ = newwin( 3, 6,  6, 18);
   win_q_ = newwin( 3, 6,  2,  2);
   win_e_ = newwin( 3, 6,  2, 18);
-  win_info_ = newwin(18, 44, 2, 28);
+  win_guide_ = newwin(18, 44, 2, 28);
+  win_info_ = newwin(3, 22, 10, 2);
   win_vel_ = newwin(6, 20, 15, 2);
+  win_inv_ = newwin(1, 1, 22, 2);
 
   start_color();
   init_pair(1, COLOR_WHITE, COLOR_BLUE);
   init_pair(2, COLOR_BLUE, COLOR_WHITE);
   init_pair(3, COLOR_WHITE, COLOR_YELLOW);
+  init_pair(4, COLOR_WHITE, COLOR_RED);
+  init_pair(5, COLOR_WHITE, COLOR_GREEN);
 
   bkgd(COLOR_PAIR(1));
   wbkgd(win_w_, COLOR_PAIR(2));
@@ -351,8 +352,10 @@ KeyReader::KeyReader()
   wbkgd(win_d_, COLOR_PAIR(2));
   wbkgd(win_q_, COLOR_PAIR(3));
   wbkgd(win_e_, COLOR_PAIR(3));
-  wbkgd(win_info_, COLOR_PAIR(1));
+  wbkgd(win_guide_, COLOR_PAIR(1));
+  wbkgd(win_info_, COLOR_PAIR(4));
   wbkgd(win_vel_, COLOR_PAIR(1));
+  wbkgd(win_inv_, COLOR_PAIR(1));
 
   mvwaddstr(win_w_, 1, 2, "w");
   mvwaddstr(win_a_, 1, 2, "a");
@@ -360,13 +363,14 @@ KeyReader::KeyReader()
   mvwaddstr(win_d_, 1, 2, "d");
   mvwaddstr(win_q_, 1, 2, "q");
   mvwaddstr(win_e_, 1, 2, "e");
-  mvwaddstr(win_info_, 0, 0, "Hello,\n\n"
+  mvwaddstr(win_guide_, 0, 0, "Hello,\n\n"
                           "I am the keyboard user interface of the heicub robot.\n\n"
                           "Use w and s to accelerate forwards and backwards.\n\n"
                           "Use a and d to accelerate angular left and right.\n\n"
                           "Only one pressed key is used to accelerate, leaving all other velocities untouched, except for the opposite ones.\n\n"
                           "For an emergency stop press e.\n\n"
                           "Press q to quit this interface."); 
+  mvwaddstr(win_info_, 1, 3, "Not initialized!");
   mvwaddstr(win_vel_, 0, 0, ("Current velocity:\n\n"
                              "v_x:   " + std::to_string(vel_(0)) + "\n"
                              "v_y:   " + std::to_string(vel_(1)) + "\n"
@@ -379,8 +383,14 @@ KeyReader::KeyReader()
   wrefresh(win_d_);
   wrefresh(win_q_);
   wrefresh(win_e_);
+  wrefresh(win_guide_);
   wrefresh(win_info_);
   wrefresh(win_vel_);
+  wrefresh(win_inv_);
+
+  // Callback and callbacklock.
+  useCallback();
+  setCallbackLock(&mutex_);
 }
 
 KeyReader::~KeyReader() {
@@ -399,13 +409,59 @@ KeyReader::~KeyReader() {
   delwin(win_d_);
   delwin(win_q_);
   delwin(win_e_);
+  delwin(win_guide_);
   delwin(win_info_);
   delwin(win_vel_);
+  delwin(win_inv_);
 
   clrtoeol();
   refresh();
   endwin();
 }
+
+void KeyReader::onRead(yarp::os::Bottle& info) {
+
+    lockCallback();
+
+    yarp::os::Value prop = info.pop();
+    std::cout << prop.asDict()->find("InitialPositionStatus").asInt() << std::endl;
+
+    // Check for status of the robot.
+    if (prop.asDict()->check("InitialPositionStatus")) {
+        
+        switch (prop.asDict()->find("InitialPositionStatus").asInt()) {
+
+            case NOT_STARTED:
+                init_pos_status_ = NOT_STARTED;
+                wclear(win_info_);
+                wbkgd(win_info_, COLOR_PAIR(4));
+                mvwaddstr(win_info_, 1, 3, "Not initialized!");
+                wrefresh(win_info_);
+                break;
+        
+            case MOVING:
+                init_pos_status_ = MOVING;
+                wclear(win_info_);
+                wbkgd(win_info_, COLOR_PAIR(3));
+                mvwaddstr(win_info_, 1, 3, "Initializing...");
+                wrefresh(win_info_);
+                break;
+
+            case DONE:
+                init_pos_status_ = DONE;
+                wclear(win_info_);
+                wbkgd(win_info_, COLOR_PAIR(5));
+                mvwaddstr(win_info_, 1, 5, "Good to go!");
+                wrefresh(win_info_);
+                break;
+        }
+    }
+
+    // Check for the status of the quadratic problem, connection status and hardware limits..
+    // TODO.
+
+    unlockCallback();
+};
 
 void KeyReader::ReadCommands() {
 
@@ -418,34 +474,36 @@ void KeyReader::ReadCommands() {
     do {                
         // Read input periodically.
         ch = getch();
-                
+     
         // Measure time between successive inputs.
         t_iter_ = yarp::os::Time::now() - t_iter_;
         dt = t_iter_;
         t_iter_ = yarp::os::Time::now();
 
-        switch(ch)
-        {
-            case 'w': {
-                SetVelocity(acc_w_, dt);
-                WriteToPort();
-                break;}
-            case 'a':
-                SetVelocity(acc_a_, dt);
-                WriteToPort();
-                break;
-            case 's':
-                SetVelocity(acc_s_, dt);
-                WriteToPort();
-                break;
-            case 'd':
-                SetVelocity(acc_d_, dt);
-                WriteToPort();
-                break;
-            case 'e':
-                vel_.zero();
-                WriteToPort();
-                break;
+        if (init_pos_status_ == DONE) {
+            switch(ch)
+            {
+                case 'w': {
+                    SetVelocity(acc_w_, dt);
+                    WriteToPort();
+                    break;}
+                case 'a':
+                    SetVelocity(acc_a_, dt);
+                    WriteToPort();
+                    break;
+                case 's':
+                    SetVelocity(acc_s_, dt);
+                    WriteToPort();
+                    break;
+                case 'd':
+                    SetVelocity(acc_d_, dt);
+                    WriteToPort();
+                    break;
+                case 'e':
+                    vel_.zero();
+                    WriteToPort();
+                    break;
+            }
         }
 
         // Update user interface.  
@@ -454,6 +512,8 @@ void KeyReader::ReadCommands() {
                                    "v_y:   " + std::to_string(vel_(1)) + "\n"
                                    "v_ang: " + std::to_string(vel_(2))).c_str());
         wrefresh(win_vel_);
+        // wclear(win_inv_);
+        // wrefresh(win_inv_);
 
     } while (ch != 'q' && ch != 'Q'); // Exit if q or Q is pressed.
 }
@@ -472,10 +532,4 @@ void KeyReader::WriteToPort() {
     yarp::sig::Vector& data = port_.prepare();
     data = vel_;
     port_.write();
-}
-
-void KeyReader::ReadFromPort() {
-
-    // Respond to possible errors.
-    // Could be qp infeasible, ik infeasible, no control/driver, hardware fault
 }
