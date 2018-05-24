@@ -123,14 +123,15 @@ void Kinematics::Inverse(Eigen::MatrixXd& com_traj,
             if (!RigidBodyDynamics::InverseKinematics(*model_, q_init_, cs_, q_res_)) {
                 std::cout << "Inverse kinematics did not converge with desired precision." << std::endl;
             }
-    
+
             q_init_ = q_res_;
-            q_traj_.col(0) = q_res_;
     
             RigidBodyDynamics::Utils::CalcCenterOfMass(*model_, q_init_, dq_init_, NULL, mass_, com_pos_);
 
             cs_.body_points[com_id_] = RigidBodyDynamics::CalcBaseToBodyCoordinates(*model_, q_init_, model_->GetBodyId("chest"), com_pos_);
         }
+
+        q_traj_.colwise() = q_init_;
 
         initialized_ = true;
     }
