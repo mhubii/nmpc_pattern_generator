@@ -7,6 +7,9 @@ motors:
   - part: torso
     joints: [0,1,2]
 
+# Define initial velocity of motors in rad/s.
+initial_vel: 0.1
+
 # Define sensors in use to read from.
 sensors:
   - part: left_leg
