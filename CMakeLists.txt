@@ -70,6 +70,7 @@ set(SOURCES
     artificially_controlled_walking
     keyboard_user_interface
     offline_walking
+    test_robot
     train_artificial_walking
     user_controlled_walking
 )

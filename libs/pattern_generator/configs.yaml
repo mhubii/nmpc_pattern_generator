@@ -42,8 +42,8 @@ radius: 0
 # Optimization.
 n: 20
 t: 0.1
-alpha: 1.0
-gamma: 1e-6
+alpha: 1
+gamma: 1
 delta: 1e-5
 cpu_time: 0.01
 nwsr: 100
