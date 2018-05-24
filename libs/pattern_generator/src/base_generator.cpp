@@ -575,7 +575,6 @@ PatternGeneratorState BaseGenerator::Update() {
   f_k_ql_0_(1) =  df_kp1_ql_(0);
   f_k_ql_0_(2) = ddf_kp1_ql_(0);
 
-
   // Right foot.
   f_k_qr_0_(0) =   f_kp1_qr_(0);
   f_k_qr_0_(1) =  df_kp1_qr_(0);
