@@ -24,8 +24,8 @@ public:
     void Interpolate();
 
     // Getters.
-    inline const Eigen::MatrixXd& GetTrajectories()       const { return trajectories_; };
-    inline const Eigen::MatrixXd& GetTrajectoriesBuffer() const { return trajectories_buffer_; };
+    inline const Eigen::MatrixXd& GetTrajectories()       const { return trajectories_;       };
+    inline Eigen::Map<const Eigen::MatrixXd> GetTrajectoriesBuffer() const { return Eigen::Map<const Eigen::MatrixXd>(trajectories_buffer_.data(), trajectories_buffer_.rows(), trajectories_buffer_.cols() - 1); };
 
     // Setters.
     inline void StoreTrajectories(bool store_trajectories) { store_trajectories_ = store_trajectories; };
