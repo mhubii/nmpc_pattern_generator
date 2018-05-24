@@ -12,11 +12,7 @@
 // Wrapper class for YARP to write to ports.
 //
 // Implemented by Martin Huber
-<<<<<<< HEAD
-class Writer
-=======
 class WriteJoints : public yarp::os::RateThread
->>>>>>> 5fd66e22f3cef2348c5b7fa0c12a6b6a07d04709
 {
     public:
 
