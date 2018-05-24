@@ -10,8 +10,14 @@ int main() {
     // Create a keyboard user interface.
     KeyReader kr;
 
+    // Open port for communication.
+    kr.open("/key_reader/commands");
+
     // Start reading incomming commands.
     kr.ReadCommands();
+
+    // Close connections.
+    kr.close();
 
     return 0;
 }
