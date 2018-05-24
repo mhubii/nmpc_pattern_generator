@@ -13,14 +13,8 @@ WriteJoints::WriteJoints(int period, const std::string config_file_loc,
     SetConfigs();
     SetDrivers();
 
-    // // Prepare the input.
-    // int joints = 0;
-
-    // for (auto& part : parts_) {
-    //     joints += part.joints.size();
-    // }
-
-    // q_.resize(joints, );
+    // Open port to communicate initial position status.
+    port_init_pos_status_.open("/client_write/init_pos_status");
 
     // Open port to read from.
     port_.open(port_name_);
@@ -37,6 +31,7 @@ WriteJoints::~WriteJoints() {
     UnsetDrivers();
 
     // Close ports.
+    port_init_pos_status_.close();
     port_.close();
 }
 
@@ -50,19 +45,21 @@ void WriteJoints::run() {
     // every period ms. Here we want to write to the joints
     // of the robot defined in parts_.
     // Read data from a port.
-    q_ = *port_.read(true);
+    yarp::sig::Vector* q = port_.read(false);
 
-    // Convert to degree.
-    for (int i = 0; i < q_.rows(); i++) {
+    if (q != YARP_NULLPTR) {
+        
+        q_ = *q;
 
-        for (int j = 0; j < q_.cols(); j++) {
+        // Convert to degree.
+        for (int i = 0; i < q_.size(); i++) {
 
-            q_(i, j) *= RAD2DEG; 
+                q_(i) *= RAD2DEG; 
         }
     }
 
-    if (moving_to_initial_pos_ == NOT_STARTED) {
-        
+    if (moving_to_initial_pos_ == NOT_STARTED && q != YARP_NULLPTR) {
+
         // Set the control modes neccessary to reach the initial position.
         std::cout << "Moving to initial position." << std::endl;
         moving_to_initial_pos_ = MOVING;
@@ -72,10 +69,17 @@ void WriteJoints::run() {
 
             // Set the reference speed for every joint and move to the initial position.
             ok = ok && pos_c_[part.name]->setRefSpeeds(part.joints.size(), &part.joints[0], &yarp::sig::Vector(part.joints.size(), initial_vel_)[0]);
-            ok = ok && pos_c_[part.name]->positionMove(part.joints.size(), &part.joints[0], &q_.getCol(0)(count));
+            ok = ok && pos_c_[part.name]->positionMove(part.joints.size(), &part.joints[0], &q_(count));
 
             count += part.joints.size();
         }
+
+        // Communicate initial position status.
+        yarp::os::Bottle& bottle = port_init_pos_status_.prepare();
+        yarp::os::Property& dict = bottle.addDict();
+
+        dict.put("InitialPositionStatus", moving_to_initial_pos_);
+        port_init_pos_status_.write();
     }
 
     else if (moving_to_initial_pos_ == MOVING) {
@@ -86,7 +90,7 @@ void WriteJoints::run() {
         for (auto& part : parts_) {
 
             for (auto& joint : part.joints) {
-              
+            
                 bool motion_done;
                 ok = ok && pos_c_[part.name]->checkMotionDone(joint, &motion_done);
                 done = done && motion_done;
@@ -100,21 +104,27 @@ void WriteJoints::run() {
             std::cout << "Reached initial position." << std::endl;
             moving_to_initial_pos_ = DONE;
             ok = ok && SetControlModes(VOCAB_CM_POSITION_DIRECT);
+
+            // Communicate initial position status.
+            yarp::os::Bottle& bottle = port_init_pos_status_.prepare();
+            yarp::os::Property& dict = bottle.addDict();
+
+            dict.put("InitialPositionStatus", moving_to_initial_pos_);
+            port_init_pos_status_.write();
         }
     }
-    else {
 
-        for (int i = 0; i < q_.cols(); i++) {
-            
-            for (auto& part : parts_) {
+    else if (q != YARP_NULLPTR && moving_to_initial_pos_ == DONE) {
 
-                // Set a reference position q_.
-                ok = ok && pos_d_[part.name]->setPositions(part.joints.size(), &part.joints[0], &q_.getCol(i)(count));
+        for (auto& part : parts_) {
 
-                count += part.joints.size();
-            }
+            // Set a reference position q_.
+            ok = ok && pos_d_[part.name]->setPositions(part.joints.size(), &part.joints[0], &q_(count));
+
+            count += part.joints.size();
         }
     }
+
 
     if (!ok) {
 

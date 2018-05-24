@@ -58,12 +58,15 @@ class WriteJoints : public yarp::os::RateThread
         InitialPositionStatus moving_to_initial_pos_;
         double initial_vel_;
 
+        // Port to communicate initial position status.
+        yarp::os::BufferedPort<yarp::os::Bottle> port_init_pos_status_;
+
         // Input.
-        yarp::sig::Matrix q_;
+        yarp::sig::Vector q_;
 
         // Port to read joint angles from.
         std::string port_name_;
-        yarp::os::BufferedPort<yarp::sig::Matrix> port_;
+        yarp::os::BufferedPort<yarp::sig::Vector> port_;
 };
 
 #endif
