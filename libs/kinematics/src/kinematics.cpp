@@ -47,6 +47,11 @@ void Kinematics::Forward(Eigen::VectorXd&   q,
     
     // Calculate forward kinematics.
     RigidBodyDynamics::Utils::CalcCenterOfMass(*model_, q, dq, &ddq, mass_, com_pos_, &com_vel_, &com_acc_);  
+
+    // Correct for rotated model.
+    com_pos_ = 0.5*(lf_ori_init_ + rf_ori_init_)*com_pos_;
+    com_vel_ = 0.5*(lf_ori_init_ + rf_ori_init_)*com_vel_;
+    com_acc_ = 0.5*(lf_ori_init_ + rf_ori_init_)*com_acc_;
 }
 
 
