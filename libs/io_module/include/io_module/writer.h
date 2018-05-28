@@ -22,8 +22,8 @@ class WriteJoints : public yarp::os::RateThread
         ~WriteJoints();
 
         // Getters.
-        inline const std::string&           GetPortName()              const { return port_name_; };
-        inline const InitialPositionStatus& GetInitialPositionStatus() const { return moving_to_initial_pos_; };
+        inline const std::string&           GetPortName() const { return port_name_; };
+        inline const RobotStatus& GetRobotStatus()        const { return robot_status_; };
 
     private:
 
@@ -55,11 +55,11 @@ class WriteJoints : public yarp::os::RateThread
         std::map<std::string, yarp::dev::IPositionDirect*> pos_d_;
 
         // Moving to the initial position.
-        InitialPositionStatus moving_to_initial_pos_;
+        RobotStatus robot_status_;
         double initial_vel_;
 
         // Port to communicate initial position status.
-        yarp::os::BufferedPort<yarp::os::Bottle> port_init_pos_status_;
+        yarp::os::BufferedPort<yarp::os::Bottle> port_robot_status_;
 
         // Input.
         yarp::sig::Vector q_;

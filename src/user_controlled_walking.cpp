@@ -18,9 +18,6 @@ std::string ki_config;
 // Forward declare name of the robot.
 std::string robot;
 
-// Define possible errors.
-enum Errors { NO_CONNECTION, QP_INFEASIBLE, HARDWARE_LIMITS };
-
 // Forward declare WalkingProcessor. This is actually the heart
 // of the application. Within it, the pattern is generated,
 // and the dynamic filter as well as the inverse kinematics are
@@ -37,7 +34,7 @@ class WalkingProcessor : public yarp::os::BufferedPort<yarp::sig::Matrix>
         virtual void onRead(yarp::sig::Matrix& state);
 
         // Setter.
-        inline void SetIntitialPositionStatus(InitialPositionStatus pos) { init_pos_status_ = pos; };
+        inline void SetRobotStatus(RobotStatus stat) { robot_status_ = stat; };
 
     public: // TEST.. change to private!
 
@@ -74,11 +71,11 @@ class WalkingProcessor : public yarp::os::BufferedPort<yarp::sig::Matrix>
         yarp::os::Mutex mutex_;
 
         // Position initialized.
-        InitialPositionStatus init_pos_status_;
+        RobotStatus robot_status_;
         bool initialized_;
 
         // Port to read initial position status.
-        yarp::os::BufferedPort<yarp::os::Bottle> port_init_pos_status_;
+        yarp::os::BufferedPort<yarp::os::Bottle> port_robot_status_;
 
         // TEST
         // Eigen::MatrixXd qq;
@@ -147,15 +144,15 @@ int main(int argc, char *argv[]) {
     // Put reader, processor, and writer together.
     yarp::os::Network::connect(rj.GetPortName(), "/test/port");
     yarp::os::Network::connect("/joint_angles", wj.GetPortName());
-    yarp::os::Network::connect("/client_write/init_pos_status", "/key_reader/commands");
-    yarp::os::Network::connect("/client_write/init_pos_status", "/walking_processor/commands");
+    yarp::os::Network::connect("/client_write/robot_status", "/key_reader/commands");
+    yarp::os::Network::connect("/client_write/robot_status", "/walking_processor/commands");
 
     // Start the read and write threads.
     rj.start();
     wj.start();
     
     // Run program for a certain delay.
-    yarp::os::Time::delay(20);
+    yarp::os::Time::delay(40);
 
     // TEST
     WriteCsv("test.csv", pg_port.ip_.GetTrajectories().transpose());
@@ -183,12 +180,12 @@ WalkingProcessor::WalkingProcessor()
     ddq_(ki_.GetQTraj().rows()),
     
     // State of the robot on preview horizon.
-    com_traj_(4, 1),// ip_.GetTrajectoriesBuffer().cols()),
+    com_traj_(4, 1),//  ip_.GetTrajectoriesBuffer().cols()),
     lf_traj_(4, 1),// ip_.GetTrajectoriesBuffer().cols()),
     rf_traj_(4, 1),// ip_.GetTrajectoriesBuffer().cols()),
     
     // Position initialized.
-    init_pos_status_(NOT_STARTED),
+    robot_status_(NOT_INITIALIZED),
     initialized_(false) {
 
     // Pattern generator preparation.
@@ -217,7 +214,7 @@ WalkingProcessor::WalkingProcessor()
     // Open port for velocity input.
     port_vel_.open("/vel");
     port_q_.open("/joint_angles");
-    port_init_pos_status_.open("/walking_processor/commands");
+    port_robot_status_.open("/walking_processor/commands");
 
     // TEST
     ip_.StoreTrajectories(true);
@@ -234,7 +231,7 @@ WalkingProcessor::~WalkingProcessor() {
     // Close ports.
     port_vel_.close();
     port_q_.close();
-    port_init_pos_status_.close();
+    port_robot_status_.close();
 }
 
 
@@ -244,38 +241,37 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
     // Lock callbacks during the computation.
     lockCallback();
 
-    yarp::os::Bottle* bottle = port_init_pos_status_.read(false);
+    yarp::os::Bottle* bottle = port_robot_status_.read(false);
     if (bottle != YARP_NULLPTR) {
 
         // Get initial position status.
-        init_pos_status_ = InitialPositionStatus(bottle->pop().asDict()->find("InitialPositionStatus").asInt());
+        robot_status_ = RobotStatus(bottle->pop().asDict()->find("RobotStatus").asInt());
     }
 
-    if (initialized_ && init_pos_status_ == DONE) {
+    if (initialized_ && robot_status_ == INITIALIZED) {
 
-        // // Read the desired velocity and keep it unchanged if
-        // // no command arrives.
-        // yarp::sig::Vector* vel = port_vel_.read(false);
-        // if (vel != YARP_NULLPTR) {
+        // Read the desired velocity and keep it unchanged if
+        // no command arrives.
+        yarp::sig::Vector* vel = port_vel_.read(false);
+        if (vel != YARP_NULLPTR) {
 
-        //     // Convert to Eigen.
-        //     vel_ = yarp::eigen::toEigen(*vel);
-        // }
+            // Convert to Eigen.
+            vel_ = yarp::eigen::toEigen(*vel);
+        }
 
-        // // Use forward kinematics to obtain the com feedback.
-        // q_ << ki_.GetQTraj().topRows(6).col(0), yarp::eigen::toEigen(state.getCol(0)).bottomRows(15);
-        // dq_.bottomRows(15) = yarp::eigen::toEigen(state.getCol(1));
-        // ddq_.bottomRows(15) = yarp::eigen::toEigen(state.getCol(2));
+        // Use forward kinematics to obtain the com feedback.
+        q_ << ki_.GetQTraj().topRows(6).col(0), yarp::eigen::toEigen(state.getCol(0)).bottomRows(15);
+        dq_.bottomRows(15) = yarp::eigen::toEigen(state.getCol(1));
+        ddq_.bottomRows(15) = yarp::eigen::toEigen(state.getCol(2));
 
-        // ki_.Forward(q_, dq_, ddq_);
-        // com_pos_ = ki_.GetComPos();
-        // com_vel_ = ki_.GetComVel();
-        // com_acc_ = ki_.GetComAcc();
+        ki_.Forward(q_, dq_, ddq_);
+        com_pos_ = ki_.GetComPos();
+        com_vel_ = ki_.GetComVel();
+        com_acc_ = ki_.GetComAcc();
 
         // Generate pattern with com feedback.
-        // pg_state_ = pg_.Update();
-        pg_state_.com_x << com_pos_(0), com_vel_(0), com_acc_(0);
-        pg_state_.com_y << com_pos_(1), com_vel_(1), com_acc_(1);
+        pg_state_.com_x(0) = com_pos_(0);//, com_vel_(0), com_acc_(0);
+        pg_state_.com_y(0) = com_pos_(1);//, com_vel_(1), com_acc_(1);
         pg_state_.com_z = com_pos_(2);
         
         pg_.SetInitialValues(pg_state_);
@@ -289,7 +285,7 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
 
         // TEST
         // Set reference velocities.
-        vel_ << 0.01, 0., 0.;
+        // vel_ << 0.01, 0., 0.06;
         pg_.SetVelocityReference(vel_);
 
         // pg_.SetInitialValues(pg_state_);
@@ -298,7 +294,7 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
         pg_.Solve();
         pg_.Simulate();
         ip_.Interpolate();
-        traj_ = ip_.GetTrajectoriesBuffer().col(0);
+        traj_ = ip_.GetTrajectoriesBuffer();//.col(0);
 
         // Initial value embedding by internal states and simulation.
         pg_state_ = pg_.Update();
@@ -320,6 +316,26 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
         // port_q_.prepare() = data;
         // port_q_.write();
 
+        for (int i = 0; i < ip_.GetTrajectoriesBuffer().cols(); i++) {
+            
+            // Inverse kinematics.
+            com_traj_ << traj_(0, i),  traj_(3, i),  traj_(6, i),  traj_(7, i);
+            lf_traj_  << traj_(13, i), traj_(14, i), traj_(15, i), traj_(16, i);
+            rf_traj_  << traj_(17, i), traj_(18, i), traj_(19, i), traj_(20, i);
+
+            ki_.Inverse(com_traj_, lf_traj_, rf_traj_);
+            q_traj_ = ki_.GetQTraj().bottomRows(15);
+
+            // Write joint angles to output port.
+            yarp::sig::Vector data(q_traj_.rows(), q_traj_.cols());
+            Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(data.data(), q_traj_.rows(), q_traj_.cols()) = q_traj_;
+
+            port_q_.prepare() = data;
+            port_q_.write();
+
+            yarp::os::Time::delay(0.01);
+        }
+
         // count++;
         // TEST END
 
@@ -327,20 +343,20 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
         // ip_.Interpolate();
         // traj_ = ip_.GetTrajectoriesBuffer().col(0);
 
-        // Inverse kinematics.
-        com_traj_ << traj_.row(0),  traj_.row(3),  traj_.row(6),  traj_.row(7);
-        lf_traj_  << traj_.row(13), traj_.row(14), traj_.row(15), traj_.row(16);
-        rf_traj_  << traj_.row(17), traj_.row(18), traj_.row(19), traj_.row(20);
+        // // Inverse kinematics.
+        // com_traj_ << traj_.row(0),  traj_.row(3),  traj_.row(6),  traj_.row(7);
+        // lf_traj_  << traj_.row(13), traj_.row(14), traj_.row(15), traj_.row(16);
+        // rf_traj_  << traj_.row(17), traj_.row(18), traj_.row(19), traj_.row(20);
 
-        ki_.Inverse(com_traj_, lf_traj_, rf_traj_);
-        q_traj_ = ki_.GetQTraj().bottomRows(15);
+        // ki_.Inverse(com_traj_, lf_traj_, rf_traj_);
+        // q_traj_ = ki_.GetQTraj().bottomRows(15);
 
-        // Write joint angles to output port.
-        yarp::sig::Vector data(q_traj_.rows(), q_traj_.cols());
-        Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(data.data(), q_traj_.rows(), q_traj_.cols()) = q_traj_;
+        // // Write joint angles to output port.
+        // yarp::sig::Vector data(q_traj_.rows(), q_traj_.cols());
+        // Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(data.data(), q_traj_.rows(), q_traj_.cols()) = q_traj_;
 
-        port_q_.prepare() = data;
-        port_q_.write();
+        // port_q_.prepare() = data;
+        // port_q_.write();
     }
 
     else if (!initialized_) {

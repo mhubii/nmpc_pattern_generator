@@ -178,11 +178,13 @@ class KeyReader : public yarp::os::BufferedPort<yarp::os::Bottle>
         // Read from port.
         void ReadFromPort();
 
-        // Initial position status.
-        InitialPositionStatus init_pos_status_;
+        // Robot status, errors and warnings.
+        RobotStatus robot_status_;
+        Errors errors_;
+        Warnings warnings_;
 
         // Accelerations.
-        Eigen::Vector3d acc_w_, acc_a_, acc_s_, acc_d_;
+        Eigen::Vector3d acc_w_, acc_a_, acc_shift_a_, acc_s_, acc_d_, acc_shift_d_;
 
         // Respective time, accelerated in one direction.
         double t_iter_;
@@ -192,7 +194,7 @@ class KeyReader : public yarp::os::BufferedPort<yarp::os::Bottle>
 
         // User interface.
         WINDOW *win_w_, *win_a_, *win_s_, *win_d_;
-        WINDOW *win_q_, *win_e_, *win_guide_, *win_info_, *win_vel_;
+        WINDOW *win_q_, *win_e_, *win_guide_, *win_robot_status_, *win_err_, *win_vel_;
         WINDOW *win_inv_;
 
         // Mutex.

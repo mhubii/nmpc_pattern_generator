@@ -9,8 +9,12 @@
 #define DEG2RAD M_PI/180.0
 #define RAD2DEG 180.0/M_PI
 
-// Current status of the writer.
-enum InitialPositionStatus { NOT_STARTED, MOVING, DONE };
+// Status of the robot.
+enum RobotStatus { NOT_CONNECTED, NOT_INITIALIZED, INITIALIZING, INITIALIZED };
+
+// Errors and warnings.
+enum Errors { NO_ERRORS, QP_INFEASIBLE, HARDWARE_LIMITS };
+enum Warnings { NO_WARNINGS, IK_DID_NOT_CONVERGE };
 
 // Part of the robot, e.g. the left leg.
 struct Part {

@@ -7,14 +7,14 @@ WriteJoints::WriteJoints(int period, const std::string config_file_loc,
     configs_(YAML::LoadFile(config_file_loc)),
     
     // Moving to the initial position.
-    moving_to_initial_pos_(NOT_STARTED) {
+    robot_status_(NOT_INITIALIZED) {
 
     // Set configurations and drivers.
     SetConfigs();
     SetDrivers();
 
     // Open port to communicate initial position status.
-    port_init_pos_status_.open("/client_write/init_pos_status");
+    port_robot_status_.open("/client_write/robot_status");
 
     // Open port to read from.
     port_.open(port_name_);
@@ -31,7 +31,7 @@ WriteJoints::~WriteJoints() {
     UnsetDrivers();
 
     // Close ports.
-    port_init_pos_status_.close();
+    port_robot_status_.close();
     port_.close();
 }
 
@@ -58,11 +58,11 @@ void WriteJoints::run() {
         }
     }
 
-    if (moving_to_initial_pos_ == NOT_STARTED && q != YARP_NULLPTR) {
+    if (robot_status_ == NOT_INITIALIZED && q != YARP_NULLPTR) {
 
         // Set the control modes neccessary to reach the initial position.
         std::cout << "Moving to initial position." << std::endl;
-        moving_to_initial_pos_ = MOVING;
+        robot_status_ = INITIALIZING;
         ok = ok && SetControlModes(VOCAB_CM_POSITION);
 
         for (auto& part : parts_) {
@@ -75,14 +75,14 @@ void WriteJoints::run() {
         }
 
         // Communicate initial position status.
-        yarp::os::Bottle& bottle = port_init_pos_status_.prepare();
+        yarp::os::Bottle& bottle = port_robot_status_.prepare();
         yarp::os::Property& dict = bottle.addDict();
 
-        dict.put("InitialPositionStatus", moving_to_initial_pos_);
-        port_init_pos_status_.write();
+        dict.put("RobotStatus", robot_status_);
+        port_robot_status_.write();
     }
 
-    else if (moving_to_initial_pos_ == MOVING) {
+    else if (robot_status_ == INITIALIZING) {
 
         // Check if the initial position was reached for every joint of every part.
         bool done = true;
@@ -102,19 +102,19 @@ void WriteJoints::run() {
             // Change the control mode to IPositionDirect, once the initial position
             // was reached.
             std::cout << "Reached initial position." << std::endl;
-            moving_to_initial_pos_ = DONE;
+            robot_status_ = INITIALIZED;
             ok = ok && SetControlModes(VOCAB_CM_POSITION_DIRECT);
 
             // Communicate initial position status.
-            yarp::os::Bottle& bottle = port_init_pos_status_.prepare();
+            yarp::os::Bottle& bottle = port_robot_status_.prepare();
             yarp::os::Property& dict = bottle.addDict();
 
-            dict.put("InitialPositionStatus", moving_to_initial_pos_);
-            port_init_pos_status_.write();
+            dict.put("RobotStatus", robot_status_);
+            port_robot_status_.write();
         }
     }
 
-    else if (q != YARP_NULLPTR && moving_to_initial_pos_ == DONE) {
+    else if (q != YARP_NULLPTR && robot_status_ == INITIALIZED) {
 
         for (auto& part : parts_) {
 

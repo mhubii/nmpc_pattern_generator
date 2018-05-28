@@ -44,7 +44,7 @@ int main(int argc, char * argv[]) {
 
     yarp::os::Network::connect("/joints/read", "/joints/write");
 
-    while (wj.GetInitialPositionStatus() != DONE) {
+    while (wj.GetRobotStatus() != INITIALIZED) {
         port_q.prepare() = data;
         port_q.write();
     }

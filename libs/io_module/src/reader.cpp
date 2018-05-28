@@ -306,12 +306,16 @@ void ReadCameras::SetDrivers() {
 
 
 KeyReader::KeyReader() 
-    : init_pos_status_(NOT_STARTED),
+    : robot_status_(NOT_CONNECTED),
+      errors_(NO_ERRORS),
+      warnings_(NO_WARNINGS),
       t_iter_(yarp::os::Time::now()), 
-      acc_w_( 0.1, 0.,  0. ),
-      acc_a_( 0. , 0.,  0.1),
-      acc_s_(-0.1, 0.,  0. ),
-      acc_d_( 0. , 0., -0.1),
+      acc_w_( 0.1, 0., 0. ),
+      acc_a_( 0. , 0., -0.1),
+      acc_shift_a_(0., 0.1, 0.),
+      acc_s_(-0.1, 0., 0.),
+      acc_d_( 0. , 0., 0.1),
+      acc_shift_d_(0., -0.1, 0.),
       vel_(3) {
 
   // Open port.
@@ -333,9 +337,10 @@ KeyReader::KeyReader()
   win_d_ = newwin( 3, 6,  6, 18);
   win_q_ = newwin( 3, 6,  2,  2);
   win_e_ = newwin( 3, 6,  2, 18);
-  win_guide_ = newwin(18, 44, 2, 28);
-  win_info_ = newwin(3, 22, 10, 2);
-  win_vel_ = newwin(6, 20, 15, 2);
+  win_guide_ = newwin(20, 44, 2, 28);
+  win_robot_status_ = newwin(2, 22, 10, 2);
+  win_err_ = newwin(2, 22, 13, 2);
+  win_vel_ = newwin(6, 20, 16, 2);
   win_inv_ = newwin(1, 1, 22, 2);
 
   start_color();
@@ -353,7 +358,8 @@ KeyReader::KeyReader()
   wbkgd(win_q_, COLOR_PAIR(3));
   wbkgd(win_e_, COLOR_PAIR(3));
   wbkgd(win_guide_, COLOR_PAIR(1));
-  wbkgd(win_info_, COLOR_PAIR(4));
+  wbkgd(win_robot_status_, COLOR_PAIR(4));
+  wbkgd(win_err_, COLOR_PAIR(5));
   wbkgd(win_vel_, COLOR_PAIR(1));
   wbkgd(win_inv_, COLOR_PAIR(1));
 
@@ -363,14 +369,17 @@ KeyReader::KeyReader()
   mvwaddstr(win_d_, 1, 2, "d");
   mvwaddstr(win_q_, 1, 2, "q");
   mvwaddstr(win_e_, 1, 2, "e");
-  mvwaddstr(win_guide_, 0, 0, "Hello,\n\n"
-                          "I am the keyboard user interface of the heicub robot.\n\n"
-                          "Use w and s to accelerate forwards and backwards.\n\n"
-                          "Use a and d to accelerate angular left and right.\n\n"
-                          "Only one pressed key is used to accelerate, leaving all other velocities untouched, except for the opposite ones.\n\n"
-                          "For an emergency stop press e.\n\n"
-                          "Press q to quit this interface."); 
-  mvwaddstr(win_info_, 1, 3, "Not initialized!");
+  mvwaddstr(win_guide_, 0, 0, "Hello, I am the keyboard user interface of the heicub robot.\n\n"
+                              "Use w and s to accelerate forwards and backwards.\n\n"
+                              "Use a and d to accelerate angular left and right.\n\n"
+                              "Use shift+a and shift+d to accelerate left and right.\n\n"
+                              "Only one pressed key is used to accelerate, leaving all other velocities untouched, except for the opposite ones.\n\n"
+                              "For an emergency stop press e.\n\n"
+                              "Press q to quit this interface."); 
+  mvwaddstr(win_robot_status_, 0, 3, "Robot:\n"
+                                     "   Not connected!");
+  mvwaddstr(win_err_, 0, 3, "Warnings:\n"
+                            "   No warnings :)");
   mvwaddstr(win_vel_, 0, 0, ("Current velocity:\n\n"
                              "v_x:   " + std::to_string(vel_(0)) + "\n"
                              "v_y:   " + std::to_string(vel_(1)) + "\n"
@@ -384,7 +393,8 @@ KeyReader::KeyReader()
   wrefresh(win_q_);
   wrefresh(win_e_);
   wrefresh(win_guide_);
-  wrefresh(win_info_);
+  wrefresh(win_robot_status_);
+  wrefresh(win_err_);
   wrefresh(win_vel_);
   wrefresh(win_inv_);
 
@@ -410,7 +420,8 @@ KeyReader::~KeyReader() {
   delwin(win_q_);
   delwin(win_e_);
   delwin(win_guide_);
-  delwin(win_info_);
+  delwin(win_robot_status_);
+  delwin(win_err_);
   delwin(win_vel_);
   delwin(win_inv_);
 
@@ -424,41 +435,108 @@ void KeyReader::onRead(yarp::os::Bottle& info) {
     lockCallback();
 
     yarp::os::Value prop = info.pop();
-    std::cout << prop.asDict()->find("InitialPositionStatus").asInt() << std::endl;
 
-    // Check for status of the robot.
-    if (prop.asDict()->check("InitialPositionStatus")) {
-        
-        switch (prop.asDict()->find("InitialPositionStatus").asInt()) {
+    // Check for errors and warnings.
+    if (prop.asDict()->check("ERROR")) {
 
-            case NOT_STARTED:
-                init_pos_status_ = NOT_STARTED;
-                wclear(win_info_);
-                wbkgd(win_info_, COLOR_PAIR(4));
-                mvwaddstr(win_info_, 1, 3, "Not initialized!");
-                wrefresh(win_info_);
-                break;
-        
-            case MOVING:
-                init_pos_status_ = MOVING;
-                wclear(win_info_);
-                wbkgd(win_info_, COLOR_PAIR(3));
-                mvwaddstr(win_info_, 1, 3, "Initializing...");
-                wrefresh(win_info_);
+        switch(prop.asDict()->find("ERROR").asInt()) {
+
+            case NO_ERRORS:
+                errors_ = NO_ERRORS;
+                wclear(win_err_);
+                wbkgd(win_err_, COLOR_PAIR(5));
+                mvwaddstr(win_err_, 0, 3, "Warnings:\n"
+                                          "   No warnings :)");
+                wrefresh(win_err_);
                 break;
 
-            case DONE:
-                init_pos_status_ = DONE;
-                wclear(win_info_);
-                wbkgd(win_info_, COLOR_PAIR(5));
-                mvwaddstr(win_info_, 1, 5, "Good to go!");
-                wrefresh(win_info_);
+            case QP_INFEASIBLE:
+                errors_ = QP_INFEASIBLE;
+                wclear(win_err_);
+                wbkgd(win_err_, COLOR_PAIR(4));
+                mvwaddstr(win_err_, 0, 3, "Warnings:\n"
+                                          "   QP infeasible!");
+                wrefresh(win_err_);
+                break;
+
+            case HARDWARE_LIMITS:
+                errors_ = HARDWARE_LIMITS;
+                wclear(win_err_);
+                wbkgd(win_err_, COLOR_PAIR(4));
+                mvwaddstr(win_err_, 0, 3, "Warnings:\n"
+                                          "   Hardware limits!");
+                wrefresh(win_err_);
                 break;
         }
     }
 
-    // Check for the status of the quadratic problem, connection status and hardware limits..
-    // TODO.
+    if (prop.asDict()->check("Warning")) {
+
+        switch(prop.asDict()->find("Warning").asInt()) {
+
+            case NO_WARNINGS:
+                warnings_ = NO_WARNINGS;
+                wclear(win_err_);
+                wbkgd(win_err_, COLOR_PAIR(5));
+                mvwaddstr(win_err_, 0, 3, "Warnings:\n"
+                                          "  No warnings :)");
+                wrefresh(win_err_);
+                break;
+
+            case IK_DID_NOT_CONVERGE:
+                warnings_ = NO_WARNINGS;
+                wclear(win_err_);
+                wbkgd(win_err_, COLOR_PAIR(3));
+                mvwaddstr(win_err_, 0, 3, "Warnings:\n"
+                                          "  IK did not converge.");
+                wrefresh(win_err_);
+                break;
+
+        }
+    }
+
+    // Check for status of the robot.
+    if (prop.asDict()->check("RobotStatus")) {
+        
+        switch (prop.asDict()->find("RobotStatus").asInt()) {
+
+            case NOT_CONNECTED:
+                robot_status_ = NOT_CONNECTED;
+                wclear(win_robot_status_);
+                wbkgd(win_robot_status_, COLOR_PAIR(4));
+                mvwaddstr(win_robot_status_, 0, 3, "Robot:\n"
+                                                   "   Not connected!");
+                wrefresh(win_robot_status_);
+                break;
+
+            case NOT_INITIALIZED:
+                robot_status_ = NOT_INITIALIZED;
+                wclear(win_robot_status_);
+                wbkgd(win_robot_status_, COLOR_PAIR(4));
+                mvwaddstr(win_robot_status_, 0, 3, "Robot:\n"
+                                                   "   Not initialized!");
+                wrefresh(win_robot_status_);
+                break;
+        
+            case INITIALIZING:
+                robot_status_ = INITIALIZING;
+                wclear(win_robot_status_);
+                wbkgd(win_robot_status_, COLOR_PAIR(3));
+                mvwaddstr(win_robot_status_, 0, 3, "Robot:\n"
+                                                   "   Initializing...");
+                wrefresh(win_robot_status_);
+                break;
+
+            case INITIALIZED:
+                robot_status_ = INITIALIZED;
+                wclear(win_robot_status_);
+                wbkgd(win_robot_status_, COLOR_PAIR(5));
+                mvwaddstr(win_robot_status_, 0, 3, "Robot:\n"
+                                                   "   Good to go!");
+                wrefresh(win_robot_status_);
+                break;
+        }
+    }
 
     unlockCallback();
 };
@@ -480,7 +558,7 @@ void KeyReader::ReadCommands() {
         dt = t_iter_;
         t_iter_ = yarp::os::Time::now();
 
-        if (init_pos_status_ == DONE) {
+        if (robot_status_ == INITIALIZED) {
             switch(ch)
             {
                 case 'w': {
@@ -491,12 +569,20 @@ void KeyReader::ReadCommands() {
                     SetVelocity(acc_a_, dt);
                     WriteToPort();
                     break;
+                case 'A':
+                    SetVelocity(acc_shift_a_, dt);
+                    WriteToPort();
+                    break;
                 case 's':
                     SetVelocity(acc_s_, dt);
                     WriteToPort();
                     break;
                 case 'd':
                     SetVelocity(acc_d_, dt);
+                    WriteToPort();
+                    break;
+                case 'D':
+                    SetVelocity(acc_shift_d_, dt);
                     WriteToPort();
                     break;
                 case 'e':
