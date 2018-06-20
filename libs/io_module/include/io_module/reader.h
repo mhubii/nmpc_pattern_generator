@@ -176,14 +176,12 @@ class AppReader : public yarp::os::BufferedPort<yarp::os::Bottle>
     private:
 
         // Port for sending velocities and informations about the status.
-        yarp::os::BufferedPort<yarp::os::Bottle> port_vel_;
-        yarp::os::BufferedPort<yarp::os::Bottle> port_inf_;
+        yarp::os::BufferedPort<yarp::os::Bottle> port_vel_app_;
+        yarp::os::BufferedPort<yarp::sig::Vector> port_vel_;
+        yarp::os::BufferedPort<yarp::os::Bottle> port_status_;
 
         // Write to port.
         void WriteToPort();
-
-        // Read from port.
-        void ReadFromPort();
 
         // Robot status, errors and warnings.
         RobotStatus robot_status_;
@@ -233,9 +231,6 @@ class KeyReader : public yarp::os::BufferedPort<yarp::os::Bottle>
 
         // Write to port.
         void WriteToPort();
-
-        // Read from port.
-        void ReadFromPort();
 
         // Robot status, errors and warnings.
         RobotStatus robot_status_;

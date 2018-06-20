@@ -356,8 +356,9 @@ AppReader::AppReader()
       vel_(3) {
 
     // Open ports.
+    port_vel_app_.open("/vel/read_from_app");
     port_vel_.open("/vel/command");
-    port_inf_.open("/inf/command");
+    port_status_.open("/status/command");
 
     // Set velocity to zero.
     vel_.zero();
@@ -392,9 +393,9 @@ AppReader::AppReader()
                                  "Create a hotspot on your smartphone and connect to it, exit with q if you have not already done this.\n\n"
                                  "Start your app on the smartphone and open the menu bar, choose settings.\n\n"
                                  "Type in the following settings:\n\n"
-                                 "    IP Address:   " + port_vel_.where().getHost() + "\n"
-                                 "    Port Send:    " + std::to_string(port_vel_.where().getPort()) + "\n"
-                                 "    Port Receive: " + std::to_string(port_inf_.where().getPort()) + "\n\n"
+                                 "    IP Address:   " + port_vel_app_.where().getHost() + "\n"
+                                 "    Port Send:    " + std::to_string(port_vel_app_.where().getPort()) + "\n"
+                                 "    Port Receive: " + std::to_string(port_status_.where().getPort()) + "\n\n"
                                  "Go to the menu and choose connection. Press connect. Choose your favorite Joystick.\n\n"
                                  "For an emergency stop press e.\n\n").c_str()); 
 
@@ -428,8 +429,9 @@ AppReader::~AppReader() {
     WriteToPort();
 
     // Close port.
+    port_vel_app_.close();
     port_vel_.close();
-    port_inf_.close();
+    port_status_.close();
 
     // Release the user interface.
     delwin(win_guide_);
@@ -455,7 +457,16 @@ void AppReader::onRead(yarp::os::Bottle& info) {
 
         switch(prop.asDict()->find("ERROR").asInt()) {
 
-            case NO_ERRORS:
+            case NO_ERRORS: {
+
+                // Communicate with the app.
+                yarp::os::Bottle& bottle = port_status_.prepare();
+                yarp::os::Property& dict = bottle.addDict();
+
+                dict.put("ERROR", NO_ERRORS);
+                port_status_.write();
+
+                // Communicate with the terminal.
                 errors_ = NO_ERRORS;
                 wclear(win_err_);
                 wbkgd(win_err_, COLOR_PAIR(4));
@@ -463,8 +474,18 @@ void AppReader::onRead(yarp::os::Bottle& info) {
                                           "  No warnings :)");
                 wrefresh(win_err_);
                 break;
+            }
 
-            case QP_INFEASIBLE:
+            case QP_INFEASIBLE: {
+
+                // Communicate with the app.
+                yarp::os::Bottle& bottle = port_status_.prepare();
+                yarp::os::Property& dict = bottle.addDict();
+
+                dict.put("ERROR", QP_INFEASIBLE);
+                port_status_.write();
+
+                // Communicate with the terminal.
                 errors_ = QP_INFEASIBLE;
                 wclear(win_err_);
                 wbkgd(win_err_, COLOR_PAIR(3));
@@ -480,8 +501,18 @@ void AppReader::onRead(yarp::os::Bottle& info) {
                                                    "  Removed connection.");
                 wrefresh(win_robot_status_);
                 break;
+            }
 
-            case HARDWARE_LIMITS:
+            case HARDWARE_LIMITS: {
+
+                // Communicate with the app.
+                yarp::os::Bottle& bottle = port_status_.prepare();
+                yarp::os::Property& dict = bottle.addDict();
+
+                dict.put("ERROR", HARDWARE_LIMITS);
+                port_status_.write();
+
+                // Communicate with the terminal.
                 errors_ = HARDWARE_LIMITS;
                 wclear(win_err_);
                 wbkgd(win_err_, COLOR_PAIR(3));
@@ -497,6 +528,7 @@ void AppReader::onRead(yarp::os::Bottle& info) {
                                                    "  Removed connection.");
                 wrefresh(win_robot_status_);
                 break;
+            }
         }
     }
 
@@ -504,7 +536,16 @@ void AppReader::onRead(yarp::os::Bottle& info) {
 
         switch(prop.asDict()->find("Warning").asInt()) {
 
-            case NO_WARNINGS:
+            case NO_WARNINGS: {
+
+                // Communicate with the app.
+                yarp::os::Bottle& bottle = port_status_.prepare();
+                yarp::os::Property& dict = bottle.addDict();
+
+                dict.put("Warning", NO_WARNINGS);
+                port_status_.write();
+
+                // Communicate with the terminal.
                 warnings_ = NO_WARNINGS;
                 wclear(win_err_);
                 wbkgd(win_err_, COLOR_PAIR(4));
@@ -512,8 +553,18 @@ void AppReader::onRead(yarp::os::Bottle& info) {
                                           "  No warnings :)");
                 wrefresh(win_err_);
                 break;
+            }
 
-            case IK_DID_NOT_CONVERGE:
+            case IK_DID_NOT_CONVERGE: {
+
+                // Communicate with the app.
+                yarp::os::Bottle& bottle = port_status_.prepare();
+                yarp::os::Property& dict = bottle.addDict();
+
+                dict.put("Warning", IK_DID_NOT_CONVERGE);
+                port_status_.write();
+
+                // Communicate with the terminal.
                 warnings_ = NO_WARNINGS;
                 wclear(win_err_);
                 wbkgd(win_err_, COLOR_PAIR(2));
@@ -521,6 +572,7 @@ void AppReader::onRead(yarp::os::Bottle& info) {
                                           "  IK did not converge.");
                 wrefresh(win_err_);
                 break;
+            }
         }
     }
 
@@ -529,7 +581,16 @@ void AppReader::onRead(yarp::os::Bottle& info) {
         
         switch (prop.asDict()->find("RobotStatus").asInt()) {
 
-            case NOT_CONNECTED:
+            case NOT_CONNECTED: {
+
+                // Communicate with the app.
+                yarp::os::Bottle& bottle = port_status_.prepare();
+                yarp::os::Property& dict = bottle.addDict();
+
+                dict.put("RobotStatus", NOT_CONNECTED);
+                port_status_.write();
+
+                // Communicate with the terminal.
                 robot_status_ = NOT_CONNECTED;
                 wclear(win_robot_status_);
                 wbkgd(win_robot_status_, COLOR_PAIR(3));
@@ -537,8 +598,18 @@ void AppReader::onRead(yarp::os::Bottle& info) {
                                                    "  Not connected!");
                 wrefresh(win_robot_status_);
                 break;
+            }
 
-            case NOT_INITIALIZED:
+            case NOT_INITIALIZED: {
+
+                // Communicate with the app.
+                yarp::os::Bottle& bottle = port_status_.prepare();
+                yarp::os::Property& dict = bottle.addDict();
+
+                dict.put("RobotStatus", NOT_INITIALIZED);
+                port_status_.write();
+
+                // Communicate with the terminal.
                 robot_status_ = NOT_INITIALIZED;
                 wclear(win_robot_status_);
                 wbkgd(win_robot_status_, COLOR_PAIR(2));
@@ -546,8 +617,18 @@ void AppReader::onRead(yarp::os::Bottle& info) {
                                                    "  Not initialized!");
                 wrefresh(win_robot_status_);
                 break;
+            }
         
-            case INITIALIZING:
+            case INITIALIZING: {
+
+                // Communicate with the app.
+                yarp::os::Bottle& bottle = port_status_.prepare();
+                yarp::os::Property& dict = bottle.addDict();
+
+                dict.put("RobotStatus", INITIALIZING);
+                port_status_.write();
+
+                // Communicate with the terminal.
                 robot_status_ = INITIALIZING;
                 wclear(win_robot_status_);
                 wbkgd(win_robot_status_, COLOR_PAIR(2));
@@ -555,8 +636,18 @@ void AppReader::onRead(yarp::os::Bottle& info) {
                                                    "  Initializing...");
                 wrefresh(win_robot_status_);
                 break;
+            }
 
-            case INITIALIZED:
+            case INITIALIZED: {
+
+                // Communicate with the app.
+                yarp::os::Bottle& bottle = port_status_.prepare();
+                yarp::os::Property& dict = bottle.addDict();
+
+                dict.put("RobotStatus", INITIALIZED);
+                port_status_.write();
+
+                // Communicate with the terminal.
                 robot_status_ = INITIALIZED;
                 wclear(win_robot_status_);
                 wbkgd(win_robot_status_, COLOR_PAIR(4));
@@ -564,6 +655,7 @@ void AppReader::onRead(yarp::os::Bottle& info) {
                                                    "  Good to go!");
                 wrefresh(win_robot_status_);
                 break;
+            }
         }
     }
 
@@ -584,11 +676,18 @@ void AppReader::ReadCommands() {
 
         if (robot_status_ == INITIALIZED) {
             
-        yarp::os::Bottle* vel = port_vel_.read(false);
+        yarp::os::Bottle* vel = port_vel_app_.read(false);
 
             if (vel != YARP_NULLPTR) {
 
                 vel->get(0).asList()->write(vel_);
+
+                // Weight inputs.
+                vel_(0) *= 0.6;
+                vel_(1) *= 0.6;
+                vel_(2) *= 0.1;
+
+                WriteToPort();
             }  
         }
         
@@ -606,7 +705,10 @@ void AppReader::ReadCommands() {
 
 void AppReader::WriteToPort() {
 
-  // Write incoming commands to user controlled walking...
+    // Write the velocities to the output port.
+    yarp::sig::Vector& data = port_vel_.prepare();
+    data = vel_;
+    port_vel_.write();
 }
 
 
@@ -882,10 +984,10 @@ void KeyReader::ReadCommands() {
         if (robot_status_ == INITIALIZED) {
             switch(ch)
             {
-                case 'w': {
+                case 'w':
                     SetVelocity(acc_w_, dt);
                     WriteToPort();
-                    break;}
+                    break;
                 case 'a':
                     SetVelocity(acc_a_, dt);
                     WriteToPort();
