@@ -1,3 +1,4 @@
+#include <yarp/dev/all.h>
 #include <yarp/os/all.h>
 #include <yarp/sig/all.h>
 #include <yarp/eigen/Eigen.h>   
@@ -45,32 +46,77 @@ class CheckRateThread : public yarp::os::RateThread
 
 int main() {
 
-    // Check a run thread that reads slower than its port gets written to.
+    // Try to print the address of a buffered port in yarp and read from the app.
     yarp::os::Network yarp;
-    
-    CheckRateThread thread(200);
 
-    yarp::os::BufferedPort<yarp::sig::Vector> input_port;
-    input_port.open("/input_port");
+    if (!yarp.checkNetwork()) {
 
-    yarp::os::Network::connect("/input_port", "/check_rate_thread");
-
-    thread.start();
-
-    for (int i = 0; i < 10; i++) {
-
-        yarp::sig::Vector input(1);
-        input(0) = i;
-
-        input_port.prepare() = input;
-        input_port.write(true);
-
-        yarp::os::Time::delay(0.2);
+        std::cout << "No yarpserver is running. Please run a yarpserver." << std::endl;
+        std::exit(1);
     }
 
-    thread.stop();
+    yarp::os::BufferedPort<yarp::os::Bottle> read;
+    read.open("/read");
 
-    input_port.close();
+    yarp::os::BufferedPort<yarp::os::Bottle> write;
+    write.open("/write");
+
+    std::cout << read.where().getPort() << std::endl;
+    std::cout << write.where().getPort() << std::endl;
+
+    yarp::sig::Vector rec;
+
+    // std::cout << "bottle is \n" << read.read(true)->toString() << std::endl;;
+
+    read.read(true)->get(0).asList()->write(rec);
+    std::cout << rec.toString() << std::endl;
+
+    read.close();
+    write.close();
+
+
+
+
+    // // Check boolean operations of eigen matrices.
+    // Eigen::Matrix2d one;
+    // one << 1, 2, 3, 4;
+
+    // Eigen::Matrix2d two;
+    // two << 2, 3, 4, 3;
+
+    // bool comp = (one.array() > two.array()).any();
+
+    // std::cout << comp << std::endl;
+
+
+
+
+    // // Check a run thread that reads slower than its port gets written to.
+    // yarp::os::Network yarp;
+    
+    // CheckRateThread thread(200);
+
+    // yarp::os::BufferedPort<yarp::sig::Vector> input_port;
+    // input_port.open("/input_port");
+
+    // yarp::os::Network::connect("/input_port", "/check_rate_thread");
+
+    // thread.start();
+
+    // for (int i = 0; i < 10; i++) {
+
+    //     yarp::sig::Vector input(1);
+    //     input(0) = i;
+
+    //     input_port.prepare() = input;
+    //     input_port.write(true);
+
+    //     yarp::os::Time::delay(0.2);
+    // }
+
+    // thread.stop();
+
+    // input_port.close();
 
 
     // Check storage order of yarp matrices.
