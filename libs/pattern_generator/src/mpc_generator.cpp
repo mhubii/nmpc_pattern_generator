@@ -142,7 +142,7 @@ void MPCGenerator::Example(const std::string config_file_loc, const std::string 
     // Solve QP.
     mpc.Solve();
     mpc.Simulate();
-    interpol_mpc.Interpolate();
+    interpol_mpc.InterpolateStep();
 
     // Initial values embedding by internal states and simulation.
     pg_state = mpc.Update();

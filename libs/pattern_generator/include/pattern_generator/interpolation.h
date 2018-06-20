@@ -21,11 +21,15 @@ class Interpolation
 public:
     Interpolation(BaseGenerator& base_generator);
 
-    void Interpolate();
+    Eigen::Map<const Eigen::MatrixXd> Interpolate();
+
+    void InterpolateStep();
 
     // Getters.
-    inline const Eigen::MatrixXd& GetTrajectories()       const { return trajectories_;       };
-    inline Eigen::Map<const Eigen::MatrixXd> GetTrajectoriesBuffer() const { return Eigen::Map<const Eigen::MatrixXd>(trajectories_buffer_.data(), trajectories_buffer_.rows(), trajectories_buffer_.cols() - 1); };
+    inline const Eigen::MatrixXd&                  GetTrajectories()       const { return trajectories_; };
+    inline       Eigen::Map<const Eigen::MatrixXd> GetTrajectoriesBuffer() const { return Eigen::Map<const Eigen::MatrixXd>(trajectories_buffer_.data(), trajectories_buffer_.rows(), trajectories_buffer_.cols() - 1); };
+    inline const int&                              GetIntervals()          const { return intervals_; };
+    inline const int&                              GetCurrentInterval()    const { return current_interval_; };
 
     // Setters.
     inline void StoreTrajectories(bool store_trajectories) { store_trajectories_ = store_trajectories; };
@@ -40,7 +44,11 @@ public:
 
     void InterpolateFeet();
 
+    void InterpolateFeetStep();
+
     void InterpolateLIPM();
+
+    void InterpolateLIPMStep();
 
     template <typename Derived>
     void Set4thOrderCoefficients(Eigen::MatrixBase<Derived>& coef,
@@ -70,8 +78,9 @@ public:
     // Center of mass initial values.
     const double h_com_;
 
-    // Number of interpolation intervals.
+    // Number of interpolation intervals and current interval.
     const int intervals_;
+    int current_interval_;
 
     // Number of intervals that the robot stays still in the beginning.
     const int n_still_;

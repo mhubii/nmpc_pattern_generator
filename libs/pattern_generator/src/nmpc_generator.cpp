@@ -173,7 +173,7 @@ void NMPCGenerator::Example(const std::string config_file_loc, const std::string
     // Solve QP.
     nmpc.Solve();
     nmpc.Simulate();
-    interpol_nmpc.Interpolate();
+    interpol_nmpc.InterpolateStep();
 
     // Initial value embedding by internal states and simulation.
     pg_state = nmpc.Update();

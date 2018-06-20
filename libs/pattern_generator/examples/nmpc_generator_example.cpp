@@ -53,7 +53,7 @@ int main() {
         // Solve QP.
         nmpc.Solve();
         nmpc.Simulate();
-        interpol_nmpc.Interpolate();
+        interpol_nmpc.InterpolateStep();
 
 
         // Initial value embedding by internal states and simulation.
