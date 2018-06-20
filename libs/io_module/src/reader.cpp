@@ -10,7 +10,7 @@ ReadJoints::ReadJoints(int period, const std::string config_file_loc,
     // Set configurations and drivers.
     SetConfigs();
     SetDrivers();
-
+    
     // Prepare the output.
     int joints = 0;
 
@@ -18,7 +18,12 @@ ReadJoints::ReadJoints(int period, const std::string config_file_loc,
         joints += part.joints.size();
     }
 
+    q_min_.resize(joints);
+    q_max_.resize(joints);
     state_.resize(joints, 3);
+
+    // Read extremal joint angles from the robot.
+    ReadLimits();  
 
     // Open port to write to.
     port_.open(port_name_);
@@ -55,19 +60,24 @@ void ReadJoints::run() {
         yarp::sig::Vector pos(ax);
         yarp::sig::Vector vel(ax);
         yarp::sig::Vector acc(ax);
-        
+  
         // Read the encoders.
         ok = ok && enc_[part.name]->getEncoders(pos.data());
         ok = ok && enc_[part.name]->getEncoderSpeeds(vel.data());
         ok = ok && enc_[part.name]->getEncoderAccelerations(acc.data());
 
         // Store read encoders to state_.
-        for (int i = 0; i < pos.size(); i++) {
+        for (int i = 0; i < ax; i++) {
             state_(count, 0) = pos[i]*DEG2RAD;
             state_(count, 1) = vel[i]*DEG2RAD;
             state_(count, 2) = acc[i]*DEG2RAD;
             count++;
         }
+    }
+
+    if (!ok) {
+        std::cout << "Could not read sensor data." << std::endl;
+        std::exit(1);
     }
 
     // Send read data to a port.
@@ -126,8 +136,7 @@ void ReadJoints::SetDrivers() {
         // Every part is set to position encoder.
         dd_[part.name] = new yarp::dev::PolyDriver(options);
         
-        if (!dd_[part.name]->isValid()) 
-        {
+        if (!dd_[part.name]->isValid()) {
             std::cerr << "Device or ports not available." << std::endl;
             std::exit(1);
         }
@@ -139,14 +148,49 @@ void ReadJoints::SetDrivers() {
         ok = ok && dd_[part.name]->view(e);
         enc_[part.name] = e;
 
-        if (!ok) 
-        {
+        yarp::dev::IControlLimits* l;
+        ok = ok && dd_[part.name]->view(l);
+        lim_[part.name] = l;
+
+        if (!ok) {
             std::cout << "Problems acquiring interfaces." << std::endl;
             std::exit(1);
         }
     }
 }
 
+void ReadJoints::ReadLimits() {
+
+    // bool ok = true;
+    // int count = 0;
+
+    // // Read the extremal angles of the joints.
+    // for (auto& part : parts_) {
+        
+    //     int ax = 0;
+
+    //     ok = ok && enc_[part.name]->getAxes(&ax);
+
+    //     yarp::sig::Vector min(ax);
+    //     yarp::sig::Vector max(ax);
+
+    //     ok = ok && lim_[part.name]->setLimits(ax, min, max);
+
+    //     for (int i = 0; i < ax; i++) {
+
+    //         // Write the limits to an eigen matrix.
+    //         q_min_(count) = min(i)*DEG2RAD;
+    //         q_max_(count) = max(i)*DEG2RAD;
+            
+    //         count++;
+    //     }
+    // }
+
+    // if (!ok) {
+    //     std::cout << "Could not read sensor data." << std::endl;
+    //     std::exit(1);
+    // }
+}
 
 ReadCameras::ReadCameras(int period, const std::string config_file_loc, 
                          const std::string robot_name, const std::string out_file_loc,
@@ -305,6 +349,267 @@ void ReadCameras::SetDrivers() {
 }
 
 
+AppReader::AppReader() 
+    : robot_status_(NOT_CONNECTED),
+      errors_(NO_ERRORS),
+      warnings_(NO_WARNINGS),
+      vel_(3) {
+
+    // Open ports.
+    port_vel_.open("/vel/command");
+    port_inf_.open("/inf/command");
+
+    // Set velocity to zero.
+    vel_.zero();
+
+    // User interface.
+    initscr();
+    timeout(10);
+    noecho();
+    cbreak();
+    curs_set(0);
+
+    win_guide_ = newwin(20, 44, 2, 28);
+    win_robot_status_ = newwin(2, 22, 10, 2);
+    win_err_ = newwin(2, 22, 13, 2);
+    win_vel_ = newwin(6, 20, 17, 2);
+    win_inv_ = newwin(1, 1, 22, 2);
+
+    start_color();
+    init_pair(1, COLOR_WHITE, COLOR_BLUE);
+    init_pair(2, COLOR_WHITE, COLOR_YELLOW);
+    init_pair(3, COLOR_WHITE, COLOR_RED);
+    init_pair(4, COLOR_WHITE, COLOR_GREEN);
+
+    bkgd(COLOR_PAIR(1));
+    wbkgd(win_guide_, COLOR_PAIR(1));
+    wbkgd(win_robot_status_, COLOR_PAIR(3));
+    wbkgd(win_err_, COLOR_PAIR(4));
+    wbkgd(win_vel_, COLOR_PAIR(1));
+    wbkgd(win_inv_, COLOR_PAIR(1));
+
+    mvwaddstr(win_guide_, 0, 0, ("Hello, I am the app user interface of the heicub robot.\n\n"
+                                 "Create a hotspot on your smartphone and connect to it, exit with q if you have not already done this.\n\n"
+                                 "Start your app on the smartphone and open the menu bar, choose settings.\n\n"
+                                 "Type in the following settings:\n\n"
+                                 "    IP Address:   " + port_vel_.where().getHost() + "\n"
+                                 "    Port Send:    " + std::to_string(port_vel_.where().getPort()) + "\n"
+                                 "    Port Receive: " + std::to_string(port_inf_.where().getPort()) + "\n\n"
+                                 "Go to the menu and choose connection. Press connect. Choose your favorite Joystick.\n\n"
+                                 "For an emergency stop press e.\n\n").c_str()); 
+
+    mvwaddstr(win_robot_status_, 0, 2, "Robot:\n"
+                                       "  Not connected!");
+    mvwaddstr(win_err_, 0, 2, "Warnings:\n"
+                              "  No warnings :)");
+
+    mvwaddstr(win_vel_, 0, 0, ("Current velocity:\n\n"
+                               "v_x:   " + std::to_string(vel_(0)) + "\n"
+                               "v_y:   " + std::to_string(vel_(1)) + "\n"
+                               "v_ang: " + std::to_string(vel_(2))).c_str());
+
+    refresh();
+    wrefresh(win_guide_);
+    wrefresh(win_robot_status_);
+    wrefresh(win_err_);
+    wrefresh(win_vel_);
+    wrefresh(win_inv_);
+
+    // Callback and callbacklock.
+    useCallback();
+    setCallbackLock(&mutex_);
+}
+
+
+AppReader::~AppReader() {
+
+    // Set velocity to zero before closing.
+    vel_.zero();
+    WriteToPort();
+
+    // Close port.
+    port_vel_.close();
+    port_inf_.close();
+
+    // Release the user interface.
+    delwin(win_guide_);
+    delwin(win_robot_status_);
+    delwin(win_err_);
+    delwin(win_vel_);
+    delwin(win_inv_);
+
+    clrtoeol();
+    refresh();
+    endwin();
+}
+
+
+void AppReader::onRead(yarp::os::Bottle& info) {
+
+    lockCallback();
+
+    yarp::os::Value prop = info.pop();
+
+    // Check for errors and warnings.
+    if (prop.asDict()->check("ERROR")) {
+
+        switch(prop.asDict()->find("ERROR").asInt()) {
+
+            case NO_ERRORS:
+                errors_ = NO_ERRORS;
+                wclear(win_err_);
+                wbkgd(win_err_, COLOR_PAIR(4));
+                mvwaddstr(win_err_, 0, 2, "Warnings:\n"
+                                          "  No warnings :)");
+                wrefresh(win_err_);
+                break;
+
+            case QP_INFEASIBLE:
+                errors_ = QP_INFEASIBLE;
+                wclear(win_err_);
+                wbkgd(win_err_, COLOR_PAIR(3));
+                mvwaddstr(win_err_, 0, 2, "Warnings:\n"
+                                          "  QP infeasible!");
+                wrefresh(win_err_);
+
+                // Reaction to infeasible qp.
+                robot_status_ = NOT_CONNECTED;
+                wclear(win_robot_status_);
+                wbkgd(win_robot_status_, COLOR_PAIR(4));
+                mvwaddstr(win_robot_status_, 0, 2, "Robot:\n"
+                                                   "  Removed connection.");
+                wrefresh(win_robot_status_);
+                break;
+
+            case HARDWARE_LIMITS:
+                errors_ = HARDWARE_LIMITS;
+                wclear(win_err_);
+                wbkgd(win_err_, COLOR_PAIR(3));
+                mvwaddstr(win_err_, 0, 2, "Warnings:\n"
+                                          "  Hardware limits!");
+                wrefresh(win_err_);
+
+                // Reaction to hardware limits.
+                robot_status_ = NOT_CONNECTED;
+                wclear(win_robot_status_);
+                wbkgd(win_robot_status_, COLOR_PAIR(4));
+                mvwaddstr(win_robot_status_, 0, 2, "Robot:\n"
+                                                   "  Removed connection.");
+                wrefresh(win_robot_status_);
+                break;
+        }
+    }
+
+    if (prop.asDict()->check("Warning")) {
+
+        switch(prop.asDict()->find("Warning").asInt()) {
+
+            case NO_WARNINGS:
+                warnings_ = NO_WARNINGS;
+                wclear(win_err_);
+                wbkgd(win_err_, COLOR_PAIR(4));
+                mvwaddstr(win_err_, 0, 2, "Warnings:\n"
+                                          "  No warnings :)");
+                wrefresh(win_err_);
+                break;
+
+            case IK_DID_NOT_CONVERGE:
+                warnings_ = NO_WARNINGS;
+                wclear(win_err_);
+                wbkgd(win_err_, COLOR_PAIR(2));
+                mvwaddstr(win_err_, 0, 2, "Warnings:\n"
+                                          "  IK did not converge.");
+                wrefresh(win_err_);
+                break;
+        }
+    }
+
+    // Check for status of the robot.
+    if (prop.asDict()->check("RobotStatus")) {
+        
+        switch (prop.asDict()->find("RobotStatus").asInt()) {
+
+            case NOT_CONNECTED:
+                robot_status_ = NOT_CONNECTED;
+                wclear(win_robot_status_);
+                wbkgd(win_robot_status_, COLOR_PAIR(3));
+                mvwaddstr(win_robot_status_, 0, 2, "Robot:\n"
+                                                   "  Not connected!");
+                wrefresh(win_robot_status_);
+                break;
+
+            case NOT_INITIALIZED:
+                robot_status_ = NOT_INITIALIZED;
+                wclear(win_robot_status_);
+                wbkgd(win_robot_status_, COLOR_PAIR(2));
+                mvwaddstr(win_robot_status_, 0, 2, "Robot:\n"
+                                                   "  Not initialized!");
+                wrefresh(win_robot_status_);
+                break;
+        
+            case INITIALIZING:
+                robot_status_ = INITIALIZING;
+                wclear(win_robot_status_);
+                wbkgd(win_robot_status_, COLOR_PAIR(2));
+                mvwaddstr(win_robot_status_, 0, 2, "Robot:\n"
+                                                   "  Initializing...");
+                wrefresh(win_robot_status_);
+                break;
+
+            case INITIALIZED:
+                robot_status_ = INITIALIZED;
+                wclear(win_robot_status_);
+                wbkgd(win_robot_status_, COLOR_PAIR(4));
+                mvwaddstr(win_robot_status_, 0, 2, "Robot:\n"
+                                                   "  Good to go!");
+                wrefresh(win_robot_status_);
+                break;
+        }
+    }
+
+    unlockCallback();
+}
+
+void AppReader::ReadCommands() {
+    
+    // Read the pressed keys to quit or for
+    // an emergency stop. Set the velocities
+    // as read from the app and write them to a port.
+    int ch = 0;
+
+    do {                
+        
+        // Read input periodically.
+        ch = getch();
+
+        if (robot_status_ == INITIALIZED) {
+            
+        yarp::os::Bottle* vel = port_vel_.read(false);
+
+            if (vel != YARP_NULLPTR) {
+
+                vel->get(0).asList()->write(vel_);
+            }  
+        }
+        
+        // Update user interface.  
+        mvwaddstr(win_vel_, 0, 0, ("Current velocity:\n\n"
+                                    "v_x:   " + std::to_string(vel_(0)) + "\n"
+                                    "v_y:   " + std::to_string(vel_(1)) + "\n"
+                                    "v_ang: " + std::to_string(vel_(2))).c_str());
+        wrefresh(win_vel_);
+        wclear(win_inv_);
+        wrefresh(win_inv_);
+
+    } while (ch != 'q' && ch != 'Q'); // Exit if q or Q is pressed.
+}
+
+void AppReader::WriteToPort() {
+
+  // Write incoming commands to user controlled walking...
+}
+
+
 KeyReader::KeyReader() 
     : robot_status_(NOT_CONNECTED),
       errors_(NO_ERRORS),
@@ -318,116 +623,116 @@ KeyReader::KeyReader()
       acc_shift_d_(0., -0.1, 0.),
       vel_(3) {
 
-  // Open port.
-  port_.open("/vel/command");
+    // Open port.
+    port_.open("/vel/command");
 
-  // Set accelerations and velocity.
-  vel_.zero();
+    // Set velocity to zero.
+    vel_.zero();
 
-  // User interface.
-  initscr();
-  timeout(10);
-  noecho();
-  cbreak();
-  curs_set(0);
+    // User interface.
+    initscr();
+    timeout(10);
+    noecho();
+    cbreak();
+    curs_set(0);
 
-  win_w_ = newwin( 3, 6,  2, 10);
-  win_a_ = newwin( 3, 6,  6,  2);
-  win_s_ = newwin( 3, 6,  6, 10);
-  win_d_ = newwin( 3, 6,  6, 18);
-  win_q_ = newwin( 3, 6,  2,  2);
-  win_e_ = newwin( 3, 6,  2, 18);
-  win_guide_ = newwin(20, 44, 2, 28);
-  win_robot_status_ = newwin(2, 22, 10, 2);
-  win_err_ = newwin(2, 22, 13, 2);
-  win_vel_ = newwin(6, 20, 16, 2);
-  win_inv_ = newwin(1, 1, 22, 2);
+    win_w_ = newwin( 3, 6,  2, 10);
+    win_a_ = newwin( 3, 6,  6,  2);
+    win_s_ = newwin( 3, 6,  6, 10);
+    win_d_ = newwin( 3, 6,  6, 18);
+    win_q_ = newwin( 3, 6,  2,  2);
+    win_e_ = newwin( 3, 6,  2, 18);
+    win_guide_ = newwin(20, 44, 2, 28);
+    win_robot_status_ = newwin(2, 22, 10, 2);
+    win_err_ = newwin(2, 22, 13, 2);
+    win_vel_ = newwin(6, 20, 16, 2);
+    win_inv_ = newwin(1, 1, 22, 2);
 
-  start_color();
-  init_pair(1, COLOR_WHITE, COLOR_BLUE);
-  init_pair(2, COLOR_BLUE, COLOR_WHITE);
-  init_pair(3, COLOR_WHITE, COLOR_YELLOW);
-  init_pair(4, COLOR_WHITE, COLOR_RED);
-  init_pair(5, COLOR_WHITE, COLOR_GREEN);
+    start_color();
+    init_pair(1, COLOR_WHITE, COLOR_BLUE);
+    init_pair(2, COLOR_BLUE, COLOR_WHITE);
+    init_pair(3, COLOR_WHITE, COLOR_YELLOW);
+    init_pair(4, COLOR_WHITE, COLOR_RED);
+    init_pair(5, COLOR_WHITE, COLOR_GREEN);
 
-  bkgd(COLOR_PAIR(1));
-  wbkgd(win_w_, COLOR_PAIR(2));
-  wbkgd(win_a_, COLOR_PAIR(2));
-  wbkgd(win_s_, COLOR_PAIR(2));
-  wbkgd(win_d_, COLOR_PAIR(2));
-  wbkgd(win_q_, COLOR_PAIR(3));
-  wbkgd(win_e_, COLOR_PAIR(3));
-  wbkgd(win_guide_, COLOR_PAIR(1));
-  wbkgd(win_robot_status_, COLOR_PAIR(4));
-  wbkgd(win_err_, COLOR_PAIR(5));
-  wbkgd(win_vel_, COLOR_PAIR(1));
-  wbkgd(win_inv_, COLOR_PAIR(1));
+    bkgd(COLOR_PAIR(1));
+    wbkgd(win_w_, COLOR_PAIR(2));
+    wbkgd(win_a_, COLOR_PAIR(2));
+    wbkgd(win_s_, COLOR_PAIR(2));
+    wbkgd(win_d_, COLOR_PAIR(2));
+    wbkgd(win_q_, COLOR_PAIR(3));
+    wbkgd(win_e_, COLOR_PAIR(3));
+    wbkgd(win_guide_, COLOR_PAIR(1));
+    wbkgd(win_robot_status_, COLOR_PAIR(4));
+    wbkgd(win_err_, COLOR_PAIR(5));
+    wbkgd(win_vel_, COLOR_PAIR(1));
+    wbkgd(win_inv_, COLOR_PAIR(1));
 
-  mvwaddstr(win_w_, 1, 2, "w");
-  mvwaddstr(win_a_, 1, 2, "a");
-  mvwaddstr(win_s_, 1, 2, "s");
-  mvwaddstr(win_d_, 1, 2, "d");
-  mvwaddstr(win_q_, 1, 2, "q");
-  mvwaddstr(win_e_, 1, 2, "e");
-  mvwaddstr(win_guide_, 0, 0, "Hello, I am the keyboard user interface of the heicub robot.\n\n"
-                              "Use w and s to accelerate forwards and backwards.\n\n"
-                              "Use a and d to accelerate angular left and right.\n\n"
-                              "Use shift+a and shift+d to accelerate left and right.\n\n"
-                              "Only one pressed key is used to accelerate, leaving all other velocities untouched, except for the opposite ones.\n\n"
-                              "For an emergency stop press e.\n\n"
-                              "Press q to quit this interface."); 
-  mvwaddstr(win_robot_status_, 0, 3, "Robot:\n"
-                                     "   Not connected!");
-  mvwaddstr(win_err_, 0, 3, "Warnings:\n"
-                            "   No warnings :)");
-  mvwaddstr(win_vel_, 0, 0, ("Current velocity:\n\n"
-                             "v_x:   " + std::to_string(vel_(0)) + "\n"
-                             "v_y:   " + std::to_string(vel_(1)) + "\n"
-                             "v_ang: " + std::to_string(vel_(2))).c_str());
+    mvwaddstr(win_w_, 1, 2, "w");
+    mvwaddstr(win_a_, 1, 2, "a");
+    mvwaddstr(win_s_, 1, 2, "s");
+    mvwaddstr(win_d_, 1, 2, "d");
+    mvwaddstr(win_q_, 1, 2, "q");
+    mvwaddstr(win_e_, 1, 2, "e");
+    mvwaddstr(win_guide_, 0, 0, "Hello, I am the keyboard user interface of the heicub robot.\n\n"
+                                "Use w and s to accelerate forwards and backwards.\n\n"
+                                "Use a and d to accelerate angular left and right.\n\n"
+                                "Use shift+a and shift+d to accelerate left and right.\n\n"
+                                "Only one pressed key is used to accelerate, leaving all other velocities untouched, except for the opposite ones.\n\n"
+                                "For an emergency stop press e.\n\n"
+                                "Press q to quit this interface."); 
+    mvwaddstr(win_robot_status_, 0, 2, "Robot:\n"
+                                        "  Not connected!");
+    mvwaddstr(win_err_, 0, 2, "Warnings:\n"
+                            "  No warnings :)");
+    mvwaddstr(win_vel_, 0, 0, ("Current velocity:\n\n"
+                                "v_x:   " + std::to_string(vel_(0)) + "\n"
+                                "v_y:   " + std::to_string(vel_(1)) + "\n"
+                                "v_ang: " + std::to_string(vel_(2))).c_str());
 
-  refresh();
-  wrefresh(win_w_);
-  wrefresh(win_a_);
-  wrefresh(win_s_);
-  wrefresh(win_d_);
-  wrefresh(win_q_);
-  wrefresh(win_e_);
-  wrefresh(win_guide_);
-  wrefresh(win_robot_status_);
-  wrefresh(win_err_);
-  wrefresh(win_vel_);
-  wrefresh(win_inv_);
+    refresh();
+    wrefresh(win_w_);
+    wrefresh(win_a_);
+    wrefresh(win_s_);
+    wrefresh(win_d_);
+    wrefresh(win_q_);
+    wrefresh(win_e_);
+    wrefresh(win_guide_);
+    wrefresh(win_robot_status_);
+    wrefresh(win_err_);
+    wrefresh(win_vel_);
+    wrefresh(win_inv_);
 
-  // Callback and callbacklock.
-  useCallback();
-  setCallbackLock(&mutex_);
+    // Callback and callbacklock.
+    useCallback();
+    setCallbackLock(&mutex_);
 }
 
 KeyReader::~KeyReader() {
 
-  // Set velocity to zero before closing.
-  vel_.zero();
-  WriteToPort();
+    // Set velocity to zero before closing.
+    vel_.zero();
+    WriteToPort();
 
-  // Close port.
-  port_.close();
-    
-  // Release the user interface.
-  delwin(win_w_);
-  delwin(win_a_);
-  delwin(win_s_);
-  delwin(win_d_);
-  delwin(win_q_);
-  delwin(win_e_);
-  delwin(win_guide_);
-  delwin(win_robot_status_);
-  delwin(win_err_);
-  delwin(win_vel_);
-  delwin(win_inv_);
+    // Close port.
+    port_.close();
 
-  clrtoeol();
-  refresh();
-  endwin();
+    // Release the user interface.
+    delwin(win_w_);
+    delwin(win_a_);
+    delwin(win_s_);
+    delwin(win_d_);
+    delwin(win_q_);
+    delwin(win_e_);
+    delwin(win_guide_);
+    delwin(win_robot_status_);
+    delwin(win_err_);
+    delwin(win_vel_);
+    delwin(win_inv_);
+
+    clrtoeol();
+    refresh();
+    endwin();
 }
 
 void KeyReader::onRead(yarp::os::Bottle& info) {
@@ -445,8 +750,8 @@ void KeyReader::onRead(yarp::os::Bottle& info) {
                 errors_ = NO_ERRORS;
                 wclear(win_err_);
                 wbkgd(win_err_, COLOR_PAIR(5));
-                mvwaddstr(win_err_, 0, 3, "Warnings:\n"
-                                          "   No warnings :)");
+                mvwaddstr(win_err_, 0, 2, "Warnings:\n"
+                                          "  No warnings :)");
                 wrefresh(win_err_);
                 break;
 
@@ -454,18 +759,34 @@ void KeyReader::onRead(yarp::os::Bottle& info) {
                 errors_ = QP_INFEASIBLE;
                 wclear(win_err_);
                 wbkgd(win_err_, COLOR_PAIR(4));
-                mvwaddstr(win_err_, 0, 3, "Warnings:\n"
-                                          "   QP infeasible!");
+                mvwaddstr(win_err_, 0, 2, "Warnings:\n"
+                                          "  QP infeasible!");
                 wrefresh(win_err_);
+
+                // Reaction to infeasible qp.
+                robot_status_ = NOT_CONNECTED;
+                wclear(win_robot_status_);
+                wbkgd(win_robot_status_, COLOR_PAIR(5));
+                mvwaddstr(win_robot_status_, 0, 2, "Robot:\n"
+                                                   "  Removed connection.");
+                wrefresh(win_robot_status_);
                 break;
 
             case HARDWARE_LIMITS:
                 errors_ = HARDWARE_LIMITS;
                 wclear(win_err_);
                 wbkgd(win_err_, COLOR_PAIR(4));
-                mvwaddstr(win_err_, 0, 3, "Warnings:\n"
-                                          "   Hardware limits!");
+                mvwaddstr(win_err_, 0, 2, "Warnings:\n"
+                                          "  Hardware limits!");
                 wrefresh(win_err_);
+
+                // Reaction to hardware limits.
+                robot_status_ = NOT_CONNECTED;
+                wclear(win_robot_status_);
+                wbkgd(win_robot_status_, COLOR_PAIR(5));
+                mvwaddstr(win_robot_status_, 0, 2, "Robot:\n"
+                                                   "  Removed connection.");
+                wrefresh(win_robot_status_);
                 break;
         }
     }
@@ -478,7 +799,7 @@ void KeyReader::onRead(yarp::os::Bottle& info) {
                 warnings_ = NO_WARNINGS;
                 wclear(win_err_);
                 wbkgd(win_err_, COLOR_PAIR(5));
-                mvwaddstr(win_err_, 0, 3, "Warnings:\n"
+                mvwaddstr(win_err_, 0, 2, "Warnings:\n"
                                           "  No warnings :)");
                 wrefresh(win_err_);
                 break;
@@ -487,7 +808,7 @@ void KeyReader::onRead(yarp::os::Bottle& info) {
                 warnings_ = NO_WARNINGS;
                 wclear(win_err_);
                 wbkgd(win_err_, COLOR_PAIR(3));
-                mvwaddstr(win_err_, 0, 3, "Warnings:\n"
+                mvwaddstr(win_err_, 0, 2, "Warnings:\n"
                                           "  IK did not converge.");
                 wrefresh(win_err_);
                 break;
@@ -504,8 +825,8 @@ void KeyReader::onRead(yarp::os::Bottle& info) {
                 robot_status_ = NOT_CONNECTED;
                 wclear(win_robot_status_);
                 wbkgd(win_robot_status_, COLOR_PAIR(4));
-                mvwaddstr(win_robot_status_, 0, 3, "Robot:\n"
-                                                   "   Not connected!");
+                mvwaddstr(win_robot_status_, 0, 2, "Robot:\n"
+                                                   "  Not connected!");
                 wrefresh(win_robot_status_);
                 break;
 
@@ -513,8 +834,8 @@ void KeyReader::onRead(yarp::os::Bottle& info) {
                 robot_status_ = NOT_INITIALIZED;
                 wclear(win_robot_status_);
                 wbkgd(win_robot_status_, COLOR_PAIR(4));
-                mvwaddstr(win_robot_status_, 0, 3, "Robot:\n"
-                                                   "   Not initialized!");
+                mvwaddstr(win_robot_status_, 0, 2, "Robot:\n"
+                                                   "  Not initialized!");
                 wrefresh(win_robot_status_);
                 break;
         
@@ -522,8 +843,8 @@ void KeyReader::onRead(yarp::os::Bottle& info) {
                 robot_status_ = INITIALIZING;
                 wclear(win_robot_status_);
                 wbkgd(win_robot_status_, COLOR_PAIR(3));
-                mvwaddstr(win_robot_status_, 0, 3, "Robot:\n"
-                                                   "   Initializing...");
+                mvwaddstr(win_robot_status_, 0, 2, "Robot:\n"
+                                                   "  Initializing...");
                 wrefresh(win_robot_status_);
                 break;
 
@@ -531,8 +852,8 @@ void KeyReader::onRead(yarp::os::Bottle& info) {
                 robot_status_ = INITIALIZED;
                 wclear(win_robot_status_);
                 wbkgd(win_robot_status_, COLOR_PAIR(5));
-                mvwaddstr(win_robot_status_, 0, 3, "Robot:\n"
-                                                   "   Good to go!");
+                mvwaddstr(win_robot_status_, 0, 2, "Robot:\n"
+                                                   "  Good to go!");
                 wrefresh(win_robot_status_);
                 break;
         }
@@ -598,8 +919,8 @@ void KeyReader::ReadCommands() {
                                    "v_y:   " + std::to_string(vel_(1)) + "\n"
                                    "v_ang: " + std::to_string(vel_(2))).c_str());
         wrefresh(win_vel_);
-        // wclear(win_inv_);
-        // wrefresh(win_inv_);
+        wclear(win_inv_);
+        wrefresh(win_inv_);
 
     } while (ch != 'q' && ch != 'Q'); // Exit if q or Q is pressed.
 }

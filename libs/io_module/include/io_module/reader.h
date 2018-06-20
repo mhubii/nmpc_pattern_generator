@@ -6,9 +6,7 @@
 #include <opencv2/ximgproc.hpp>
 
 #include <iostream>
-#include <yarp/dev/ControlBoardInterfaces.h>
-#include <yarp/dev/FrameGrabberInterfaces.h>
-#include <yarp/dev/PolyDriver.h>
+#include <yarp/dev/all.h>
 #include <yarp/os/all.h>
 #include <yarp/sig/all.h>
 #include <yarp/eigen/Eigen.h>
@@ -33,6 +31,8 @@ class ReadJoints : public yarp::os::RateThread
 
         // Getters.
         inline const std::string& GetPortName() const { return port_name_; };
+        inline const Eigen::VectorXd& GetMinAngles() const { return q_min_; };
+        inline const Eigen::VectorXd& GetMaxAngles() const { return q_max_; };
 
     private:
 
@@ -49,6 +49,8 @@ class ReadJoints : public yarp::os::RateThread
 
         void SetDrivers();
 
+        void ReadLimits();
+
         // Robot.
         const std::string robot_name_;
 
@@ -58,9 +60,14 @@ class ReadJoints : public yarp::os::RateThread
         // Parts.
         std::vector<Part> parts_;
 
+        // Extremal angles of the joints.
+        Eigen::VectorXd q_min_;
+        Eigen::VectorXd q_max_;
+
         // Drivers.
         std::map<std::string, yarp::dev::PolyDriver*> dd_;
         std::map<std::string, yarp::dev::IEncoders*> enc_;
+        std::map<std::string, yarp::dev::IControlLimits*> lim_;
 
         // Output.
         std::string out_file_loc_;
@@ -140,6 +147,58 @@ class ReadCameras : public yarp::os::RateThread
 
         // Outgoing port.
         yarp::os::BufferedPort<yarp::sig::Vector> port_;
+};
+
+
+// AppReader implements a simple user interface that
+// allows the user to connect to an app from which
+// it reads commands. The commands are redirected to
+// a port via WriteToPort().
+//
+// Implemented by Martin Huber.
+class AppReader : public yarp::os::BufferedPort<yarp::os::Bottle>
+{
+
+    public:
+
+        AppReader();
+
+        ~AppReader();
+
+        // Read incomming commands and update the velocity.
+        void ReadCommands();
+
+        // Implement BufferedPort methods to communicate with
+        // the robots status.
+        using yarp::os::BufferedPort<yarp::os::Bottle>::onRead;
+        virtual void onRead(yarp::os::Bottle& info);
+
+    private:
+
+        // Port for sending velocities and informations about the status.
+        yarp::os::BufferedPort<yarp::os::Bottle> port_vel_;
+        yarp::os::BufferedPort<yarp::os::Bottle> port_inf_;
+
+        // Write to port.
+        void WriteToPort();
+
+        // Read from port.
+        void ReadFromPort();
+
+        // Robot status, errors and warnings.
+        RobotStatus robot_status_;
+        Errors errors_;
+        Warnings warnings_;
+
+        // Velocity.
+        yarp::sig::Vector vel_;
+
+        // User interface.
+        WINDOW *win_guide_, *win_robot_status_, *win_err_, *win_vel_;
+        WINDOW *win_inv_;
+
+        // Mutex.
+        yarp::os::Mutex mutex_;
 };
 
 
