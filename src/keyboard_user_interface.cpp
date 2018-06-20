@@ -11,7 +11,7 @@ int main() {
     KeyReader kr;
 
     // Open port for communication.
-    kr.open("/key_reader/commands");
+    kr.open("/reader/commands");
 
     // Start reading incomming commands.
     kr.ReadCommands();

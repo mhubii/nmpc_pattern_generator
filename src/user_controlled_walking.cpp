@@ -153,9 +153,9 @@ int main(int argc, char *argv[]) {
     // Put reader, processor, and writer together.
     yarp::os::Network::connect(rj.GetPortName(), "/test/port");
     yarp::os::Network::connect("/joint_angles", wj.GetPortName());
-    yarp::os::Network::connect("/client_write/robot_status", "/key_reader/commands");
+    yarp::os::Network::connect("/client_write/robot_status", "/reader/commands");
     yarp::os::Network::connect("/client_write/robot_status", "/walking_processor/commands");
-    yarp::os::Network::connect("/walking_processor/commands", "/key_reader/commands");
+    yarp::os::Network::connect("/walking_processor/commands", "/reader/commands");
 
     // Start the read and write threads.
     rj.start();

@@ -17,7 +17,7 @@ int main() {
     AppReader ar;
 
     // Open port for communication.
-    ar.open("/app_reader/commands");
+    ar.open("/reader/commands");
 
     // Start reading incomming commands.
     ar.ReadCommands();
