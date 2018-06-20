@@ -7,7 +7,10 @@ Kinematics::Kinematics(const std::string config_file_loc)
     
     // Inverse kinematics initialization. 
     initialized_(false),
-    n_init_(configs_["n_init"].as<uint>()) {
+    n_init_(configs_["n_init"].as<uint>()),
+    
+    // Inverse kinematics status.
+    ik_status_(true) {
 
         // Load kinematic model from urdf file.
         model_ = new RigidBodyDynamics::Model();
@@ -46,7 +49,7 @@ void Kinematics::Forward(Eigen::VectorXd&   q,
                          Eigen::VectorXd& ddq) {
     
     // Calculate forward kinematics.
-    RigidBodyDynamics::Utils::CalcCenterOfMass(*model_, q, dq, &ddq, mass_, com_pos_, &com_vel_, &com_acc_);  
+    RigidBodyDynamics::Utils::CalcCenterOfMass(*model_, q, dq, NULL, mass_, com_pos_);//, &com_vel_, &com_acc_);  
 
     // Correct for rotated model.
     com_pos_ = 0.5*(lf_ori_init_ + rf_ori_init_)*com_pos_;
@@ -90,7 +93,9 @@ void Kinematics::Inverse(Eigen::MatrixXd& com_traj,
             cs_.target_orientations[rf_id_] = rf_ori_init_*rf_ori_;
 
             // Inverse kinematics.
-            if (!RigidBodyDynamics::InverseKinematics(*model_, q_init_, cs_, q_res_)) {
+            ik_status_ = RigidBodyDynamics::InverseKinematics(*model_, q_init_, cs_, q_res_);
+
+            if (!ik_status_) {
                 std::cout << "Inverse kinematics did not converge with desired precision." << std::endl;
             }
 
@@ -125,7 +130,9 @@ void Kinematics::Inverse(Eigen::MatrixXd& com_traj,
 
             // Update the angles of the joints q iteratively, such that the body point 
             // represents the real center of mass of the robot.
-            if (!RigidBodyDynamics::InverseKinematics(*model_, q_init_, cs_, q_res_)) {
+            ik_status_ = RigidBodyDynamics::InverseKinematics(*model_, q_init_, cs_, q_res_);
+
+            if (!ik_status_) {
                 std::cout << "Inverse kinematics did not converge with desired precision." << std::endl;
             }
 

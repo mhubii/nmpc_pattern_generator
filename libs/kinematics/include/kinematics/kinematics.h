@@ -27,10 +27,11 @@ class Kinematics
                      Eigen::MatrixXd& rf_traj);
 
         // Get joint angles, center of mass and other things.
-        inline const RigidBodyDynamics::Math::Vector3d GetComPos()   const { return com_pos_; };
-        inline const RigidBodyDynamics::Math::Vector3d GetComVel()   const { return com_vel_; };
-        inline const RigidBodyDynamics::Math::Vector3d GetComAcc()   const { return com_acc_; };
-        inline const Eigen::MatrixXd&                  GetQTraj() const { return q_traj_; };
+        inline const bool&                              GetStatus() const { return ik_status_; };
+        inline const RigidBodyDynamics::Math::Vector3d& GetComPos() const { return com_pos_;   };
+        inline const RigidBodyDynamics::Math::Vector3d& GetComVel() const { return com_vel_;   };
+        inline const RigidBodyDynamics::Math::Vector3d& GetComAcc() const { return com_acc_;   };
+        inline const Eigen::MatrixXd&                   GetQTraj()  const { return q_traj_;    };
 
         // Setters.
         void SetQInit(Eigen::VectorXd& q);
@@ -43,6 +44,9 @@ class Kinematics
         // Inverse kinematics initialization.
         bool initialized_;
         const uint n_init_;
+
+        // Inverse kinematics status.
+        bool ik_status_;
 
         // Model and constraint set.
         RigidBodyDynamics::Model* model_;
