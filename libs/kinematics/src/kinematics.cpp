@@ -45,22 +45,22 @@ void Kinematics::SetQInit(Eigen::VectorXd& q) {
 
 
 void Kinematics::Forward(Eigen::VectorXd&   q,
-                         Eigen::VectorXd&  dq,
-                         Eigen::VectorXd& ddq) {
+                            Eigen::VectorXd&  dq,
+                            Eigen::VectorXd& ddq) {
     
     // Calculate forward kinematics.
     RigidBodyDynamics::Utils::CalcCenterOfMass(*model_, q, dq, NULL, mass_, com_pos_);//, &com_vel_, &com_acc_);  
 
     // Correct for rotated model.
-    com_pos_ = 0.5*(lf_ori_init_ + rf_ori_init_)*com_pos_;
-    com_vel_ = 0.5*(lf_ori_init_ + rf_ori_init_)*com_vel_;
-    com_acc_ = 0.5*(lf_ori_init_ + rf_ori_init_)*com_acc_;
+    com_pos_ = rf_ori_init_*com_pos_;
+    com_vel_ = rf_ori_init_*com_vel_;
+    com_acc_ = rf_ori_init_*com_acc_;
 }
 
 
 void Kinematics::Inverse(Eigen::MatrixXd& com_traj,
-                         Eigen::MatrixXd& lf_traj,
-                         Eigen::MatrixXd& rf_traj) {
+                            Eigen::MatrixXd& lf_traj,
+                            Eigen::MatrixXd& rf_traj) {
 
     // Resize q_traj if needed.
     if (q_traj_.rows() !=  model_->dof_count || q_traj_.cols() != com_traj.cols()) {
@@ -79,18 +79,31 @@ void Kinematics::Inverse(Eigen::MatrixXd& com_traj,
             cs_.body_points[com_id_] = RigidBodyDynamics::CalcBaseToBodyCoordinates(*model_, q_init_, model_->GetBodyId("chest"), com_pos_);
 
             // Set position constraints.
-            cs_.target_positions[com_id_] = 0.5*(lf_ori_init_ + rf_ori_init_)*com_traj.block(0, i, 3, 1);
+            cs_.target_positions[com_id_] = rf_ori_init_*com_traj.block(0, i, 3, 1);
             cs_.target_positions[lf_id_]  = lf_ori_init_*lf_traj.block(0, i, 3, 1);
             cs_.target_positions[rf_id_]  = rf_ori_init_*rf_traj.block(0, i, 3, 1);
 
             // Set orientation constraints.
-            com_ori_ = Eigen::AngleAxisd(com_traj(3, i), Eigen::Vector3d::UnitZ());
-            lf_ori_ = Eigen::AngleAxisd(lf_traj(3, i), Eigen::Vector3d::UnitZ());
-            rf_ori_ = Eigen::AngleAxisd(rf_traj(3, i), Eigen::Vector3d::UnitZ());
+            com_eul_ << com_eul_init_(0), com_eul_init_(1), com_eul_init_(2) + com_traj(3, i);
+            lf_eul_ << lf_eul_init_(0), lf_eul_init_(1), lf_eul_init_(2) + lf_traj(3, i);
+            rf_eul_ << rf_eul_init_(0), rf_eul_init_(1), rf_eul_init_(2) + rf_traj(3, i);
 
-            cs_.target_orientations[com_id_] = com_ori_init_*com_ori_;
-            cs_.target_orientations[lf_id_] = lf_ori_init_*lf_ori_;
-            cs_.target_orientations[rf_id_] = rf_ori_init_*rf_ori_;
+            com_ori_ =  Eigen::AngleAxisd(com_eul_(0), Eigen::Vector3d::UnitX())
+                       *Eigen::AngleAxisd(com_eul_(1), Eigen::Vector3d::UnitY())
+                       *Eigen::AngleAxisd(com_eul_(2), Eigen::Vector3d::UnitZ());
+            
+            lf_ori_ =  Eigen::AngleAxisd(lf_eul_(0), Eigen::Vector3d::UnitX())
+                      *Eigen::AngleAxisd(lf_eul_(1), Eigen::Vector3d::UnitY())
+                      *Eigen::AngleAxisd(lf_eul_(2), Eigen::Vector3d::UnitZ());
+            
+            rf_ori_ =  Eigen::AngleAxisd(rf_eul_(0), Eigen::Vector3d::UnitX())
+                      *Eigen::AngleAxisd(rf_eul_(1), Eigen::Vector3d::UnitY())
+                      *Eigen::AngleAxisd(rf_eul_(2), Eigen::Vector3d::UnitZ());
+
+
+            cs_.target_orientations[com_id_] = com_ori_;
+            cs_.target_orientations[lf_id_] = lf_ori_;
+            cs_.target_orientations[rf_id_] = rf_ori_;
 
             // Inverse kinematics.
             ik_status_ = RigidBodyDynamics::InverseKinematics(*model_, q_init_, cs_, q_res_);
@@ -110,20 +123,36 @@ void Kinematics::Inverse(Eigen::MatrixXd& com_traj,
         lf_ori_init_ = RigidBodyDynamics::CalcBodyWorldOrientation(*model_, q_init_, model_->GetBodyId("l_sole"));
         rf_ori_init_ = RigidBodyDynamics::CalcBodyWorldOrientation(*model_, q_init_, model_->GetBodyId("r_sole"));
 
+        com_eul_init_ = com_ori_init_.eulerAngles(0, 1, 2);
+        lf_eul_init_ = lf_ori_init_.eulerAngles(0, 1, 2);
+        rf_eul_init_ = rf_ori_init_.eulerAngles(0, 1, 2);
+
         // Body points.
         com_bp_ = Eigen::Vector3d::Map(configs_["com_body_point"].as<std::vector<double>>().data());
         lf_bp_ = Eigen::Vector3d::Map(configs_["lf_body_point"].as<std::vector<double>>().data());
         rf_bp_ = Eigen::Vector3d::Map(configs_["rf_body_point"].as<std::vector<double>>().data());
 
         // Body orientations.
-        com_ori_ = Eigen::AngleAxisd(com_traj(3, 0), Eigen::Vector3d::UnitZ());
-        lf_ori_ = Eigen::AngleAxisd(lf_traj(3, 0), Eigen::Vector3d::UnitZ());
-        rf_ori_ = Eigen::AngleAxisd(rf_traj(3, 0), Eigen::Vector3d::UnitZ());
+        com_eul_ << com_eul_init_(0), com_eul_init_(1), com_eul_init_(2) + com_traj(3, 0);
+        lf_eul_ << lf_eul_init_(0), lf_eul_init_(1), lf_eul_init_(2) + lf_traj(3, 0);
+        rf_eul_ << rf_eul_init_(0), rf_eul_init_(1), rf_eul_init_(2) + rf_traj(3, 0);
+
+        com_ori_ =  Eigen::AngleAxisd(com_eul_(0), Eigen::Vector3d::UnitX())
+                   *Eigen::AngleAxisd(com_eul_(1), Eigen::Vector3d::UnitY())
+                   *Eigen::AngleAxisd(com_eul_(2), Eigen::Vector3d::UnitZ());
+        
+        lf_ori_ =  Eigen::AngleAxisd(lf_eul_(0), Eigen::Vector3d::UnitX())
+                  *Eigen::AngleAxisd(lf_eul_(1), Eigen::Vector3d::UnitY())
+                  *Eigen::AngleAxisd(lf_eul_(2), Eigen::Vector3d::UnitZ());
+
+        rf_ori_ =  Eigen::AngleAxisd(rf_eul_(0), Eigen::Vector3d::UnitX())
+                  *Eigen::AngleAxisd(rf_eul_(1), Eigen::Vector3d::UnitY())
+                  *Eigen::AngleAxisd(rf_eul_(2), Eigen::Vector3d::UnitZ());
 
         // Add constraints.
-        com_id_ = cs_.AddFullConstraint(model_->GetBodyId("chest"), com_bp_, 0.5*(lf_ori_init_ + rf_ori_init_)*com_traj.block(0, 0, 3, 1), com_ori_init_*com_ori_);
-        lf_id_ = cs_.AddFullConstraint(model_->GetBodyId("l_sole"), lf_bp_, lf_ori_init_*lf_traj.block(0, 0, 3, 1), lf_ori_init_*lf_ori_);
-        rf_id_ = cs_.AddFullConstraint(model_->GetBodyId("r_sole"), rf_bp_, rf_ori_init_*rf_traj.block(0, 0, 3, 1), rf_ori_init_*rf_ori_);
+        com_id_ = cs_.AddFullConstraint(model_->GetBodyId("chest"), com_bp_, rf_ori_init_*com_traj.block(0, 0, 3, 1), com_ori_);
+        lf_id_ = cs_.AddFullConstraint(model_->GetBodyId("l_sole"), lf_bp_, lf_ori_init_*lf_traj.block(0, 0, 3, 1), lf_ori_);
+        rf_id_ = cs_.AddFullConstraint(model_->GetBodyId("r_sole"), rf_bp_, rf_ori_init_*rf_traj.block(0, 0, 3, 1), rf_ori_);
 
         // Pre-initialize inverse kinematics.
         for (int i = 0; i < n_init_; i++) {

@@ -80,10 +80,18 @@ class Kinematics
         Eigen::Matrix3d lf_ori_init_;
         Eigen::Matrix3d rf_ori_init_;
 
+        Eigen::Vector3d com_eul_init_;
+        Eigen::Vector3d lf_eul_init_;
+        Eigen::Vector3d rf_eul_init_;
+
         // Orientations to be fulfilled by the model.
         Eigen::Matrix3d com_ori_;
         Eigen::Matrix3d lf_ori_;
         Eigen::Matrix3d rf_ori_;
+
+        Eigen::Vector3d com_eul_;
+        Eigen::Vector3d lf_eul_;
+        Eigen::Vector3d rf_eul_;
 };
 
 #endif
