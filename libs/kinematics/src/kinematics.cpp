@@ -45,8 +45,8 @@ void Kinematics::SetQInit(Eigen::VectorXd& q) {
 
 
 void Kinematics::Forward(Eigen::VectorXd&   q,
-                            Eigen::VectorXd&  dq,
-                            Eigen::VectorXd& ddq) {
+                         Eigen::VectorXd&  dq,
+                         Eigen::VectorXd& ddq) {
     
     // Calculate forward kinematics.
     RigidBodyDynamics::Utils::CalcCenterOfMass(*model_, q, dq, NULL, mass_, com_pos_);//, &com_vel_, &com_acc_);  
