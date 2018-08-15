@@ -134,7 +134,7 @@ int main(int argc, char *argv[]) {
     yarp::os::Network yarp;
 
     // Reader and writer.
-    int period = 10;
+    int period = YAML::LoadFile(pg_config)["command_period"].as<double>()*1e3;
 
     ReadJoints rj(period, io_config);
     WriteJoints wj(period, io_config);
@@ -275,8 +275,8 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
 
         // // Use forward kinematics to obtain the com feedback.
         // q_ << ki_.GetQTraj().topRows(6).col(0), yarp::eigen::toEigen(state.getCol(0)).bottomRows(15);
-        // // dq_.bottomRows(15) = yarp::eigen::toEigen(state.getCol(1));
-        // // ddq_.bottomRows(15) = yarp::eigen::toEigen(state.getCol(2));
+        // // // dq_.bottomRows(15) = yarp::eigen::toEigen(state.getCol(1));
+        // // // ddq_.bottomRows(15) = yarp::eigen::toEigen(state.getCol(2));
 
         // ki_.Forward(q_, dq_, ddq_);
         // com_pos_ = ki_.GetComPos();
@@ -294,8 +294,8 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
 
         pg_.SetInitialValues(pg_state_);
 
-        // // Set desired velocity.
-        // pg_.SetVelocityReference(vel_);
+        // Set desired velocity.
+        pg_.SetVelocityReference(vel_);
 
         // // Solve QP.
         // pg_.Solve();
@@ -304,21 +304,36 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
         // TEST
         // Set reference velocities.
         // vel_ << 0.01, 0., 0.06;
-        pg_.SetVelocityReference(vel_);
+        // pg_.SetVelocityReference(vel_);
 
-        // pg_.SetInitialValues(pg_state_);
+        // // pg_.SetInitialValues(pg_state_);
 
         // Solve QP.
         pg_.Solve();
         pg_.Simulate();
 
         if (ip_.GetCurrentInterval() % ip_.GetIntervals() == 0) {
+
+            // Use forward kinematics to obtain the com feedback.
+            q_ << ki_.GetQTraj().topRows(6).col(0), yarp::eigen::toEigen(state.getCol(0)).bottomRows(15);
+            // // dq_.bottomRows(15) = yarp::eigen::toEigen(state.getCol(1));
+            // // ddq_.bottomRows(15) = yarp::eigen::toEigen(state.getCol(2));
+
+            ki_.Forward(q_, dq_, ddq_);
+            com_pos_ = ki_.GetComPos();
+            com_vel_ = ki_.GetComVel();
+            com_acc_ = ki_.GetComAcc();
+
+            // Generate pattern with com feedback.
+            pg_state_.com_x(0) = com_pos_(0);//, com_vel_(0), com_acc_(0);
+            pg_state_.com_y(0) = com_pos_(1);//, com_vel_(1), com_acc_(1);
+            pg_state_.com_z = com_pos_(2);
             
             pg_state_ = pg_.Update();
         }
 
-        // ip_.InterpolateStep(); // TODO
-        // traj_ = ip_.GetTrajectoriesBuffer();//.col(0);
+        // // // ip_.InterpolateStep(); // TODO
+        // // // traj_ = ip_.GetTrajectoriesBuffer();//.col(0);
         traj_ = ip_.Interpolate();
 
         // Inverse kinematics.
@@ -328,8 +343,43 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
 
         // ip_.SetInitialValues(lf_traj_, rf_traj_);
 
+        // // TEST -> immediatly feedback the com.
+        // q_ << ki_.GetQTraj().col(0); //yarp::eigen::toEigen(state.getCol(0)).bottomRows(15);
+
+        // ki_.Forward(q_, dq_, ddq_);
+        // com_pos_ = ki_.GetComPos();
+        // com_vel_ = ki_.GetComVel();
+        // com_acc_ = ki_.GetComAcc();
+
+        // com_traj_ << com_pos_(0),  com_pos_(1),  com_pos_(2),  0;
+        // lf_traj_ << ip_.lf_x_buffer_(0, 0), ip_.lf_y_buffer_(0, 0), 0, 0;
+        // rf_traj_ << ip_.rf_x_buffer_(0, 0), ip_.rf_y_buffer_(0, 0), 0, 0;
+        // // TEST END
+
         ki_.Inverse(com_traj_, lf_traj_, rf_traj_);
         q_traj_ = ki_.GetQTraj().bottomRows(15);
+
+        // Check for hardware limits.
+        bool limits = false;
+
+        limits = limits && (q_traj_.array() < q_min_.array()).any();
+        limits = limits && (q_traj_.array() > q_max_.array()).any();
+
+        if (limits) {
+
+            // Communicate hardware limits.
+            yarp::os::Bottle& bottle = port_status_.prepare();
+            yarp::os::Property& dict = bottle.addDict();
+
+            dict.put("ERROR", HARDWARE_LIMITS);
+            port_status_.write();
+
+            std::exit(1);
+        }
+
+        // double tempq = q_traj_(12, 0);
+        // q_traj_(12, 0) = q_(14, 0);
+        // q_traj_(14, 0) = tempq;
 
         // Initial value embedding by internal states and simulation.
         // pg_state_ = pg_.Update();
@@ -366,6 +416,8 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
 
             dict.put("ERROR", QP_INFEASIBLE);
             port_status_.write();
+
+            std::exit(1);
         }
 
         // Check for correctness of inverse kinematics including hardware limits.
