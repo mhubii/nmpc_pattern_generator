@@ -148,7 +148,7 @@ void ReadJoints::SetDrivers() {
         ok = ok && dd_[part.name]->view(e);
         enc_[part.name] = e;
 
-        yarp::dev::IControlLimits* l;
+        yarp::dev::IControlLimits2* l;
         ok = ok && dd_[part.name]->view(l);
         lim_[part.name] = l;
 
@@ -161,35 +161,36 @@ void ReadJoints::SetDrivers() {
 
 void ReadJoints::ReadLimits() {
 
-    // bool ok = true;
-    // int count = 0;
+    bool ok = true;
+    int count = 0;
 
-    // // Read the extremal angles of the joints.
-    // for (auto& part : parts_) {
+    // Read the extremal angles of the joints.
+    for (auto& part : parts_) {
         
-    //     int ax = 0;
+        int ax = 0;
 
-    //     ok = ok && enc_[part.name]->getAxes(&ax);
+        ok = ok && enc_[part.name]->getAxes(&ax);
 
-    //     yarp::sig::Vector min(ax);
-    //     yarp::sig::Vector max(ax);
+        for (int i = 0; i < ax; i++) {
 
-    //     ok = ok && lim_[part.name]->setLimits(ax, min, max);
+            // Read limits.
+            double min;
+            double max;
 
-    //     for (int i = 0; i < ax; i++) {
+            ok = ok && lim_[part.name]->getLimits(i, &min, &max);
 
-    //         // Write the limits to an eigen matrix.
-    //         q_min_(count) = min(i)*DEG2RAD;
-    //         q_max_(count) = max(i)*DEG2RAD;
+            // Write the limits to an eigen matrix.
+            q_min_(count) = min*DEG2RAD;
+            q_max_(count) = max*DEG2RAD;
             
-    //         count++;
-    //     }
-    // }
+            count++;
+        }
+    }
 
-    // if (!ok) {
-    //     std::cout << "Could not read sensor data." << std::endl;
-    //     std::exit(1);
-    // }
+    if (!ok) {
+        std::cout << "Could not read sensor data." << std::endl;
+        std::exit(1);
+    }
 }
 
 ReadCameras::ReadCameras(int period, const std::string config_file_loc, 
@@ -350,7 +351,8 @@ void ReadCameras::SetDrivers() {
 
 
 AppReader::AppReader() 
-    : robot_status_(NOT_CONNECTED),
+    : running_(false),
+      robot_status_(NOT_CONNECTED),
       errors_(NO_ERRORS),
       warnings_(NO_WARNINGS),
       vel_(3) {
@@ -370,6 +372,9 @@ AppReader::AppReader()
     cbreak();
     curs_set(0);
 
+    win_q_ = newwin(3, 6,  2, 2);
+    win_e_ = newwin(3, 6,  2, 10);
+    win_r_ = newwin(3, 6,  2, 18);
     win_guide_ = newwin(20, 44, 2, 28);
     win_robot_status_ = newwin(2, 22, 10, 2);
     win_err_ = newwin(2, 22, 13, 2);
@@ -381,14 +386,21 @@ AppReader::AppReader()
     init_pair(2, COLOR_WHITE, COLOR_YELLOW);
     init_pair(3, COLOR_WHITE, COLOR_RED);
     init_pair(4, COLOR_WHITE, COLOR_GREEN);
+    init_pair(5, COLOR_BLUE, COLOR_WHITE);
 
     bkgd(COLOR_PAIR(1));
+    wbkgd(win_q_, COLOR_PAIR(2));
+    wbkgd(win_e_, COLOR_PAIR(5));
+    wbkgd(win_r_, COLOR_PAIR(5));
     wbkgd(win_guide_, COLOR_PAIR(1));
     wbkgd(win_robot_status_, COLOR_PAIR(3));
     wbkgd(win_err_, COLOR_PAIR(4));
     wbkgd(win_vel_, COLOR_PAIR(1));
     wbkgd(win_inv_, COLOR_PAIR(1));
 
+    mvwaddstr(win_q_, 1, 2, "q");
+    mvwaddstr(win_e_, 1, 2, "e");
+    mvwaddstr(win_r_, 1, 2, "r");
     mvwaddstr(win_guide_, 0, 0, ("Hello, I am the app user interface of the heicub robot.\n\n"
                                  "Create a hotspot on your smartphone and connect to it, exit with q if you have not already done this.\n\n"
                                  "Start your app on the smartphone and open the menu bar, choose settings.\n\n"
@@ -396,8 +408,8 @@ AppReader::AppReader()
                                  "    IP Address:   " + port_vel_app_.where().getHost() + "\n"
                                  "    Port Send:    " + std::to_string(port_vel_app_.where().getPort()) + "\n"
                                  "    Port Receive: " + std::to_string(port_status_.where().getPort()) + "\n\n"
-                                 "Go to the menu and choose connection. Press connect. Choose your favorite Joystick.\n\n"
-                                 "For an emergency stop press e.\n\n").c_str()); 
+                                 "Go to the menu and choose connection. Press connect. Choose your favorite Joystick.\n"
+                                 "Press r to run the robot. For an emergency stop press e.\n\n").c_str()); 
 
     mvwaddstr(win_robot_status_, 0, 2, "Robot:\n"
                                        "  Not connected!");
@@ -410,6 +422,9 @@ AppReader::AppReader()
                                "v_ang: " + std::to_string(vel_(2))).c_str());
 
     refresh();
+    wrefresh(win_q_);
+    wrefresh(win_e_);
+    wrefresh(win_r_);
     wrefresh(win_guide_);
     wrefresh(win_robot_status_);
     wrefresh(win_err_);
@@ -434,6 +449,9 @@ AppReader::~AppReader() {
     port_status_.close();
 
     // Release the user interface.
+    delwin(win_q_);
+    delwin(win_e_);
+    delwin(win_r_);
     delwin(win_guide_);
     delwin(win_robot_status_);
     delwin(win_err_);
@@ -674,6 +692,14 @@ void AppReader::ReadCommands() {
         // Read input periodically.
         ch = getch();
 
+        if (!running_ && ch == 'r') {
+
+            running_ = true;
+
+            // Run user controlled walking.
+            std::system("gnome-terminal -x bash /home/martin/Documents/rl_gazebo_presentation/macros/run_user_controlled_walking.sh");
+        }
+
         if (robot_status_ == INITIALIZED) {
             
         yarp::os::Bottle* vel = port_vel_app_.read(false);
@@ -683,12 +709,12 @@ void AppReader::ReadCommands() {
                 vel->get(0).asList()->write(vel_);
 
                 // Weight inputs.
-                vel_(0) *= 0.6;
-                vel_(1) *= 0.6;
-                vel_(2) *= 0.1;
+                vel_(0) *=  0.6;
+                vel_(1) *= -0.6;
+                vel_(2) *=  0.1;
 
                 WriteToPort();
-            }  
+            }
         }
         
         // Update user interface.  
@@ -697,8 +723,8 @@ void AppReader::ReadCommands() {
                                     "v_y:   " + std::to_string(vel_(1)) + "\n"
                                     "v_ang: " + std::to_string(vel_(2))).c_str());
         wrefresh(win_vel_);
-        wclear(win_inv_);
-        wrefresh(win_inv_);
+        //wclear(win_inv_);
+        //wrefresh(win_inv_);
 
     } while (ch != 'q' && ch != 'Q'); // Exit if q or Q is pressed.
 }
@@ -717,12 +743,12 @@ KeyReader::KeyReader()
       errors_(NO_ERRORS),
       warnings_(NO_WARNINGS),
       t_iter_(yarp::os::Time::now()), 
-      acc_w_( 0.1, 0., 0. ),
-      acc_a_( 0. , 0., -0.1),
-      acc_shift_a_(0., 0.1, 0.),
-      acc_s_(-0.1, 0., 0.),
-      acc_d_( 0. , 0., 0.1),
-      acc_shift_d_(0., -0.1, 0.),
+      acc_w_( 1., 0., 0. ),
+      acc_a_( 0. , 0., -1.),
+      acc_shift_a_(0., 1., 0.),
+      acc_s_(-1., 0., 0.),
+      acc_d_( 0. , 0., 1.),
+      acc_shift_d_(0., -1., 0.),
       vel_(3) {
 
     // Open port.

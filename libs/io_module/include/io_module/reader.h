@@ -67,7 +67,7 @@ class ReadJoints : public yarp::os::RateThread
         // Drivers.
         std::map<std::string, yarp::dev::PolyDriver*> dd_;
         std::map<std::string, yarp::dev::IEncoders*> enc_;
-        std::map<std::string, yarp::dev::IControlLimits*> lim_;
+        std::map<std::string, yarp::dev::IControlLimits2*> lim_;
 
         // Output.
         std::string out_file_loc_;
@@ -188,10 +188,14 @@ class AppReader : public yarp::os::BufferedPort<yarp::os::Bottle>
         Errors errors_;
         Warnings warnings_;
 
+        // Started user controlled walking.
+        bool running_;
+
         // Velocity.
         yarp::sig::Vector vel_;
 
         // User interface.
+        WINDOW *win_q_, *win_e_, *win_r_;
         WINDOW *win_guide_, *win_robot_status_, *win_err_, *win_vel_;
         WINDOW *win_inv_;
 
