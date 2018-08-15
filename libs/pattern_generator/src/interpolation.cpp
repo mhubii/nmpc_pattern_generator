@@ -324,7 +324,7 @@ void Interpolation::InterpolateFeet() {
             Set5thOrderCoefficients(f_coef_x_,
                                     t_till_drop_down, 
                                     base_generator_.Fkx()(0), 
-                                    rf_x_buffer_(0, intervals_), // TODO doesnt update yet
+                                    rf_x_buffer_(0, intervals_),
                                     rf_dx_buffer_(0, intervals_), 
                                     rf_ddx_buffer_(0, intervals_));
 
@@ -495,6 +495,9 @@ void Interpolation::InterpolateFeet() {
             lf_dz_buffer_(0, current_interval_)  = Eigen::poly_eval(f_coef_dz_, t_current + current_interval_*tc_);
             lf_ddz_buffer_(0, current_interval_) = Eigen::poly_eval(f_coef_ddz_, t_current + current_interval_*tc_);        
         }  
+
+        // TODO update buffer to current value.
+        // trajectories_buffer_(intervals_) = trajectories_buffer_(current_interval_);
     }
 }
 

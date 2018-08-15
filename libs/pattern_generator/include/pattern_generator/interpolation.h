@@ -30,6 +30,7 @@ public:
     inline       Eigen::Map<const Eigen::MatrixXd> GetTrajectoriesBuffer() const { return Eigen::Map<const Eigen::MatrixXd>(trajectories_buffer_.data(), trajectories_buffer_.rows(), trajectories_buffer_.cols() - 1); };
     inline const int&                              GetIntervals()          const { return intervals_; };
     inline const int&                              GetCurrentInterval()    const { return current_interval_; };
+    inline const double&                           GetCommandPeriod()      const { return tc_; }
 
     // Setters.
     inline void StoreTrajectories(bool store_trajectories) { store_trajectories_ = store_trajectories; };
