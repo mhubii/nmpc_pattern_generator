@@ -46,33 +46,97 @@ class CheckRateThread : public yarp::os::RateThread
 
 int main() {
 
-    // Try to print the address of a buffered port in yarp and read from the app.
+    // Test to read joint limits from gazebo.
     yarp::os::Network yarp;
 
-    if (!yarp.checkNetwork()) {
+    std::string local_port = "/client/right_leg";
+    std::string remote_port = "/icubGazeboSim/right_leg";
 
-        std::cout << "No yarpserver is running. Please run a yarpserver." << std::endl;
+    yarp::os::Property options;
+    options.put("device", "remote_controlboard");
+    options.put("local", local_port);
+    options.put("remote", remote_port);
+
+    // Every part is set to position encoder.
+    yarp::dev::PolyDriver dd(options);
+    
+    if (!dd.isValid()) {
+        std::cerr << "Device or ports not available." << std::endl;
         std::exit(1);
     }
 
-    yarp::os::BufferedPort<yarp::os::Bottle> read;
-    read.open("/read");
+    // Create IEncoders interfaces for the sensors.
+    bool ok = true;
 
-    yarp::os::BufferedPort<yarp::os::Bottle> write;
-    write.open("/write");
+    yarp::dev::IControlLimits2* l;
+    ok = ok && dd.view(l);
+        
+    int ax = 1;
 
-    std::cout << read.where().getPort() << std::endl;
-    std::cout << write.where().getPort() << std::endl;
+    double min;
+    double max;
 
-    yarp::sig::Vector rec;
+    ok = ok && l->getLimits(ax, &min, &max);
 
-    // std::cout << "bottle is \n" << read.read(true)->toString() << std::endl;;
+    std::cout << max << std::endl;
 
-    read.read(true)->get(0).asList()->write(rec);
-    std::cout << rec.toString() << std::endl;
 
-    read.close();
-    write.close();
+    if (!ok) {
+        std::cout << "Could not read sensor data." << std::endl;
+        std::exit(1);
+    }
+
+
+
+
+
+
+    // // Test Eigen rotation matrices.
+    // Eigen::Matrix3f m;
+
+    // m = Eigen::AngleAxisf(0.33*M_PI, Eigen::Vector3f::UnitZ());
+
+    // std::cout << "original rotation:" << std::endl;
+    // std::cout << m << std::endl;
+
+    // Eigen::Vector3f ea = m.eulerAngles(0, 1, 2); 
+    // std::cout << "to Euler angles:" << std::endl;
+    // std::cout << ea << std::endl;
+
+    // Eigen::Matrix3f n;
+    // n = Eigen::AngleAxisf(ea[2], Eigen::Vector3f::UnitZ()); 
+    // std::cout << "recalc original rotation:" << std::endl;
+    // std::cout << n << std::endl;
+
+
+
+    // // Try to print the address of a buffered port in yarp and read from the app.
+    // yarp::os::Network yarp;
+
+    // if (!yarp.checkNetwork()) {
+
+    //     std::cout << "No yarpserver is running. Please run a yarpserver." << std::endl;
+    //     std::exit(1);
+    // }
+
+    // yarp::os::BufferedPort<yarp::os::Bottle> read;
+    // read.open("/read");
+
+    // yarp::os::BufferedPort<yarp::os::Bottle> write;
+    // write.open("/write");
+
+    // std::cout << read.where().getPort() << std::endl;
+    // std::cout << write.where().getPort() << std::endl;
+
+    // yarp::sig::Vector rec;
+
+    // // std::cout << "bottle is \n" << read.read(true)->toString() << std::endl;;
+
+    // read.read(true)->get(0).asList()->write(rec);
+    // std::cout << rec.toString() << std::endl;
+
+    // read.close();
+    // write.close();
 
 
 
