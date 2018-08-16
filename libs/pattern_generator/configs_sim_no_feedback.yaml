@@ -43,7 +43,7 @@ radius: 0
 n: 16
 t: 0.2
 alpha: 1
-gamma: 3e2
-delta: 7e-3
+beta: 3e2
+gamma: 7e-3
 cpu_time: 0.01
 nwsr: 100

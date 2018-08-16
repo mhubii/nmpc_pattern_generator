@@ -277,11 +277,11 @@ void MPCGenerator::UpdatePosQ() {
 
   // q = ( [*],  *  ) = a*pvu_*pvu_ + b*ppu_*e*e*ppu_ + c*pzu*pzu_ + d*I
   //     (  * ,  *  )
-  pos_q_.topLeftCorner(n_, n_) = alpha_*pvu_.transpose()*pvu_ + gamma_*pzu_.transpose()*pzu_ + delta_*Eigen::MatrixXd::Identity(n_, n_);
+  pos_q_.topLeftCorner(n_, n_) = alpha_*pvu_.transpose()*pvu_ + beta_*pzu_.transpose()*pzu_ + gamma_*Eigen::MatrixXd::Identity(n_, n_);
 
   // q = (  * , [*] )
   //     (  * ,  *  )
-  pos_q_.topRightCorner(n_, nf_) = -gamma_*pzu_.transpose()*v_kp1_.cast<double>();
+  pos_q_.topRightCorner(n_, nf_) = -beta_*pzu_.transpose()*v_kp1_.cast<double>();
 
   // q = (  * ,  *  ) = (  * , [*] )^T
   //     ( [*],  *  )   (  * ,  *  )
@@ -289,7 +289,7 @@ void MPCGenerator::UpdatePosQ() {
   
   // q = (  * ,  *  )
   //     (  * , [*] )
-  pos_q_.bottomRightCorner(nf_, nf_) = gamma_*v_kp1_.transpose().cast<double>()*v_kp1_.cast<double>();
+  pos_q_.bottomRightCorner(nf_, nf_) = beta_*v_kp1_.transpose().cast<double>()*v_kp1_.cast<double>();
 }
 
 void MPCGenerator::UpdatePosP(const std::string type) {
@@ -315,11 +315,11 @@ void MPCGenerator::UpdatePosP(const std::string type) {
 
   // p = ([*])
   //     ( * )
-  pos_p_.head(n_) = alpha_*pvu_.transpose()*(pvs_*c_k - dc_kp1_ref) + gamma_*pzu_.transpose()*(pzs_*c_k - v_kp1_0_.cast<double>()*f_k);
+  pos_p_.head(n_) = alpha_*pvu_.transpose()*(pvs_*c_k - dc_kp1_ref) + beta_*pzu_.transpose()*(pzs_*c_k - v_kp1_0_.cast<double>()*f_k);
 
   // p = ( * )
   //     ([*])
-  pos_p_.tail(nf_) = -gamma_*v_kp1_.transpose().cast<double>()*(pzs_*c_k - v_kp1_0_.cast<double>()*f_k);
+  pos_p_.tail(nf_) = -beta_*v_kp1_.transpose().cast<double>()*(pzs_*c_k - v_kp1_0_.cast<double>()*f_k);
 }
 
 void MPCGenerator::SolveQP() {

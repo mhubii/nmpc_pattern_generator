@@ -327,12 +327,12 @@ void NMPCGenerator::CalculateCommonExpressions() {
   // q_k_xfx = ( -0.5 * c * pzu_^T   * v_kp1_ )^T
   // q_k_xff = (  0.5 * c * v_kp1_^T * v_kp1_ )
   q_k_xxx <<   alpha_*pvu_.transpose()*pvu_
-             + gamma_*pzu_.transpose()*pzu_
-             + delta_*Eigen::MatrixXd::Identity(n_, n_);
+             + beta_*pzu_.transpose()*pzu_
+             + gamma_*Eigen::MatrixXd::Identity(n_, n_);
   
-  q_k_xxf << -gamma_*pzu_.transpose()*v_kp1_.cast<double>();
+  q_k_xxf << -beta_*pzu_.transpose()*v_kp1_.cast<double>();
   q_k_xfx << q_k_xxf.transpose();
-  q_k_xff <<  gamma_*v_kp1_.transpose().cast<double>()*v_kp1_.cast<double>();
+  q_k_xff <<  beta_*v_kp1_.transpose().cast<double>()*v_kp1_.cast<double>();
 
   // p_k_x = ( p_k_xx )
   //         ( p_k_xf )
@@ -342,8 +342,8 @@ void NMPCGenerator::CalculateCommonExpressions() {
   // p_k_xx = (  0.5 * a * pvu_^T * pvu_ + c * pzu_^T * pzu_ + d * I )
   // p_k_xf = ( -0.5 * c * pzu_^T * v_kp1_ )
   p_k_xx <<   alpha_*pvu_.transpose()*(pvs_*c_k_x_0_ - dc_kp1_x_ref_)
-            + gamma_*pzu_.transpose()*(pzs_*c_k_x_0_ - v_kp1_0_.cast<double>()*f_k_x_0_);
-  p_k_xf <<  -gamma_*v_kp1_.transpose().cast<double>()*(pzs_*c_k_x_0_ - v_kp1_0_.cast<double>()*f_k_x_0_);
+            + beta_*pzu_.transpose()*(pzs_*c_k_x_0_ - v_kp1_0_.cast<double>()*f_k_x_0_);
+  p_k_xf <<  -beta_*v_kp1_.transpose().cast<double>()*(pzs_*c_k_x_0_ - v_kp1_0_.cast<double>()*f_k_x_0_);
 
   // p_k_y = ( p_k_yx )
   //         ( p_k_yf )
@@ -353,8 +353,8 @@ void NMPCGenerator::CalculateCommonExpressions() {
   // p_k_yx = (  0.5 * a * pvu_^T * pvu_ + c * Pzu^T * Pzu + d * I )
   // p_k_yf = ( -0.5 * c * pzu_^T * v_kp1_ )
   p_k_yx <<   alpha_*pvu_.transpose()*(pvs_*c_k_y_0_ - dc_kp1_y_ref_)
-            + gamma_*pzu_.transpose()*(pzs_*c_k_y_0_ - v_kp1_0_.cast<double>()*f_k_y_0_);  
-  p_k_yf <<  -gamma_*v_kp1_.transpose().cast<double>()*(pzs_*c_k_y_0_ - v_kp1_0_.cast<double>()*f_k_y_0_);
+            + beta_*pzu_.transpose()*(pzs_*c_k_y_0_ - v_kp1_0_.cast<double>()*f_k_y_0_);  
+  p_k_yf <<  -beta_*v_kp1_.transpose().cast<double>()*(pzs_*c_k_y_0_ - v_kp1_0_.cast<double>()*f_k_y_0_);
 
   // Orientation QP matrices.
   // q_k_ql_ = ( 0.5 * a * pvu_^T * e_fl_^T *  e_fl_ * pvu_ )

@@ -111,8 +111,8 @@ public:
 
     // Objective weights.
     const double alpha_;
+    const double beta_;
     const double gamma_;
-    const double delta_;
 
     // Center of mass initial values.
     Eigen::Vector3d c_k_x_0_;

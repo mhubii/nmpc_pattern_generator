@@ -15,8 +15,8 @@ BaseGenerator::BaseGenerator(const std::string config_file_loc)
       
       // Objective weights.
       alpha_(configs_["alpha"].as<double>()),
-      gamma_(configs_["gamma"].as<double>()), 
-      delta_(configs_["delta"].as<double>()),
+      beta_(configs_["beta"].as<double>()), 
+      gamma_(configs_["gamma"].as<double>()),
 
       // Center of mass matrices.
         c_kp1_x_(n_),
