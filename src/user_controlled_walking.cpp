@@ -7,6 +7,7 @@
 #include "reader.h"
 #include "writer.h"
 #include "nmpc_generator.h"
+#include "mpc_generator.h"
 #include "interpolation.h"
 #include "kinematics.h"
 #include "utils.h"
@@ -40,7 +41,7 @@ class WalkingProcessor : public yarp::os::BufferedPort<yarp::sig::Matrix>
     public: // TEST.. change to private!
 
         // Building blocks of walking generation.
-        NMPCGenerator pg_;
+        MPCGenerator pg_;
         Interpolation ip_;
         Kinematics ki_;
 
@@ -82,9 +83,8 @@ class WalkingProcessor : public yarp::os::BufferedPort<yarp::sig::Matrix>
         // Port to communicate the status.
         yarp::os::BufferedPort<yarp::os::Bottle> port_status_;
 
-        // TEST
-        // Eigen::MatrixXd qq;
-        // int count;
+        // TEST: COM feedback.
+        Eigen::MatrixXd com_;
         // TEST END
 };
 
@@ -136,8 +136,8 @@ int main(int argc, char *argv[]) {
     // Reader and writer.
     int period = YAML::LoadFile(pg_config)["command_period"].as<double>()*1e3;
 
-    ReadJoints rj(period, io_config);
-    WriteJoints wj(period, io_config);
+    ReadJoints rj(period, io_config, robot);
+    WriteJoints wj(period, io_config, robot);
 
     // Get the extremal angles for the joints. // TODO add some kind of min max init
     Eigen::VectorXd min = rj.GetMinAngles();
@@ -162,10 +162,17 @@ int main(int argc, char *argv[]) {
     wj.start();
     
     // Run program for a certain delay.
-    yarp::os::Time::delay(60);
+    yarp::os::Time::delay(120);
 
     // TEST
     WriteCsv("test.csv", pg_port.ip_.GetTrajectories().transpose());
+
+    // Store com feedback for reference.
+    Eigen::MatrixXd comfb = pg_port.ip_.GetTrajectories().rightCols(pg_port.com_.cols());
+    comfb.row(0) = pg_port.com_.row(0);
+    comfb.row(3) = pg_port.com_.row(1);
+    comfb.row(6) = pg_port.com_.row(2);
+    WriteCsv("test_com_feedback.csv", comfb.transpose());
     // TEST END
 
     // Stop reader and writer (on command later).
@@ -251,7 +258,7 @@ WalkingProcessor::~WalkingProcessor() {
 
 // Implement onRead() method.
 void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
-    
+
     // Lock callbacks during the computation.
     lockCallback();
 
@@ -274,7 +281,7 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
         }
 
         // // Use forward kinematics to obtain the com feedback.
-        // q_ << ki_.GetQTraj().topRows(6).col(0), yarp::eigen::toEigen(state.getCol(0)).bottomRows(15);
+        q_ << ki_.GetQTraj().topRows(6).col(0), yarp::eigen::toEigen(state.getCol(0)).bottomRows(15);
         // // // dq_.bottomRows(15) = yarp::eigen::toEigen(state.getCol(1));
         // // // ddq_.bottomRows(15) = yarp::eigen::toEigen(state.getCol(2));
 
@@ -284,15 +291,20 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
         // com_acc_ = ki_.GetComAcc();
 
         // // Generate pattern with com feedback.
-        // pg_state_.com_x(0) = com_pos_(0);//, com_vel_(0), com_acc_(0);
-        // pg_state_.com_y(0) = com_pos_(1);//, com_vel_(1), com_acc_(1);
-        // pg_state_.com_z = com_pos_(2);
+        pg_state_.com_x(0) = com_pos_(0);//, com_vel_(0), com_acc_(0);
+        pg_state_.com_y(0) = com_pos_(1);//, com_vel_(1), com_acc_(1);
+        pg_state_.com_z = com_pos_(2);
 
-        pg_state_.com_x(0) = traj_(0, 0);
-        pg_state_.com_y(0) = traj_(3, 0);
-        pg_state_.com_z = traj_(6, 0);
+        // TEST: Store com feedback for reference.
+        // com_.conservativeResize(com_.rows(), com_.cols() + 1);
+        // com_.rightCols(1) = com_pos_;
+        // TEST END
 
-        pg_.SetInitialValues(pg_state_);
+        // pg_state_.com_x(0) = traj_(0, 0);
+        // pg_state_.com_y(0) = traj_(3, 0);
+        // pg_state_.com_z = traj_(6, 0);
+
+        // pg_.SetInitialValues(pg_state_);
 
         // Set desired velocity.
         pg_.SetVelocityReference(vel_);
@@ -321,20 +333,48 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
 
             ki_.Forward(q_, dq_, ddq_);
             com_pos_ = ki_.GetComPos();
-            com_vel_ = ki_.GetComVel();
-            com_acc_ = ki_.GetComAcc();
+            // com_vel_ = ki_.GetComVel();
+            // com_acc_ = ki_.GetComAcc();
 
             // Generate pattern with com feedback.
             pg_state_.com_x(0) = com_pos_(0);//, com_vel_(0), com_acc_(0);
             pg_state_.com_y(0) = com_pos_(1);//, com_vel_(1), com_acc_(1);
             pg_state_.com_z = com_pos_(2);
-            
+
             pg_state_ = pg_.Update();
+            // pg_.SetInitialValues(pg_state_);
+        }
+        else {
+
+            q_ << ki_.GetQTraj().topRows(6).col(0), yarp::eigen::toEigen(state.getCol(0)).bottomRows(15);
+
+            ki_.Forward(q_, dq_, ddq_);
+            com_pos_ = ki_.GetComPos();
+
+            // Generate pattern without feedback.
+            pg_state_.com_x(0) = traj_(0, 0);
+            pg_state_.com_y(0) = traj_(3, 0);
+            pg_state_.com_z = traj_(6, 0);
+
+            // TODO: HOW DID THE FRENCH GUYS IMPLEMENT FEEDBACK ON THE INTERPOLATION AND HOW ON THE PATTERN GENERATOR?
+            // // Generate pattern with com feedback.
+            // pg_state_.com_x(0) = com_pos_(0);
+            // pg_state_.com_y(0) = com_pos_(1);
+            // pg_state_.com_z = com_pos_(2);
+
+            pg_.SetInitialValues(pg_state_);
         }
 
         // // // ip_.InterpolateStep(); // TODO
         // // // traj_ = ip_.GetTrajectoriesBuffer();//.col(0);
         traj_ = ip_.Interpolate();
+
+        // TEST: Store com feedback for reference.
+        com_.conservativeResize(3, com_.cols() + 1);
+        com_.rightCols(1)(0) = com_pos_(0); // traj_(0, 0);
+        com_.rightCols(1)(1) = com_pos_(1); // traj_(3, 0);
+        com_.rightCols(1)(2) = com_pos_(2); // traj_(6, 0);
+        // TEST END
 
         // Inverse kinematics.
         com_traj_ << traj_(0, 0),  traj_(3, 0),  traj_(6, 0),  traj_(7, 0);
@@ -358,6 +398,7 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
 
         ki_.Inverse(com_traj_, lf_traj_, rf_traj_);
         q_traj_ = ki_.GetQTraj().bottomRows(15);
+        
 
         // Check for hardware limits.
         bool limits = false;
@@ -407,18 +448,19 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
         // port_q_.prepare() = data;
         // port_q_.write();
 
-        // Check for correctness of pattern generator.
-        if (pg_.GetStatus() != qpOASES::SUCCESSFUL_RETURN) {
+        // COMMENTED BECAUSE OF MPC GENERATOR INSTEAD OF NMPC GENERATOR
+        // // Check for correctness of pattern generator.
+        // if (pg_.GetStatus() != qpOASES::SUCCESSFUL_RETURN) {
 
-            // Communicate quadratic problem status.
-            yarp::os::Bottle& bottle = port_status_.prepare();
-            yarp::os::Property& dict = bottle.addDict();
+        //     // Communicate quadratic problem status.
+        //     yarp::os::Bottle& bottle = port_status_.prepare();
+        //     yarp::os::Property& dict = bottle.addDict();
 
-            dict.put("ERROR", QP_INFEASIBLE);
-            port_status_.write();
+        //     dict.put("ERROR", QP_INFEASIBLE);
+        //     port_status_.write();
 
-            std::exit(1);
-        }
+        //     std::exit(1);
+        // }
 
         // Check for correctness of inverse kinematics including hardware limits.
         if (!ki_.GetStatus()) {

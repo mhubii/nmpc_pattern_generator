@@ -50,8 +50,8 @@ class WriteJoints : public yarp::os::RateThread
 
         // Drivers.
         std::map<std::string, yarp::dev::PolyDriver*> dd_;
-        std::map<std::string, yarp::dev::IControlMode2*> con_;
-        std::map<std::string, yarp::dev::IPositionControl2*> pos_c_;
+        std::map<std::string, yarp::dev::IControlMode*> con_;
+        std::map<std::string, yarp::dev::IPositionControl*> pos_c_;
         std::map<std::string, yarp::dev::IPositionDirect*> pos_d_;
 
         // Moving to the initial position.

@@ -1,5 +1,5 @@
 # Specifications.
-t_step: 1.6
+t_step: 3.2
 security_margin: [0.02, 0.02]
 left_foot_convex_hull: [-0.11, 0.14,
 		        -0.10, 0.16, 
@@ -16,10 +16,11 @@ foot_length: 0.2
 foot_distance: 0.14
 
 # Interpolation.
-command_period: 0.01
+command_period: 0.04
 n_still: 10
-t_ds: 0.8
-step_height: 0.02
+t_ds: 1.6
+step_height: 0.03
+omega: 0.0
 
 # Initial values.
 com_x: [0.0 , 0.0, 0.0]
@@ -40,10 +41,10 @@ y_pos: 100
 radius: 0
 
 # Optimization.
-n: 16
+n: 32
 t: 0.2
 alpha: 1
 beta: 3e2
 gamma: 7e-3
-cpu_time: 0.01
-nwsr: 100
+cpu_time: 0.04
+nwsr: 1000

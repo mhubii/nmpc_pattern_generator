@@ -521,12 +521,12 @@
       </geometry>
     </collision>
   </link>
-  <joint name="torso_pitch" type="revolute">
-    <origin xyz="0 0.0394 0" rpy="1.57079632663 0 -1.57079632679"/>
-    <axis xyz="1.0 0.0 0.0"/>
-    <parent link="root_link"/>
-    <child link="torso_1"/>
-    <limit effort="50000" lower="-0.349065850399" upper="1.2217304764" velocity="50000"/>
+  <joint name="torso_yaw" type="revolute">
+    <origin xyz="0 0.0514999999991 0.0642919000083" rpy="0 0 0"/>
+    <axis xyz="0.0 -1.0 0"/>
+    <parent link="torso_2"/>
+    <child link="chest"/>
+    <limit effort="50000" lower="-0.872664625997" upper="0.872664625997" velocity="50000"/>
     <dynamics damping="0.06"/>
   </joint>
   <link name="torso_2">
@@ -577,12 +577,12 @@
       </geometry>
     </collision>
   </link>
-  <joint name="torso_yaw" type="revolute">
-    <origin xyz="0 0.0514999999991 0.0642919000083" rpy="0 0 0"/>
-    <axis xyz="0.0 -1.0 0"/>
-    <parent link="torso_2"/>
-    <child link="chest"/>
-    <limit effort="50000" lower="-0.872664625997" upper="0.872664625997" velocity="50000"/>
+  <joint name="torso_pitch" type="revolute">
+    <origin xyz="0 0.0394 0" rpy="1.57079632663 0 -1.57079632679"/>
+    <axis xyz="1.0 0.0 0.0"/>
+    <parent link="root_link"/>
+    <child link="torso_1"/>
+    <limit effort="50000" lower="-0.349065850399" upper="1.2217304764" velocity="50000"/>
     <dynamics damping="0.06"/>
   </joint>
 </robot>

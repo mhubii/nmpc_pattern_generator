@@ -15,7 +15,7 @@ int main(int argc, char * argv[]) {
 
     // rj.start();
     rc.start();
-    yarp::os::Time::delay(60);
+    yarp::os::Time::delay(120);
     rc.stop();
     //rj.stop();
     //KeyReader();

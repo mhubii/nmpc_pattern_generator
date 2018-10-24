@@ -18,7 +18,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 # add_subdirectory(dynamic_filter)
 
 # Gazebo plugins.
-add_subdirectory(libs/gazebo_plugins)
+# add_subdirectory(libs/gazebo_plugins)
 
 # Google test library.
 # Download and unpack googletest at configure time.

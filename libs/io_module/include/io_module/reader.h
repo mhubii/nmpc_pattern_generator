@@ -67,7 +67,7 @@ class ReadJoints : public yarp::os::RateThread
         // Drivers.
         std::map<std::string, yarp::dev::PolyDriver*> dd_;
         std::map<std::string, yarp::dev::IEncoders*> enc_;
-        std::map<std::string, yarp::dev::IControlLimits2*> lim_;
+        std::map<std::string, yarp::dev::IControlLimits*> lim_;
 
         // Output.
         std::string out_file_loc_;

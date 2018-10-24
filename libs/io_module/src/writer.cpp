@@ -197,11 +197,11 @@ void WriteJoints::SetDrivers() {
         // changes the control after it reached the initial position.
         bool ok = true;
 
-        yarp::dev::IControlMode2* c;
+        yarp::dev::IControlMode* c;
         ok = ok && dd_[part.name]->view(c);
         con_[part.name] = c;
 
-        yarp::dev::IPositionControl2* pc;
+        yarp::dev::IPositionControl* pc;
         ok = ok && dd_[part.name]->view(pc);
         pos_c_[part.name] = pc;
 

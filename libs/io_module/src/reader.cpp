@@ -148,7 +148,7 @@ void ReadJoints::SetDrivers() {
         ok = ok && dd_[part.name]->view(e);
         enc_[part.name] = e;
 
-        yarp::dev::IControlLimits2* l;
+        yarp::dev::IControlLimits* l;
         ok = ok && dd_[part.name]->view(l);
         lim_[part.name] = l;
 
@@ -743,12 +743,12 @@ KeyReader::KeyReader()
       errors_(NO_ERRORS),
       warnings_(NO_WARNINGS),
       t_iter_(yarp::os::Time::now()), 
-      acc_w_( 1., 0., 0. ),
-      acc_a_( 0. , 0., -1.),
-      acc_shift_a_(0., 1., 0.),
-      acc_s_(-1., 0., 0.),
-      acc_d_( 0. , 0., 1.),
-      acc_shift_d_(0., -1., 0.),
+      acc_w_( 0.1, 0., 0. ),
+      acc_a_( 0. , 0., -0.1),
+      acc_shift_a_(0., 0.1, 0.),
+      acc_s_(-0.1, 0., 0.),
+      acc_d_( 0. , 0., 0.1),
+      acc_shift_d_(0., -0.1, 0.),
       vel_(3) {
 
     // Open port.

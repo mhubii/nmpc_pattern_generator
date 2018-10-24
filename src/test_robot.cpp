@@ -68,7 +68,7 @@ int main() {
     // Create IEncoders interfaces for the sensors.
     bool ok = true;
 
-    yarp::dev::IControlLimits2* l;
+    yarp::dev::IControlLimits* l;
     ok = ok && dd.view(l);
         
     int ax = 1;
