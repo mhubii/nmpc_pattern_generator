@@ -200,7 +200,7 @@ BaseGenerator::BaseGenerator(const std::string config_file_loc)
       
       // Matrices containing constraints representing a 
       // strictly convex obstacle in space.
-      nc_obs_(1),
+      nc_obs_(nf_), // TODO: change for multiple objects!!
       x_obs_(configs_["x_pos"].as<double>()),
       y_obs_(configs_["y_pos"].as<double>()),
       r_obs_(configs_["radius"].as<double>()),
