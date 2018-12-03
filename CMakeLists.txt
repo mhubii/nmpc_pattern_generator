@@ -7,19 +7,6 @@ set(CMAKE_CXX_STANDARD 17)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-
-# Artificial agent library.
-# option(ARTIFICIAL_AGENT_EXAMPLES "Build artifivial agent examples." ON)
-
-# add_subdirectory(libs/artificial_agent)
-
-
-# Dynamic filter library.
-# add_subdirectory(dynamic_filter)
-
-# Gazebo plugins.
-# add_subdirectory(libs/gazebo_plugins)
-
 # Google test library.
 # Download and unpack googletest at configure time.
 enable_testing()
