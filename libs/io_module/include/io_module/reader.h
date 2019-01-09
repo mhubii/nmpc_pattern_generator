@@ -3,7 +3,10 @@
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core_c.h>
+
+#ifdef BUILD_WITH_OPENCV_CONTRIB
 #include <opencv2/ximgproc.hpp>
+#endif
 
 #include <iostream>
 #include <yarp/dev/all.h>
@@ -134,13 +137,19 @@ class ReadCameras : public yarp::os::RateThread
 
         // Stereo matching and weighted least square filter.
         cv::Ptr<cv::StereoBM> l_matcher_;
+
+	#ifdef BUILD_WITH_OPENCV_CONTRIB
         cv::Ptr<cv::StereoMatcher> r_matcher_;
         cv::Ptr<cv::ximgproc::DisparityWLSFilter> wls_;
+	#endif
 
         // Disparity map.
         cv::Mat l_disp_; 
+
+	#ifdef BUILD_WITH_OPENCV_CONTRIB
         cv::Mat r_disp_; 
         cv::Mat wls_disp_;
+	#endif
 
         // Outgoing information.
         yarp::sig::Vector vel_;

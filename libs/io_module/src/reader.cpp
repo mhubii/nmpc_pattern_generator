@@ -206,11 +206,14 @@ ReadCameras::ReadCameras(int period, const std::string config_file_loc,
     
     // Stereo matching and weighted least square filter.
     l_matcher_ = cv::StereoBM::create(16, 9);
+
+    #ifdef BUILD_WITH_OPENCV_CONTRIB
     r_matcher_ = cv::ximgproc::createRightMatcher(l_matcher_);
     wls_ = cv::ximgproc::createDisparityWLSFilter(l_matcher_);
 
     wls_->setLambda(1e3);
     wls_->setSigmaColor(1.5);
+    #endif
 
     // Outgoing velocity.
     vel_.zero();
@@ -251,12 +254,14 @@ void ReadCameras::run() {
 
     // Determine disparity.
     l_matcher_->compute(img_cv_[parts_[0].cameras[0]], img_cv_[parts_[0].cameras[1]], l_disp_);
+
+    #ifdef BUILD_WITH_OPENCV_CONTRIB
     r_matcher_->compute(img_cv_[parts_[0].cameras[1]], img_cv_[parts_[0].cameras[0]], r_disp_);
 
     // Perform weighted least squares filtering.
     wls_->filter(l_disp_, img_cv_[parts_[0].cameras[0]], wls_disp_, r_disp_);
 
-    //cv::ximgproc::getDisparityVis(wls_disp_, wls_disp_, 1);
+    cv::ximgproc::getDisparityVis(wls_disp_, wls_disp_, 1);
     cv::normalize(wls_disp_, wls_disp_, 0, 255, CV_MINMAX, CV_8U);
 
     // Show and or save the depth view.
@@ -265,6 +270,7 @@ void ReadCameras::run() {
         cv::imshow("Depth View", wls_disp_);
         cv::waitKey(period_);
     }
+    #endif
 
     if (save_depth_view_) {
 
