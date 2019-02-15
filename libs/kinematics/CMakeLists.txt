@@ -3,7 +3,12 @@ find_package(yaml-cpp REQUIRED)
 find_package(rbdl REQUIRED)
 find_package(rbdl_urdfreader REQUIRED)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/kinematics)
+set(KINEMATICS_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/kinematics)
+include_directories(${KINEMATICS_INCLUDE_DIR})
+
+# Headers for installation.
+list(APPEND KINEMATICS_INCLUDES ${KINEMATICS_INCLUDE_DIR}/kinematics.h
+                                ${KINEMATICS_INCLUDE_DIR}/utils.h)
 
 set(SOURCE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kinematics.cpp
@@ -43,3 +48,7 @@ endif (${KINEMATICS_EXAMPLES})
 if (${KINEMATICS_TESTS})
 
 endif (${KINEMATICS_TESTS})
+
+# Install directives kinematics.
+install(TARGETS kinematics DESTINATION lib)
+install(FILES ${KINEMATICS_INCLUDES} DESTINATION include/kinematics)

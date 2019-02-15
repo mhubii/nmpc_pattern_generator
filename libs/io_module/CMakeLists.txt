@@ -12,7 +12,13 @@ if (${BUILD_WITH_OPENCV_CONTRIB})
 
 endif ()
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/io_module)
+set(IO_MODULE_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/io_module)
+include_directories(${IO_MODULE_INCLUDE_DIR})
+
+# Headers for installation.
+list(APPEND IO_MODULE_INCLUDES ${IO_MODULE_INCLUDE_DIR}/reader.h
+                               ${IO_MODULE_INCLUDE_DIR}/writer.h
+                               ${IO_MODULE_INCLUDE_DIR}/utils.h)
 
 set(SOURCE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/reader.cpp
@@ -55,3 +61,7 @@ endif (${IO_MODULE_EXAMPLES})
 if (${IO_MODULE_TESTS})
 
 endif (${IO_MODULE_TESTS})
+
+# Install directives input output module library.
+install(TARGETS io_module DESTINATION lib)
+install(FILES ${IO_MODULE_INCLUDES} DESTINATION include/io_module)

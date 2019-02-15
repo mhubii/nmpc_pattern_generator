@@ -1,6 +1,8 @@
 # Configurations.
 cmake_minimum_required(VERSION 3.8)
 
+set(CMAKE_INSTALL_PREFIX $ENV{HOME}/nmpc_pattern_generator CACHE STRING "Install path prefix default.")
+
 project(heicub_walking)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -31,6 +33,9 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 add_subdirectory("${CMAKE_BINARY_DIR}/googletest-src"
                  "${CMAKE_BINARY_DIR}/googletest-build")
 
+# Output for all libs.
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # Input output module library.
 option(IO_MODULE_EXAMPLES "Build input output module examples." ON)
@@ -85,3 +90,6 @@ foreach (source ${SOURCES})
         pattern_generator
     )
 endforeach(source ${SOURCES})
+
+# Uninstall directives.
+add_custom_target (uninstall COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/nmpc_pattern_generator_uninstall.cmake)

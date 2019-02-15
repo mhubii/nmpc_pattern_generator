@@ -2,7 +2,15 @@
 find_package(qpOASES REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/pattern_generator)
+set(PATTERN_GENERATOR_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/pattern_generator)
+include_directories(${PATTERN_GENERATOR_INCLUDE_DIR})
+
+# Headers for installation.
+list(APPEND PATTERN_GENERATOR_INCLUDES ${PATTERN_GENERATOR_INCLUDE_DIR}/base_generator.h
+                                       ${PATTERN_GENERATOR_INCLUDE_DIR}/interpolation.h
+                                       ${PATTERN_GENERATOR_INCLUDE_DIR}/mpc_generator.h
+                                       ${PATTERN_GENERATOR_INCLUDE_DIR}/nmpc_generator.h
+                                       ${PATTERN_GENERATOR_INCLUDE_DIR}/utils.h)
 
 set(SOURCE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/base_generator.cpp
@@ -58,3 +66,7 @@ if (${PATTERN_GENERATOR_TESTS})
         pattern_generator_tests
     )
 endif(${PATTERN_GENERATOR_TESTS})
+
+# Install derictives pattern generator.
+install(TARGETS pattern_generator DESTINATION lib)
+install(FILES ${PATTERN_GENERATOR_INCLUDES} DESTINATION include/pattern_generator)
