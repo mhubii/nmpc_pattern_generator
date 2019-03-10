@@ -215,211 +215,9 @@ BaseGenerator::BaseGenerator(const std::string config_file_loc)
 
       v_kp1_0_(n_),
       v_kp1_(n_, nf_) {
-  // Center of mass initial values.
-  std::vector<double> tmp_com_x = configs_["com_x"].as<std::vector<double>>();
-  std::vector<double> tmp_com_y = configs_["com_y"].as<std::vector<double>>();
-  std::vector<double> tmp_com_q = configs_["com_q"].as<std::vector<double>>();
 
-  c_k_x_0_ = Eigen::Vector3d::Map(tmp_com_x.data());
-  c_k_y_0_ = Eigen::Vector3d::Map(tmp_com_y.data());
-  h_com_0_ = configs_["com_z"].as<double>();
-  c_k_q_0_ = Eigen::Vector3d::Map(tmp_com_q.data());
-
-  // Center of mass matrices.
-    c_kp1_x_.setZero();
-   dc_kp1_x_.setZero();
-  ddc_kp1_x_.setZero();
-
-    c_kp1_y_.setZero();
-   dc_kp1_y_.setZero();
-  ddc_kp1_y_.setZero();
-
-    c_kp1_q_.setZero();
-   dc_kp1_q_.setZero();
-  ddc_kp1_q_.setZero();
-
-  // Jerk controls for center of mass.
-  dddc_k_x_.setZero(); 
-  dddc_k_y_.setZero(); 
-  dddc_k_q_.setZero();
-
-  // Reference matrices.
-  dc_kp1_x_ref_.setZero();
-  dc_kp1_y_ref_.setZero();
-  dc_kp1_q_ref_.setZero();
-  local_vel_ref_.setZero();
-
-  // Feet matrices.
-  f_k_x_0_ = configs_["foot_x"].as<double>();
-  f_k_y_0_ = configs_["foot_y"].as<double>();
-  f_k_q_0_ = configs_["foot_q"].as<double>();
-
-  f_k_x_.setZero();
-  f_k_y_.setZero();
-  f_k_q_.setZero();
-
-  // States for the foot orientation.
-     f_k_ql_0_.setZero();
-     f_k_qr_0_.setZero();
-
-     f_k_ql_.setZero();
-     f_k_qr_.setZero();
-  
-    df_k_ql_.setZero(); 
-    df_k_qr_.setZero();
-  
-   ddf_k_ql_.setZero();
-   ddf_k_qr_.setZero();
-  
-  dddf_k_ql_.setZero();
-  dddf_k_qr_.setZero();
-
-     f_kp1_ql_.setZero();
-    df_kp1_ql_.setZero();
-   ddf_kp1_ql_.setZero();
-
-     f_kp1_qr_.setZero();
-    df_kp1_qr_.setZero();
-   ddf_kp1_qr_.setZero();
-
-     f_kp1_q_.setZero();
-
-  // Foot angular velocity selection matrices objective.  
-  e_f_.setZero();
-  e_fl_.setZero();
-  e_fr_.setZero();
-
-  e_f_bar_.setZero();
-  e_fl_bar_.setZero();
-  e_fr_bar_.setZero();
-
-  // Zero moment point matrices.
-  z_k_x_0_ = c_k_x_0_[0] - h_com_0_/g_*c_k_x_0_[2]; 
-  z_k_y_0_ = c_k_y_0_[0] - h_com_0_/g_*c_k_y_0_[2];
-
-  z_kp1_x_.setZero(); 
-  z_kp1_y_.setZero();
-
-  // Transformation matrices.
-  pps_.setZero();
-  ppu_.setZero();
-  
-  pvs_.setZero();
-  pvu_.setZero();
-  
-  pas_.setZero();
-  pau_.setZero();
-  
-  pzs_.setZero();
-  pzu_.setZero();
-
-  // Convex hulls used to bound the free placement of the foot.
-  std::vector<double> tmp_lf_pos_hull = configs_["left_foot_convex_hull"].as<std::vector<double>>();
-  std::vector<double> tmp_rf_pos_hull = configs_["right_foot_convex_hull"].as<std::vector<double>>();
-  
-  lf_pos_hull_ = Eigen::Map<RowMatrixXd>(tmp_lf_pos_hull.data(), 5, 2);
-  rf_pos_hull_ = Eigen::Map<RowMatrixXd>(tmp_rf_pos_hull.data(), 5, 2);
-
-  // Set of cartesian equalities.
-  a0l_.setZero();
-  ubb0l_.setZero();
-  a0r_.setZero();
-  ubb0r_.setZero();
-
-  // Linear constraints matrix.
-  eq_a_foot_.setZero();
-  eq_b_foot_.setZero();
-
-  // Linear constraints vector.
-  a_foot_.setZero();
-  lbb_foot_.setConstant(-1.e+08);
-  ubb_foot_.setZero();
-
-  // Security margins for cop constraints.
-  security_margin_x_ = configs_["security_margin"].as<std::vector<double>>()[0];
-  security_margin_y_ = configs_["security_margin"].as<std::vector<double>>()[1];
-
-  // Position of the vertices of the feet in the foot coordinates.
-  lfoot_.setZero();
-  rfoot_.setZero();
-
-  lf_cop_hull_.setZero();
-  rf_cop_hull_.setZero();
-  
-  ds_cop_hull_.setZero();
-
-  UpdateHulls();
-
-  // Corresponding linear system from polygonal set.  
-  a0lf_.setZero();
-  ubb0lf_.setZero();
-
-  a0rf_.setZero();
-  ubb0rf_.setZero();
-
-  a0dlf_.setZero();
-  ubb0dlf_.setZero();
-  a0drf_.setZero();
-  ubb0drf_.setZero();
-
-  // Transformation matrix for the constraints in BuildCopConstraints().
-  pzuv_.setZero();
-  pzuvx_.setZero();
-  pzuvy_.setZero();
-
-  pzsc_.setZero();
-  pzscx_.setZero();
-  pzscy_.setZero();
-
-  v_kp1fc_.setZero();
-  v_kp1fc_x_.setZero();
-  v_kp1fc_y_.setZero();
-
-  d_kp1_.setZero();
-  d_kp1_x_.setZero();
-  d_kp1_y_.setZero();
-  b_kp1_.setZero();
-
-  // Constraint matrices.
-  a_cop_.setZero();
-  lbb_cop_.setConstant(-1.e+08);
-  ubb_cop_.setZero();
-
-  // Foot rotation constraints.
-  a_fvel_eq_.setZero();
-  b_fvel_eq_.setZero();
-
-  a_fpos_ineq_.setZero();
-  ubb_fpos_ineq_.setZero();
-  lbb_fpos_ineq_.setZero();
-
-  a_fvel_ineq_.setZero();
-  ubb_fvel_ineq_.setZero();
-  lbb_fvel_ineq_.setZero();
-
-  // Current support state.
-  current_support_ = {f_k_x_0_, f_k_y_0_, f_k_q_0_, configs_["support_foot"].as<std::string>()};
-  current_support_.time_limit = 0.;
-  current_support_.ds = 0.;
-  support_deque_[0].ds = 1;
-  support_deque_[8].ds = 1;
-
-  // Matrices containing constraints representing a 
-  // strictly convex obstacle in space.
-  h_obs_.setZero();
-  a_obs_.setZero();
-  b_obs_.setZero();
-  lb_obs_.setZero();
-  ub_obs_.setConstant(1.e+08);
-
-  v_kp1_0_.setZero();
-  v_kp1_.setZero();
-
-  // Initialize all elementary problem matrices.
-  InitializeConstantMatrices();
-  InitializeCopMatrices();
-  InitializeSelectionMatrices();
-  InitializeConvexHullSystems();  
+  // Reset the base generator.
+  Reset(); 
 }
 
 void BaseGenerator::SetSecurityMargin(const double margin_x, const double margin_y) {
@@ -661,6 +459,219 @@ void BaseGenerator::InitializeConvexHullSystems() {
   // double support.
   ComputeLinearSystem(ds_cop_hull_, "left", a0dlf_, ubb0dlf_);
   ComputeLinearSystem(ds_cop_hull_, "right", a0drf_, ubb0drf_);
+}
+
+void BaseGenerator::Reset() {
+
+  // For internal usage.
+  time_ = 0.;
+
+  // Resets the whole base generator to its initial values.
+  // Center of mass initial values.
+  std::vector<double> tmp_com_x = configs_["com_x"].as<std::vector<double>>();
+  std::vector<double> tmp_com_y = configs_["com_y"].as<std::vector<double>>();
+  std::vector<double> tmp_com_q = configs_["com_q"].as<std::vector<double>>();
+
+  c_k_x_0_ = Eigen::Vector3d::Map(tmp_com_x.data());
+  c_k_y_0_ = Eigen::Vector3d::Map(tmp_com_y.data());
+  h_com_0_ = configs_["com_z"].as<double>();
+  c_k_q_0_ = Eigen::Vector3d::Map(tmp_com_q.data());
+
+  // Center of mass matrices.
+    c_kp1_x_.setZero();
+   dc_kp1_x_.setZero();
+  ddc_kp1_x_.setZero();
+
+    c_kp1_y_.setZero();
+   dc_kp1_y_.setZero();
+  ddc_kp1_y_.setZero();
+
+    c_kp1_q_.setZero();
+   dc_kp1_q_.setZero();
+  ddc_kp1_q_.setZero();
+
+  // Jerk controls for center of mass.
+  dddc_k_x_.setZero(); 
+  dddc_k_y_.setZero(); 
+  dddc_k_q_.setZero();
+
+  // Reference matrices.
+  dc_kp1_x_ref_.setZero();
+  dc_kp1_y_ref_.setZero();
+  dc_kp1_q_ref_.setZero();
+  local_vel_ref_.setZero();
+
+  // Feet matrices.
+  f_k_x_0_ = configs_["foot_x"].as<double>();
+  f_k_y_0_ = configs_["foot_y"].as<double>();
+  f_k_q_0_ = configs_["foot_q"].as<double>();
+
+  f_k_x_.setZero();
+  f_k_y_.setZero();
+  f_k_q_.setZero();
+
+  // States for the foot orientation.
+     f_k_ql_0_.setZero();
+     f_k_qr_0_.setZero();
+
+     f_k_ql_.setZero();
+     f_k_qr_.setZero();
+  
+    df_k_ql_.setZero(); 
+    df_k_qr_.setZero();
+  
+   ddf_k_ql_.setZero();
+   ddf_k_qr_.setZero();
+  
+  dddf_k_ql_.setZero();
+  dddf_k_qr_.setZero();
+
+     f_kp1_ql_.setZero();
+    df_kp1_ql_.setZero();
+   ddf_kp1_ql_.setZero();
+
+     f_kp1_qr_.setZero();
+    df_kp1_qr_.setZero();
+   ddf_kp1_qr_.setZero();
+
+     f_kp1_q_.setZero();
+
+  // Foot angular velocity selection matrices objective.  
+  e_f_.setZero();
+  e_fl_.setZero();
+  e_fr_.setZero();
+
+  e_f_bar_.setZero();
+  e_fl_bar_.setZero();
+  e_fr_bar_.setZero();
+
+  // Zero moment point matrices.
+  z_k_x_0_ = c_k_x_0_[0] - h_com_0_/g_*c_k_x_0_[2]; 
+  z_k_y_0_ = c_k_y_0_[0] - h_com_0_/g_*c_k_y_0_[2];
+
+  z_kp1_x_.setZero(); 
+  z_kp1_y_.setZero();
+
+  // Transformation matrices.
+  pps_.setZero();
+  ppu_.setZero();
+  
+  pvs_.setZero();
+  pvu_.setZero();
+  
+  pas_.setZero();
+  pau_.setZero();
+  
+  pzs_.setZero();
+  pzu_.setZero();
+
+  // Convex hulls used to bound the free placement of the foot.
+  std::vector<double> tmp_lf_pos_hull = configs_["left_foot_convex_hull"].as<std::vector<double>>();
+  std::vector<double> tmp_rf_pos_hull = configs_["right_foot_convex_hull"].as<std::vector<double>>();
+  
+  lf_pos_hull_ = Eigen::Map<RowMatrixXd>(tmp_lf_pos_hull.data(), 5, 2);
+  rf_pos_hull_ = Eigen::Map<RowMatrixXd>(tmp_rf_pos_hull.data(), 5, 2);
+
+  // Set of cartesian equalities.
+  a0l_.setZero();
+  ubb0l_.setZero();
+  a0r_.setZero();
+  ubb0r_.setZero();
+
+  // Linear constraints matrix.
+  eq_a_foot_.setZero();
+  eq_b_foot_.setZero();
+
+  // Linear constraints vector.
+  a_foot_.setZero();
+  lbb_foot_.setConstant(-1.e+08);
+  ubb_foot_.setZero();
+
+  // Security margins for cop constraints.
+  security_margin_x_ = configs_["security_margin"].as<std::vector<double>>()[0];
+  security_margin_y_ = configs_["security_margin"].as<std::vector<double>>()[1];
+
+  // Position of the vertices of the feet in the foot coordinates.
+  lfoot_.setZero();
+  rfoot_.setZero();
+
+  lf_cop_hull_.setZero();
+  rf_cop_hull_.setZero();
+  
+  ds_cop_hull_.setZero();
+
+  UpdateHulls();
+
+  // Corresponding linear system from polygonal set.  
+  a0lf_.setZero();
+  ubb0lf_.setZero();
+
+  a0rf_.setZero();
+  ubb0rf_.setZero();
+
+  a0dlf_.setZero();
+  ubb0dlf_.setZero();
+  a0drf_.setZero();
+  ubb0drf_.setZero();
+
+  // Transformation matrix for the constraints in BuildCopConstraints().
+  pzuv_.setZero();
+  pzuvx_.setZero();
+  pzuvy_.setZero();
+
+  pzsc_.setZero();
+  pzscx_.setZero();
+  pzscy_.setZero();
+
+  v_kp1fc_.setZero();
+  v_kp1fc_x_.setZero();
+  v_kp1fc_y_.setZero();
+
+  d_kp1_.setZero();
+  d_kp1_x_.setZero();
+  d_kp1_y_.setZero();
+  b_kp1_.setZero();
+
+  // Constraint matrices.
+  a_cop_.setZero();
+  lbb_cop_.setConstant(-1.e+08);
+  ubb_cop_.setZero();
+
+  // Foot rotation constraints.
+  a_fvel_eq_.setZero();
+  b_fvel_eq_.setZero();
+
+  a_fpos_ineq_.setZero();
+  ubb_fpos_ineq_.setZero();
+  lbb_fpos_ineq_.setZero();
+
+  a_fvel_ineq_.setZero();
+  ubb_fvel_ineq_.setZero();
+  lbb_fvel_ineq_.setZero();
+
+  // Current support state.
+  current_support_ = {f_k_x_0_, f_k_y_0_, f_k_q_0_, configs_["support_foot"].as<std::string>()};
+  current_support_.time_limit = 0.;
+  current_support_.ds = 0.;
+  support_deque_[0].ds = 1;
+  support_deque_[8].ds = 1;
+
+  // Matrices containing constraints representing a 
+  // strictly convex obstacle in space.
+  h_obs_.setZero();
+  a_obs_.setZero();
+  b_obs_.setZero();
+  lb_obs_.setZero();
+  ub_obs_.setConstant(1.e+08);
+
+  v_kp1_0_.setZero();
+  v_kp1_.setZero();
+
+  // Initialize all elementary problem matrices.
+  InitializeConstantMatrices();
+  InitializeCopMatrices();
+  InitializeSelectionMatrices();
+  InitializeConvexHullSystems(); 
 }
 
 void BaseGenerator::UpdateHulls() {
@@ -990,7 +1001,7 @@ void BaseGenerator::BuildFootIneqConstraint() {
   // A0 R(theta) (Fx_k+1 - Fx_k) <= ubB0
   //             (Fy_k+1 - Fy_k)
 
-  Eigen::Matrix2i mat_selec; 
+  Eigen::Matrix2i mat_selec; // what is the mat select? sth like S0 - I
   mat_selec <<  1., 0.,
                -1., 1.;
 
@@ -998,7 +1009,7 @@ void BaseGenerator::BuildFootIneqConstraint() {
   foot_selec << f_k_x_0_, f_k_y_0_,
                 0.      , 0.;
 
-  Eigen::Vector2d theta_vec(f_k_q_0_, f_k_q_(0));
+  Eigen::Vector2d theta_vec(f_k_q_0_, f_k_q_(0)); // where do i get the corresponding angles from? maybe need all angles nf
 
   // Rotation matrix from F_k+1 to F_k
   Eigen::Matrix2d rot_mat1;
@@ -1038,8 +1049,13 @@ void BaseGenerator::BuildFootIneqConstraint() {
   tmp3 << a_f1.col(1), Eigen::VectorXd::Zero(n_foot_pos_hull_edges_);
   tmp4 << Eigen::VectorXd::Zero(n_foot_pos_hull_edges_), a_f2.col(1);
 
-  Eigen::MatrixXd x_mat(2*n_foot_pos_hull_edges_, 2);
-  Eigen::MatrixXd  a0_x(2*n_foot_pos_hull_edges_, 2);
+
+
+
+  // here needs to be some kind of for loop over all steps nf
+
+  Eigen::MatrixXd x_mat(2*n_foot_pos_hull_edges_, 2); // rather nf than 2
+  Eigen::MatrixXd  a0_x(2*n_foot_pos_hull_edges_, 2); // nf*n_foot_pos_hull_edges = nc_foot_position
   Eigen::MatrixXd y_mat(2*n_foot_pos_hull_edges_, 2);
   Eigen::MatrixXd  a0_y(2*n_foot_pos_hull_edges_, 2);
 
@@ -1054,7 +1070,7 @@ void BaseGenerator::BuildFootIneqConstraint() {
   b0_full << b_f1, b_f2;
   b0 << b0_full + x_mat*foot_selec.col(0) + y_mat*foot_selec.col(1);
 
-  a_foot_ << Eigen::MatrixXd::Zero(nc_foot_position_, n_), a0_x,
+  a_foot_ << Eigen::MatrixXd::Zero(nc_foot_position_, n_), a0_x, // how do i introduce for loops for this problem?
              Eigen::MatrixXd::Zero(nc_foot_position_, n_), a0_y;
   ubb_foot_ << b0;
 }
@@ -1142,7 +1158,7 @@ void BaseGenerator::UpdateCopConstraintTransformation() {
 
   // Every time instant in the pattern generator constraints
   // depends on the support order.
-  Eigen::Vector3d theta_vec(f_k_q_0_, f_k_q_(0), f_k_q_(1));
+  Eigen::Vector3d theta_vec(f_k_q_0_, f_k_q_(0), f_k_q_(1)); // where do i get the correct angles from, what is the order?
 
   Eigen::MatrixXd  a0(n_foot_edge_, 2);
   Eigen::VectorXd  b0(n_foot_edge_);
@@ -1151,7 +1167,7 @@ void BaseGenerator::UpdateCopConstraintTransformation() {
 
   Eigen::Matrix2d rot_mat;
 
-  for (int i = 0; i < n_; i++) {
+  for (int i = 0; i < n_; i++) { // modulo stuff??, like i % nf_ == 0 or so
     const double theta = theta_vec(support_deque_[i].step_number);
     rot_mat <<  cos(theta), sin(theta),
                -sin(theta), cos(theta);

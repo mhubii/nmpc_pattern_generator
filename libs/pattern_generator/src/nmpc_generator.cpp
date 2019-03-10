@@ -57,52 +57,9 @@ NMPCGenerator::NMPCGenerator(const std::string config_file_loc)
 
       derv_a_cop_map_(nc_cop_, n_),
       derv_a_foot_map_(nc_foot_position_, n_) {
-  // qpOASES specific things.
-  options_.setToMPC();
-  options_.printLevel = qpOASES::PL_LOW;
 
-  // Problem setup.
-  dofs_.setZero();
-  delta_dofs_.setZero();
-
-  // Load NMPC options.
-  qp_.setOptions(options_);
-
-  qp_h_.setIdentity();
-  qp_a_.setZero();
-  qp_g_.setZero();
-  qp_lb_.setConstant(-1.e+08);
-  qp_ub_.setConstant(1.e+08);
-  qp_lba_.setConstant(-1.e+08);
-  qp_uba_.setConstant(1.e+08);
-
-  // Helper matrices for common expressions.
-  q_k_x_.setZero();
-  p_k_x_.setZero();
-  p_k_y_.setZero();
-
-  q_k_ql_.setZero();
-  q_k_qr_.setZero();
-  p_k_ql_.setZero();
-  p_k_qr_.setZero();
-
-  a_pos_x_.setZero();
-  a_pos_q_.setZero();
-  uba_pos_.setZero();
-  lba_pos_.setZero();
-
-  a_obs_.setZero();
-  uba_obs_.setZero();
-  lba_obs_.setZero();
-
-  a_ori_.setZero();
-  uba_ori_.setZero();
-  lba_ori_.setZero();
-
-  derv_a_cop_map_.setZero();
-  derv_a_foot_map_.setZero();
-
-  UpdateFootSelectionMatrix(); 
+  // Reset the NMPCGenerator.
+  Reset();
 }
 
 void NMPCGenerator::Solve() {
@@ -679,4 +636,59 @@ void NMPCGenerator::UpdateFootSelectionMatrix() {
       }
     }
   }
+}
+
+void NMPCGenerator::Reset() {
+
+  // qpOASES specific things.
+  options_.setToMPC();
+  options_.printLevel = qpOASES::PL_LOW;
+
+  // Problem setup.
+  dofs_.setZero();
+  delta_dofs_.setZero();
+
+  // Load NMPC options.
+  qp_.setOptions(options_);
+
+  qp_h_.setIdentity();
+  qp_a_.setZero();
+  qp_g_.setZero();
+  qp_lb_.setConstant(-1.e+08);
+  qp_ub_.setConstant(1.e+08);
+  qp_lba_.setConstant(-1.e+08);
+  qp_uba_.setConstant(1.e+08);
+
+  qp_is_initialized_ = false;
+
+  // Helper matrices for common expressions.
+  q_k_x_.setZero();
+  p_k_x_.setZero();
+  p_k_y_.setZero();
+
+  q_k_ql_.setZero();
+  q_k_qr_.setZero();
+  p_k_ql_.setZero();
+  p_k_qr_.setZero();
+
+  a_pos_x_.setZero();
+  a_pos_q_.setZero();
+  uba_pos_.setZero();
+  lba_pos_.setZero();
+
+  a_obs_.setZero();
+  uba_obs_.setZero();
+  lba_obs_.setZero();
+
+  a_ori_.setZero();
+  uba_ori_.setZero();
+  lba_ori_.setZero();
+
+  derv_a_cop_map_.setZero();
+  derv_a_foot_map_.setZero();
+
+  UpdateFootSelectionMatrix(); 
+
+  // Reset the base generator.
+  BaseGenerator::Reset();
 }

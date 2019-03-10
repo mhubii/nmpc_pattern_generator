@@ -61,6 +61,8 @@ public:
 
     void UpdateFootSelectionMatrix();
 
+    void Reset();
+
     // qpOASES specific things.
     std::vector<double> cpu_time_;
     int nwsr_;

@@ -24,11 +24,15 @@ public:
 
     // Getters.
     inline const double&              G()               const { return g_;                 };
+    inline const int&                 N()               const { return n_;                 };
     inline const double&              T()               const { return t_;                 };
     inline const double&              TStep()           const { return t_step_;            };
     inline const Eigen::Vector3d&     Ckx0()            const { return c_k_x_0_;           };
     inline const Eigen::Vector3d&     Cky0()            const { return c_k_y_0_;           };
     inline const Eigen::Vector3d&     Ckq0()            const { return c_k_q_0_;           };
+    inline const Eigen::VectorXd&     Ckp1x()           const { return c_kp1_x_;           };
+    inline const Eigen::VectorXd&     Ckp1y()           const { return c_kp1_y_;           };
+    inline const Eigen::VectorXd&     Ckp1q()           const { return c_kp1_q_;           };
     inline const Eigen::VectorXd&     Dddckx()          const { return dddc_k_x_;          };
     inline const Eigen::VectorXd&     Dddcky()          const { return dddc_k_y_;          };
     inline const double&              Hcom()            const { return h_com_0_;           };
@@ -63,6 +67,8 @@ public:
     void InitializeSelectionMatrices();
 
     void InitializeConvexHullSystems();
+
+    void Reset();
 
     void UpdateHulls();
 
