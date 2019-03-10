@@ -23,16 +23,17 @@ target_link_libraries(reinforcement_learning
 # Build examples.
 if (${REINFORCEMENT_LEARNING_EXAMPLES})
     set(EXAMPLES
-
+        ppo_example
     )
 
     foreach (example ${EXAMPLES})
         add_executable(${example}
-            src/${example}.cpp
+            examples/${example}.cpp
         )
 
         target_link_libraries(${example}
             reinforcement_learning
+            pattern_generator
         )
     endforeach(example ${EXAMPLES})
 endif (${REINFORCEMENT_LEARNING_EXAMPLES})

@@ -2,7 +2,7 @@
 
 #include <torch/torch.h>
 
-#include "Models.h"
+#include "models.h"
 
 // Vector of tensors.
 using VT = std::vector<torch::Tensor>;
