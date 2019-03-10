@@ -127,7 +127,7 @@ int main() {
 
     // Output.
     std::ofstream out;
-    out.open("data.csv");
+    out.open("example_ppo.csv");
 
     // Initial state of env.
     for (uint i=0;i<n_in;i++)

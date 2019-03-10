@@ -5,7 +5,7 @@
 
 int main() {
     // Initialize pattern generator.
-    const std::string config_file_loc = "../libs/pattern_generator/configs.yaml";
+    const std::string config_file_loc = "../../libs/pattern_generator/configs.yaml";
 
     NMPCGenerator nmpc(config_file_loc);
 
@@ -30,20 +30,20 @@ int main() {
 
 
     // Pattern generator event loop.
-    for (int i = 0; i < 200; i++) {
+    for (int i = 0; i < 400; i++) {
         std::cout << "Iteration: " << i << std::endl;
 
 
-        // // Change reference velocities.
-        // if (25 <= i && i < 50) {
-        //     velocity_reference << 0.1, 0., 0.1;
-        // }
-        // else if (50 <= i && i < 150) {
-        //     velocity_reference << 0.1, 0.1, 0.1;
-        // }
-        // else if (150 <= i && i < 200) {
-        //     velocity_reference << 0., 0., 0.;
-        // }
+        // Change reference velocities.
+        if (50 <= i && i < 100) {
+            velocity_reference << 0.1, 0., 0.1;
+        }
+        else if (100 <= i && i < 300) {
+            velocity_reference << 0.1, 0., -0.1;
+        }
+        else if (300 <= i && i < 400) {
+            velocity_reference << 0., 0., 0.;
+        }
 
 
         // Set reference velocities.

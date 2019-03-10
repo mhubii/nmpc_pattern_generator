@@ -6,7 +6,7 @@
 
 int main() {
     // Instantiate pattern generator.
-    const std::string config_file_loc = "../configs.yaml";
+    const std::string config_file_loc = "../../libs/pattern_generator/configs.yaml";
 
     MPCGenerator mpc(config_file_loc);
 
