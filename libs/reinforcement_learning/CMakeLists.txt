@@ -3,6 +3,7 @@ find_package(Torch REQUIRED)
 
 set(REINFORCEMENT_LEARNING_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/reinforcement_learning)
 include_directories(${REINFORCEMENT_LEARNING_INCLUDE_DIR})
+include_directories(${TORCH_INCLUDE_DIRS})
 
 # Headers for installation.
 list(APPEND REINFORCEMENT_LEARNING_INCLUDES ${REINFORCEMENT_LEARNING_INCLUDE_DIR}/proximal_policy_optimization.h)
