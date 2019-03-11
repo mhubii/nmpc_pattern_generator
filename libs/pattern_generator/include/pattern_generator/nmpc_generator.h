@@ -37,7 +37,7 @@
 class NMPCGenerator : public BaseGenerator
 {
 public:
-    NMPCGenerator(const std::string config_file_loc = "../libs/pattern_generator/configs.yaml");
+    NMPCGenerator(const std::string config_file_loc = "../../libs/pattern_generator/configs.yaml");
 
     void Solve();
     

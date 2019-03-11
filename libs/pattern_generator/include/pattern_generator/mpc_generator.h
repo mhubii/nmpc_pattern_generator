@@ -35,7 +35,7 @@
 class MPCGenerator : public BaseGenerator
 {
 public:
-    MPCGenerator(const std::string config_file_loc = "../libs/pattern_generator/configs.yaml");
+    MPCGenerator(const std::string config_file_loc = "../../libs/pattern_generator/configs.yaml");
 
     void Solve();
 
