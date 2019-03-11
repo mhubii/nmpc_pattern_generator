@@ -6,7 +6,7 @@
 #include "proximal_policy_optimization.h"
 #include "timer.h"
 
-enum AGENT {
+enum STATUS {
     PLAYING,
     REACHEDGOAL,
     MISSEDGOAL,
@@ -49,7 +49,7 @@ struct NMPCEnvironment
 
         // Update state.
         pos_ << nmpc_.Ckx0()[0], nmpc_.Cky0()[0];
-        vel_ << nmpc_.Ckx0()[1], nmpc_.Cky0()[1], nmpc_.Ckq0()[1];
+        vel_ << nmpc_.LocalVelRef();
         obs_ << nmpc_.XObs(), nmpc_.YObs();
         r_obs_ = nmpc_.RObs();
         goal_.setZero();
@@ -59,7 +59,7 @@ struct NMPCEnvironment
     };
 
     // Functions to interact with the environment for reinforcement learning.
-    auto Act(Eigen::Vector3d vel) -> std::tuple<Eigen::VectorXd /*state*/, AGENT>
+    auto Act(Eigen::Vector3d vel) -> std::tuple<Eigen::VectorXd /*state*/, STATUS>
     {
         old_dist_ = (goal_ - pos_).norm();
 
@@ -74,26 +74,26 @@ struct NMPCEnvironment
 
         // Update state.
         pos_ << nmpc_.Ckx0()[0], nmpc_.Cky0()[0];
-        vel_ << nmpc_.Ckx0()[1], nmpc_.Cky0()[1], nmpc_.Ckq0()[1];
+        vel_ << nmpc_.LocalVelRef();
         state_ << pos_, vel_, obs_, r_obs_, goal_;
 
         // Check game targets.
-        AGENT agent;
+        STATUS status;
 
-        if ((goal_ - pos_).norm() < 4e-1) {
-            agent = REACHEDGOAL;
+        if ((goal_ - pos_).norm() < 1e-1) {
+            status = REACHEDGOAL;
         }
-        else if ((goal_ - pos_).norm() > 1e1) {
-            agent = MISSEDGOAL;
+        else if ((goal_ - pos_).norm() > 2.5) {
+            status = MISSEDGOAL;
         }
         else if ((obs_ - pos_).norm() < nmpc_.RObs()) {
-            agent = HITOBSTACLE;
+            status = HITOBSTACLE;
         }
         else {
-            agent = PLAYING;
+            status = PLAYING;
         }
 
-        return std::make_tuple(state_, agent);
+        return std::make_tuple(state_, status);
     };
 
     auto Reward() -> double
@@ -118,7 +118,7 @@ struct NMPCEnvironment
 
         // Reset the states.
         pos_ << nmpc_.Ckx0()[0], nmpc_.Cky0()[0];
-        vel_ << nmpc_.Ckx0()[1], nmpc_.Cky0()[1], nmpc_.Ckq0()[1];
+        vel_ << nmpc_.LocalVelRef();
         state_ << pos_, vel_, obs_, r_obs_, goal_;
     };
 
@@ -172,12 +172,13 @@ int main(int argc, char** argv)
     // Random engine for spawning the goal and the obstacle.
     std::random_device rd;
     std::mt19937 re(rd());
-    std::uniform_int_distribution<> dist_goal(-5, 5);
-    std::uniform_real_distribution<> dist_obs(-1, 1); // spawn obstacle in the center of a line between spawn and goal
+    std::uniform_real_distribution<> dist_goal(0, M_PI);
+    std::uniform_real_distribution<> dist_obs(0.4, 0.6); // spawn obstacle in the center of a line between spawn and goal
 
-    Eigen::Vector2d goal(double(dist_goal(re)), double(dist_goal(re)));
+    double angle = dist_goal(re);
+    Eigen::Vector2d goal(cos(angle), sin(angle)); // spawn goal on unit circle
     Eigen::Vector2d line = goal - env.pos_;
-    Eigen::Vector2d obs = line - 0.5*line + 0.5*line.norm()*dist_obs(re)*line.normalized();
+    Eigen::Vector2d obs = dist_obs(re)*line;
     double r_obs = 0.1;
 
     env.SetGoal(goal);
@@ -194,20 +195,11 @@ int main(int argc, char** argv)
     torch::optim::Adam opt(ac.parameters(), 1e-3);
 
     // Training loop.
-    uint n_iter = 1000;
+    uint n_iter = 10000;
     uint n_steps = 64;
     uint n_epochs = 20;
     uint mini_batch_size = 16;
     uint ppo_epochs = uint(n_steps/mini_batch_size);
-
-    torch::Tensor state = torch::zeros({1, n_in}, torch::kF64);
-    torch::Tensor action = torch::zeros({1, n_out}, torch::kF64);
-    torch::Tensor reward = torch::zeros({1, 1}, torch::kF64);
-    torch::Tensor next_state = torch::zeros({1, n_in}, torch::kF64);
-    torch::Tensor done = torch::zeros({1, 1}, torch::kF64);
-
-    torch::Tensor log_prob = torch::zeros({1, 1}, torch::kF64);
-    torch::Tensor value = torch::zeros({1, 1}, torch::kF64);
 
     VT states(n_steps, torch::zeros({1, n_in}, torch::kF64));
     VT actions(n_steps, torch::zeros({1, n_out}, torch::kF64));
@@ -223,14 +215,8 @@ int main(int argc, char** argv)
     std::ofstream out;
     out.open("example_ppo.csv");
 
-    // Initial system's state.
-    for (uint i=0;i<n_in;i++)
-    {
-        state[0][i] = env.state_(i);
-    }
-
-    // episode, agent_x, agent_y, goal_x, goal_y, AGENT=(PLAYING, WON, LOST)
-    out << 1 << ", " << env.pos_(0) << ", " << env.pos_(1) << ", " << env.goal_(0) << ", " << env.goal_(1) << ", " << RESETTING << "\n";
+    // episode, agent_x, agent_y, goal_x, goal_y, STATUS=(PLAYING, REACHEDGOAL, MISSEDGOAL, HITOBSTACLE, RESETTING)
+    out << 1 << ", " << env.pos_(0) << ", " << env.pos_(1) << ", " << env.obs_(0) << ", " << env.obs_(1) << ", " << env.r_obs_ << ", " << env.goal_(0) << ", " << env.goal_(1) << ", " << RESETTING << "\n";
 
     // Counter.
     uint c = 0;
@@ -241,14 +227,31 @@ int main(int argc, char** argv)
 
         for (uint i=0;i<n_iter;i++)
         {
+            torch::Tensor state = torch::zeros({1, n_in}, torch::kF64);
+            torch::Tensor action = torch::zeros({1, n_out}, torch::kF64);
+            torch::Tensor reward = torch::zeros({1, 1}, torch::kF64);
+            torch::Tensor next_state = torch::zeros({1, n_in}, torch::kF64);
+            torch::Tensor done = torch::zeros({1, 1}, torch::kF64);
+
+            torch::Tensor log_prob = torch::zeros({1, 1}, torch::kF64);
+            torch::Tensor value = torch::zeros({1, 1}, torch::kF64);
+
+            // System's state.
+            for (uint i=0;i<n_in;i++)
+            {
+                state[0][i] = env.state_(i);
+            }
+
             // Play.
+            double v_max = 0.1;
+
             auto av = ac.forward(state);
             action = std::get<0>(av);
             value = std::get<1>(av);
             log_prob = ac.log_prob(action);
 
             Eigen::Vector3d vel(*(action.data<double>()), *(action.data<double>()+1), *(action.data<double>()+2));
-            auto sd = env.Act(vel);
+            auto sd = env.Act(v_max*vel);
 
             // New state.
             reward[0][0] = env.Reward();
@@ -278,19 +281,18 @@ int main(int argc, char** argv)
                     break;
             }
 
-            // episode, agent_x, agent_y, goal_x, goal_y, AGENT=(PLAYING, WON, LOST)
-            out << e+1 << ", " << env.pos_(0) << ", " << env.pos_(1) << ", " << env.goal_(0) << ", " << env.goal_(1) << ", " << std::get<1>(sd) << "\n";
-
+            // episode, agent_x, agent_y, goal_x, goal_y, STATUS=(PLAYING, REACHEDGOAL, MISSEDGOAL, HITOBSTACLE, RESETTING)
+            out << e+1 << ", " << env.pos_(0) << ", " << env.pos_(1) << ", " << env.obs_(0) << ", " << env.obs_(1) << ", " << env.r_obs_ << ", " << env.goal_(0) << ", " << env.goal_(1)  << ", " << std::get<1>(sd) << "\n";
 
             // Store everything.
-            states[c].copy_(state);
-            rewards[c].copy_(reward);
-            actions[c].copy_(action);
-            next_states[c].copy_(next_state);
-            dones[c].copy_(done);
+            states[c] = state;
+            rewards[c] = reward;
+            actions[c] = action;
+            next_states[c] = next_state;
+            dones[c] = done;
 
-            log_probs[c].copy_(log_prob);
-            values[c].copy_(value);
+            log_probs[c] = log_prob;
+            values[c] = value;
             
             c++;
 
@@ -313,26 +315,22 @@ int main(int argc, char** argv)
                 c = 0;
             }
 
-            state.copy_(next_state);
-
             if (*(done.data<double>()) == 1.) 
             {
                 // Reset the environment.
                 env.Reset();
 
                 // Set a new goal and a new obstacle.
-                goal << double(dist_goal(re)), double(dist_goal(re));
+                angle = dist_goal(re);
+                goal << cos(angle), sin(angle);
                 line = goal - env.pos_;
-                obs = line - 0.5*line + 0.5*line.norm()*dist_obs(re)*line.normalized();
+                obs = dist_obs(re)*line;
 
                 env.SetGoal(goal);
                 env.SetObstacle(obs, r_obs);
 
-                // Initial state of env.
-                for (uint i=0;i<n_in;i++)
-                {
-                    state[0][i] = env.state_(i);
-                }
+                // episode, agent_x, agent_y, goal_x, goal_y, STATUS=(PLAYING, REACHEDGOAL, MISSEDGOAL, HITOBSTACLE, RESETTING)
+                out << e+1 << ", " << env.pos_(0) << ", " << env.pos_(1) << ", " << env.obs_(0) << ", " << env.obs_(1) << ", " << env.r_obs_ << ", " << env.goal_(0) << ", " << env.goal_(1)  << ", " << RESETTING << "\n";
             }
         }
 
@@ -340,22 +338,19 @@ int main(int argc, char** argv)
         env.Reset();
 
         // Set a new goal and a new obstacle.
-        goal << double(dist_goal(re)), double(dist_goal(re));
+        angle = dist_goal(re);
+        goal << cos(angle), sin(angle);
         line = goal - env.pos_;
-        obs = line - 0.5*line + 0.5*line.norm()*dist_obs(re)*line.normalized();
+        obs = dist_obs(re)*line;
 
         env.SetGoal(goal);
         env.SetObstacle(obs, r_obs);
 
-        // Initial state of env.
-        for (uint i=0;i<n_in;i++)
-        {
-            state[0][i] = env.state_(i);
-        }
-
-        // episode, agent_x, agent_y, goal_x, goal_y, AGENT=(PLAYING, WON, LOST)
-        out << e+1 << ", " << env.pos_(0) << ", " << env.pos_(1) << ", " << env.goal_(0) << ", " << env.goal_(1) << ", " << RESETTING << "\n";
+        // episode, agent_x, agent_y, goal_x, goal_y, STATUS=(PLAYING, REACHEDGOAL, MISSEDGOAL, HITOBSTACLE, RESETTING)
+        out << e+1 << ", " << env.pos_(0) << ", " << env.pos_(1) << ", " << env.obs_(0) << ", " << env.obs_(1) << ", " << env.r_obs_ << ", " << env.goal_(0) << ", " << env.goal_(1)  << ", " << RESETTING << "\n";
     }
+
+    out.close();
 
     return 0;
 }
