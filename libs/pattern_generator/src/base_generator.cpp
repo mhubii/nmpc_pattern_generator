@@ -200,14 +200,14 @@ BaseGenerator::BaseGenerator(const std::string config_file_loc)
       
       // Matrices containing constraints representing a 
       // strictly convex obstacle in space.
-      nc_obs_(nf_), // TODO: change for multiple objects!!
+      nc_obs_(nf_),
       x_obs_(configs_["x_pos"].as<double>()),
       y_obs_(configs_["y_pos"].as<double>()),
       r_obs_(configs_["radius"].as<double>()),
       r_margin_(0.2 + std::max(foot_width_, foot_height_)),
       co_({x_obs_, y_obs_, r_obs_ + r_margin_ , r_margin_}),
 
-      h_obs_(nf_, 2*(n_ + nf_), 2*(n_ + nf_)),
+      h_obs_(nf_, 2*(n_ + nf_), 2*(n_ + nf_)), // TODO: change for multiple objects!!
       a_obs_(nf_, 2*(n_ + nf_)),
       b_obs_(nf_),
       lb_obs_(nf_),
@@ -338,6 +338,14 @@ void BaseGenerator::SetVelocityReference(Eigen::Vector3d& local_vel_ref) {
   dc_kp1_x_ref_.setConstant(local_vel_ref(0)*cos(q) - local_vel_ref(1)*sin(q));  
   dc_kp1_y_ref_.setConstant(local_vel_ref(0)*sin(q) + local_vel_ref(1)*cos(q));
   dc_kp1_q_ref_.setConstant(local_vel_ref(2));
+}
+
+void BaseGenerator::SetObstacle(Circle& circ) {
+  // Set the obstacle.
+  co_ = circ;
+
+  // Rebuild the constraints.
+  BuildObstacleConstraint();
 }
 
 PatternGeneratorState BaseGenerator::Update() {
@@ -1150,7 +1158,6 @@ void BaseGenerator::BuildObstacleConstraint() {
     b_obs_(i)                                 = co_.x0*co_.x0 + co_.y0*co_.y0 - co_.r*co_.r;
     lb_obs_(i)                                = -b_obs_(i);
   }
-
 }
 
 void BaseGenerator::UpdateCopConstraintTransformation() {

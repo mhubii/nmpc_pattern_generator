@@ -3,7 +3,7 @@
 #include <torch/torch.h>
 #include <math.h>
 
-// Network model for Proximal Policy Optimization on Incy Wincy.
+// Network model for Proximal Policy Optimization with Nonlinear Model Predictive Control.
 struct ActorCritic : public torch::nn::Module 
 {
     // Actor.

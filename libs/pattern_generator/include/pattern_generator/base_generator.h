@@ -47,6 +47,10 @@ public:
     inline const double&              FootDistance()    const { return foot_distance_;     };
     inline const BaseTypeSupportFoot& CurrentSupport()  const { return current_support_;   };
     inline const Eigen::VectorXi&     Vkp10()           const { return v_kp1_0_;           };
+    inline const double&              XObs()            const { return x_obs_;             };
+    inline const double&              YObs()            const { return y_obs_;             };
+    inline const double&              RObs()            const { return r_obs_;             };
+    inline const double&              RMargin()         const { return r_margin_;          };
 
 
 
@@ -57,6 +61,8 @@ public:
     void SetInitialValues(PatternGeneratorState& initial_state);
 
     void SetVelocityReference(Eigen::Vector3d& local_vel_ref);
+
+    void SetObstacle(Circle& circ);
 
     PatternGeneratorState Update();
 
