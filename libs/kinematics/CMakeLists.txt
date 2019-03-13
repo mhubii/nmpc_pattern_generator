@@ -38,7 +38,6 @@ if (${KINEMATICS_EXAMPLES})
 
         target_link_libraries(${example}
             kinematics
-            pattern_generator
         )
     endforeach(example ${EXAMPLES})
 endif (${KINEMATICS_EXAMPLES})
