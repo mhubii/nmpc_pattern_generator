@@ -6,7 +6,7 @@
 int main() {
     
     // Initialize pattern generator.
-    const std::string config_file_loc = "../libs/pattern_generator/configs.yaml";
+    const std::string config_file_loc = "../../libs/pattern_generator/configs.yaml";
 
     NMPCGenerator nmpc(config_file_loc);
 
