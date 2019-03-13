@@ -24,7 +24,8 @@ target_link_libraries(reinforcement_learning
 # Build examples.
 if (${REINFORCEMENT_LEARNING_EXAMPLES})
     set(EXAMPLES
-        ppo_example
+        train_ppo_example
+        test_ppo_example
     )
 
     foreach (example ${EXAMPLES})

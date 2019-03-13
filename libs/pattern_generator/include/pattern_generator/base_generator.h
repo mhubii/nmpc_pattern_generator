@@ -36,6 +36,7 @@ public:
     inline const Eigen::VectorXd&     Dddckx()          const { return dddc_k_x_;          };
     inline const Eigen::VectorXd&     Dddcky()          const { return dddc_k_y_;          };
     inline const double&              Hcom()            const { return h_com_0_;           };
+    inline const Eigen::Vector3d&     LocalVelRef()     const { return local_vel_ref_;     };
     inline const double&              Fkx0()            const { return f_k_x_0_;           };
     inline const double&              Fky0()            const { return f_k_y_0_;           };
     inline const double&              Fkq0()            const { return f_k_q_0_;           };

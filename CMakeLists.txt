@@ -61,12 +61,21 @@ option(PATTERN_GENERATOR_TESTS "Build pattern generator tests." ON)
 add_subdirectory(libs/pattern_generator)
 
 
+# Reinforcement learning library.
+option(REINFORCEMENT_LEARNING_EXAMPLES "Build reinforcement learning examples." ON)
+
+option(REINFORCEMENT_LEARNING_TESTS "Build reinforcement learning tests." ON)
+
+add_subdirectory(libs/reinforcement_learning)
+
+
 # Source.
 set(SOURCES
     app_user_interface
     artificially_controlled_walking
     keyboard_user_interface
     # offline_walking
+    ppo_nmpc
     test_pg
     test_robot
     # train_artificial_walking
@@ -82,12 +91,14 @@ foreach (source ${SOURCES})
         PRIVATE libs/io_module/include/io_module
         PRIVATE libs/kinematics/include/kinematics
         PRIVATE libs/pattern_generator/include/pattern_generator
+        PRIVATE libs/reinforcement_learning/include/reinforcement_learning
     )
 
     target_link_libraries(${source}
         io_module
         kinematics
         pattern_generator
+        reinforcement_learning
     )
 endforeach(source ${SOURCES})
 

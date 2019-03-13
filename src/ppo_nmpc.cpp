@@ -28,9 +28,10 @@ struct NMPCEnvironment
     Eigen::VectorXd state_;
 
     double old_dist_;
+    double old_preview_dist_;
 
     // Constructor.
-    NMPCEnvironment(std::string config_file_loc) : nmpc_(config_file_loc), interpol_nmpc_(nmpc_), state_(10)
+    NMPCEnvironment(std::string config_file_loc) : nmpc_(config_file_loc), interpol_nmpc_(nmpc_), state_(11)
     {
         // Pattern generator preparation.
         nmpc_.SetSecurityMargin(nmpc_.SecurityMarginX(), 
@@ -56,12 +57,14 @@ struct NMPCEnvironment
         state_ << pos_, vel_, obs_, r_obs_, goal_;
 
         old_dist_ = (goal_ - pos_).norm();
+        old_preview_dist_ = PreviewDist();
     };
 
     // Functions to interact with the environment for reinforcement learning.
     auto Act(Eigen::Vector3d vel) -> std::tuple<Eigen::VectorXd /*state*/, STATUS>
     {
         old_dist_ = (goal_ - pos_).norm();
+        old_preview_dist_ = PreviewDist();
 
         // Run nmpc for one episode.
         nmpc_.SetVelocityReference(vel);
@@ -96,10 +99,25 @@ struct NMPCEnvironment
         return std::make_tuple(state_, status);
     };
 
-    auto Reward() -> double
+    auto Reward(double factor) -> double
     {
-        return old_dist_ - (goal_ - pos_).norm();
+        // return  - (goal_ - pos_).norm();//old_dist_ - (goal_ - pos_).norm();
+        return factor*(old_preview_dist_ - PreviewDist());
     };
+
+    auto PreviewDist() -> double
+    {
+        // Compute the average distance of the preview horizon from the goal.
+        auto x_dist = (nmpc_.Ckp1x().array() - goal_(0));
+        auto y_dist = (nmpc_.Ckp1y().array() - goal_(1));
+
+        auto x_dist_sq = x_dist*x_dist;
+        auto y_dist_sq = y_dist*y_dist;
+
+        auto dist = (x_dist_sq + y_dist_sq).sqrt();
+
+        return dist.matrix().sum()/dist.size();
+    }
 
     auto Reset() -> void
     {
@@ -128,13 +146,16 @@ struct NMPCEnvironment
         goal_(1) = goal(1);
 
         old_dist_ = (goal_ - pos_).norm();
+        old_preview_dist_ = PreviewDist();
         state_ << pos_, vel_, obs_, r_obs_, goal_;
     };
 
     auto SetObstacle(Eigen::Vector2d obs, double r) -> void
     {
-        obs_(0) = obs(0);
-        obs_(1) = obs(1);
+        // obs_(0) = obs(0);
+        // obs_(1) = obs(1);
+        obs_(0) = 10.;
+        obs_(1) = 0.;
         r_obs_ = r;
         double r_margin = nmpc_.RMargin();
 
@@ -197,7 +218,7 @@ int main(int argc, char** argv)
     // Training loop.
     uint n_iter = 10000;
     uint n_steps = 64;
-    uint n_epochs = 20;
+    uint n_epochs = 10;
     uint mini_batch_size = 16;
     uint ppo_epochs = uint(n_steps/mini_batch_size);
 
@@ -254,7 +275,7 @@ int main(int argc, char** argv)
             auto sd = env.Act(v_max*vel);
 
             // New state.
-            reward[0][0] = env.Reward();
+            reward[0][0] = env.Reward(1e2);
             for (uint i=0;i<n_in;i++)
             {
                 next_state[0][i] = std::get<0>(sd)(i);
@@ -265,7 +286,7 @@ int main(int argc, char** argv)
                     done[0][0] = 0.;
                     break;
                 case REACHEDGOAL:
-                    reward[0][0] += 10.;
+                    reward[0][0] += 100.;
                     done[0][0] = 1.;
                     printf("reached goal, reward: %f\n", *(reward.data<double>()));
                     break;
