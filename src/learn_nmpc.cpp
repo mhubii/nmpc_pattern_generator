@@ -1,9 +1,10 @@
 #include <torch/torch.h>
+#include <fstream>
 
 #include "base_generator.h"
 #include "utils.h"
 
-int64_t epochs = 10;
+int64_t n_epochs = 10;
 int64_t batch_size = 64;
 int64_t log_interval = 10;
 
@@ -110,7 +111,7 @@ optional<size_t> PG::size() const
 
 // Training functions.
 template <typename DataLoader>
-void train(int32_t epoch,
+float train(int32_t epoch,
            Net& model,
            torch::Device device,
            DataLoader& data_loader,
@@ -119,6 +120,11 @@ void train(int32_t epoch,
 {
     model->train();
     size_t batch_idx = 0;
+
+    // Track loss.
+    float mse_ = 0.; // mean squared error
+    float lpb = 0.; // loss per batch
+
     for (auto& batch : data_loader) 
     {
         auto data = batch.data.to(device), targets = batch.target.to(device);
@@ -128,6 +134,8 @@ void train(int32_t epoch,
         AT_ASSERT(!std::isnan(loss.template item<float>())); // thats nice!!!
         loss.backward();
         optimizer.step();
+
+        mse_ += loss.template item<float>();
 
         if (batch_idx++ % log_interval == 0) 
         {
@@ -139,6 +147,11 @@ void train(int32_t epoch,
             loss.template item<float>());
         }
     }
+    size_t N = batch_idx*batch_size;
+    mse_ /= (float)N;
+    printf(" Mean squared error: %f\n", mse_);
+
+    return mse_;
 }
 
 
@@ -174,11 +187,30 @@ int main() {
     model->to(device);
     torch::optim::Adam opt(model->parameters(), torch::optim::AdamOptions(1e-3));
 
+    // Track best loss and save best model.
+    float best_mse = std::numeric_limits<float>::max();
+    float mse = 0.;;
+
+    // Save lost history.
+    std::ofstream out;
+    out.open("loss_hist.csv");
+
     printf("Starting the training.\n");
-    for (int epoch = 1; epoch <= epochs; epoch++)
+    for (int epoch = 1; epoch <= n_epochs; epoch++)
     {
-        train(epoch, model, device, *data_loader, opt, data_set_size);
+        mse = train(epoch, model, device, *data_loader, opt, data_set_size);
+
+        if (mse < best_mse)
+        {
+            torch::save(model, "best_model.pt");
+            best_mse = mse;
+        }
+
+        out << epoch << ", " << mse << ", " << loss_per_batch << "\n";
     }
+
+    printf("Saving loss history to lost_hist.csv\n");
+    out.close();
 
     return 0;
 }
