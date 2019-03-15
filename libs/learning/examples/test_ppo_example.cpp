@@ -1,9 +1,9 @@
 #include <fstream>
 #include <Eigen/Core>
 #include <torch/torch.h>
-#include "ProximalPolicyOptimization.h"
-#include "Models.h"
-#include "TestEnvironment.h"
+#include "proximal_policy_optimization.h"
+#include "models.h"
+#include "test_environment.h"
 
 int main() {
 

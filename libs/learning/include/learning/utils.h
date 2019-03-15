@@ -1,7 +1,11 @@
 #pragma once
 
+#include <fstream>
 #include <string>
 #include <Eigen/Core>
+
+// Eigen row major storage order to be compatible with qpOASES.
+typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> RowMatrixXd;
 
 // Load data from .csv to Eigen matrix.
 template<typename M>

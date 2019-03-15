@@ -33,6 +33,7 @@ target_link_libraries(pattern_generator
 if (${PATTERN_GENERATOR_EXAMPLES})
     set(EXAMPLES
         mpc_generator_example
+        nmpc_generate_data_example
         nmpc_generator_example
     )
 
