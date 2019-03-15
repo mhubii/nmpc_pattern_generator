@@ -43,6 +43,8 @@ public:
     inline const Eigen::VectorXd&     Fkx()             const { return f_k_x_;             };
     inline const Eigen::VectorXd&     Fky()             const { return f_k_y_;             };
     inline const Eigen::VectorXd&     Fkq()             const { return f_k_q_;             };
+    inline const Eigen::VectorXd&     Dddfkql()         const { return dddf_k_ql_;         };
+    inline const Eigen::VectorXd&     Dddfkqr()         const { return dddf_k_qr_;         };
     inline const double&              SecurityMarginX() const { return security_margin_x_; };
     inline const double&              SecurityMarginY() const { return security_margin_y_; };
     inline const double&              FootDistance()    const { return foot_distance_;     };
