@@ -45,6 +45,14 @@ public:
     inline const Eigen::VectorXd&     Fkq()             const { return f_k_q_;             };
     inline const Eigen::VectorXd&     Dddfkql()         const { return dddf_k_ql_;         };
     inline const Eigen::VectorXd&     Dddfkqr()         const { return dddf_k_qr_;         };
+    inline const Eigen::MatrixXd&     PPS()             const { return pps_;               };
+    inline const Eigen::MatrixXd&     PPU()             const { return ppu_;               };
+    inline const Eigen::MatrixXd&     PVS()             const { return pvs_;               };
+    inline const Eigen::MatrixXd&     PVU()             const { return pvu_;               };
+    inline const Eigen::MatrixXd&     PAS()             const { return pas_;               };
+    inline const Eigen::MatrixXd&     PAU()             const { return pau_;               };
+    inline const Eigen::MatrixXd&     PZS()             const { return pzs_;               };
+    inline const Eigen::MatrixXd&     PZU()             const { return pzu_;               };
     inline const double&              SecurityMarginX() const { return security_margin_x_; };
     inline const double&              SecurityMarginY() const { return security_margin_y_; };
     inline const double&              FootDistance()    const { return foot_distance_;     };
