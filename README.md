@@ -101,5 +101,19 @@ WriteCsv("example_nmpc_generator_interpolated_results.csv", trajectories);
 
 
 ## Run Tests
+To verify your installation, you can run the provided tests
+
+```
+cd build/bin
+./pattern_generator_tests
+```
+
+It should output
 
 
+<br>
+<figure>
+  <p align="center"><img src="img/testing.png" width="80%" height="80%"></p>
+  <figcpation>Fig. 3: Expected terminal output for testing.</figcaption>
+</figure>
+<br><br>
