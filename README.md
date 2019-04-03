@@ -108,11 +108,29 @@ cd build/bin
 ./pattern_generator_tests
 ```
 
-It should output
+The tests are written with [googletest](https://github.com/google/googletest), which is included as a submodule. They should output
 
-<br>
-<figure>
-  <p align="center"><img src="img/testing.png" width="60%" height="60%"></p>
-  <figcpation>Fig. 3: Expected terminal output for testing.</figcaption>
-</figure>
-<br><br>
+```
+[==========] Running 4 tests from 3 test suites.
+[----------] Global test environment set-up.
+[----------] 2 tests from CompareMPCToNMPC
+[ RUN      ] CompareMPCToNMPC.Submatrices
+[       OK ] CompareMPCToNMPC.Submatrices (49 ms)
+[ RUN      ] CompareMPCToNMPC.CompareConstraintMatrices
+[       OK ] CompareMPCToNMPC.CompareConstraintMatrices (26 ms)
+[----------] 2 tests from CompareMPCToNMPC (75 ms total)
+
+[----------] 1 test from MPCGeneratorTest
+[ RUN      ] MPCGeneratorTest.Solve
+[       OK ] MPCGeneratorTest.Solve (69 ms)
+[----------] 1 test from MPCGeneratorTest (69 ms total)
+
+[----------] 1 test from NMPCGeneratorTest
+[ RUN      ] NMPCGeneratorTest.Solve
+[       OK ] NMPCGeneratorTest.Solve (225 ms)
+[----------] 1 test from NMPCGeneratorTest (225 ms total)
+
+[----------] Global test environment tear-down
+[==========] 4 tests from 3 test suites ran. (369 ms total)
+[  PASSED  ] 4 tests.
+```
