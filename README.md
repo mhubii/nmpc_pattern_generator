@@ -13,7 +13,7 @@ To build the project, we need to take care of the dependencies first.
 
 ### RBDL
 The rigid body kinematics are solved with RBDL. To install RBDL, do
-```bash
+```
 hg clone https://bitbucket.org/rbdl/rbdl
 cd rbdl
 hd checkout dev
@@ -29,12 +29,29 @@ For PyTorch to work in combination with RBDL, we need a source installation. Ple
 
 ### YAML
 The configurations are read in using the YAML file format. Run the command
-```bash
+```
 sudo apt install libyaml-cpp-dev
 ```
 
 ### YARP
 Additionally, for communicating with the real robot, or the simulation, we need [YARP](https://www.yarp.it/). To install YARP, follow the [installation instructions](https://www.yarp.it/install.html).
+
+Once all dependencies are installed, build the project with
+
+
+```
+cd nmpc_pattern_generator
+mkdir build && cd build
+cmake ..
+make
+```
+
+You can install and uninstall the project with
+
+```
+make install # to install
+make uninstall # to uninstall
+```
 
 ## Usage
 An example on how the NMPC pattern generator is ment to be used, can be executed by calling
