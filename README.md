@@ -12,16 +12,29 @@ This project implements [A Reactive Walking Pattern Generator Based on Nonlinear
 To build the project, we need to take care of the dependencies first.
 
 ### RBDL
+The rigid body kinematics are solved with RBDL. To install RBDL, do
+```bash
+hg clone https://bitbucket.org/rbdl/rbdl
+cd rbdl
+hd checkout dev
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release -DRBDL_BUILD_ADDON_URDFREADER=ON ..
+```
 
 ### qpOASES
+To solve the sequential quadratic program, we need to install qpOASES. Please follow the [install instructions](https://projects.coin-or.org/qpOASES/wiki/QpoasesInstallation). 
 
 ### PyTorch
+For PyTorch to work in combination with RBDL, we need a source installation. Please checkout this [gist](https://gist.github.com/mhubii/1c1049fb5043b8be262259efac4b89d5) to figure out how to perform a clean setup.
 
 ### YAML
-
-Additionally, for communication with the real robot, or the simulation, we need [YARP](https://www.yarp.it/).
+The configurations are read in using the YAML file format. Run the command
+```bash
+sudo apt install libyaml-cpp-dev
+```
 
 ### YARP
+Additionally, for communicating with the real robot, or the simulation, we need [YARP](https://www.yarp.it/). To install YARP, follow the [installation instructions](https://www.yarp.it/install.html).
 
 ## Usage
 An example on how the NMPC pattern generator is ment to be used, can be executed by calling
