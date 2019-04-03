@@ -32,15 +32,15 @@ python plot_pattern.py
 </figure>
 <br><br>
 
-We will go through the most important parts of the pattern generation in the following
-
-
+We will go through the most important parts of the pattern generation in the following. The pattern generator reads in the configurations as a yaml file
 ```cpp
 // Initialize pattern generator.
 const std::string config_file_loc = "../../libs/pattern_generator/configs.yaml";
 
 NMPCGenerator nmpc(config_file_loc);
-
+```
+Then, we need to set the initial values
+```cpp
 // Pattern generator preparation.
 nmpc.SetSecurityMargin(nmpc.SecurityMarginX(), 
                        nmpc.SecurityMarginY());
@@ -54,11 +54,17 @@ PatternGeneratorState pg_state = {nmpc.Ckx0(),
                                   nmpc.Fkq0(),
                                   nmpc.CurrentSupport().foot,
                                   nmpc.Ckq0()};
-
+                                  
 nmpc.SetInitialValues(pg_state);
+```
+We further interpolate between consecutive positions of the preview horizon and specify that we want to keep the interpolated points in memory, so we can safe them afterwards
+```cpp
 Interpolation interpol_nmpc(nmpc);
 interpol_nmpc.StoreTrajectories(true);
-Eigen::Vector3d velocity_reference(0., 0., 0.1);
+```
+Then, a desired velocity can be set, and the pattern generation will be executed for some steps
+```cpp
+Eigen::Vector3d velocity_reference(0.1, 0., 0.);
 
 // Pattern generator event loop.
 for (int i = 0; i < 100; i++) {
@@ -76,12 +82,13 @@ for (int i = 0; i < 100; i++) {
     pg_state = nmpc.Update();
     nmpc.SetInitialValues(pg_state);
 }
-
+```
+Finally, we can store the resulting trajectories
+```cpp
 // Save interpolated results.
 Eigen::MatrixXd trajectories = interpol_nmpc.GetTrajectories().transpose();
 WriteCsv("example_nmpc_generator_interpolated_results.csv", trajectories);
 ```
-
 
 ## Run Tests
 To verify your installation, you can run the provided tests
