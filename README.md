@@ -110,10 +110,9 @@ cd build/bin
 
 It should output
 
-
 <br>
 <figure>
-  <p align="center"><img src="img/testing.png" width="80%" height="80%"></p>
+  <p align="center"><img src="img/testing.png" width="60%" height="60%"></p>
   <figcpation>Fig. 3: Expected terminal output for testing.</figcaption>
 </figure>
 <br><br>
