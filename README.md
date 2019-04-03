@@ -14,7 +14,7 @@ This project implements [A Reactive Walking Pattern Generator Based on Nonlinear
 
 ## Usage
 An example on how the NMPC pattern generator is ment to be used, can be executed by calling
-```bash
+```
 cd build/bin
 ./nmpc_generator_example
 ```
