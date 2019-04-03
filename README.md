@@ -25,6 +25,8 @@ make install # to install
 make uninstall # to uninstall
 ```
 
+## Dependencies
+
 ### RBDL
 The rigid body kinematics are solved with RBDL. To install RBDL, do
 ```
