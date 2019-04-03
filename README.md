@@ -9,8 +9,19 @@ This project implements [A Reactive Walking Pattern Generator Based on Nonlinear
 <br><br>
 
 ## Build
+To build the project, we need to take care of the dependencies first.
 
-### Dependencies
+### RBDL
+
+### qpOASES
+
+### PyTorch
+
+### YAML
+
+Additionally, for communication with the real robot, or the simulation, we need [YARP](https://www.yarp.it/).
+
+### YARP
 
 ## Usage
 An example on how the NMPC pattern generator is ment to be used, can be executed by calling
