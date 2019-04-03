@@ -60,39 +60,22 @@ Interpolation interpol_nmpc(nmpc);
 interpol_nmpc.StoreTrajectories(true);
 Eigen::Vector3d velocity_reference(0., 0., 0.1);
 
-
 // Pattern generator event loop.
-for (int i = 0; i < 400; i++) {
+for (int i = 0; i < 100; i++) {
     std::cout << "Iteration: " << i << std::endl;
-
-
-    // Change reference velocities.
-    if (50 <= i && i < 100) {
-        velocity_reference << 0.1, 0., 0.1;
-    }
-    else if (100 <= i && i < 300) {
-        velocity_reference << 0.1, 0., -0.1;
-    }
-    else if (300 <= i && i < 400) {
-        velocity_reference << 0., 0., 0.;
-    }
-
 
     // Set reference velocities.
     nmpc.SetVelocityReference(velocity_reference);
-
 
     // Solve QP.
     nmpc.Solve();
     nmpc.Simulate();
     interpol_nmpc.InterpolateStep();
 
-
     // Initial value embedding by internal states and simulation.
     pg_state = nmpc.Update();
     nmpc.SetInitialValues(pg_state);
 }
-
 
 // Save interpolated results.
 Eigen::MatrixXd trajectories = interpol_nmpc.GetTrajectories().transpose();
