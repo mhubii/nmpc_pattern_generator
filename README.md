@@ -72,7 +72,7 @@ python plot_pattern.py
 </figure>
 <br><br>
 
-We will go through the most important parts of the pattern generation in the following. The pattern generator reads in the configurations as a yaml file
+We will go through the most important parts of the pattern generation in the following. The pattern generator reads in the configurations as a YAML file
 ```cpp
 // Initialize pattern generator.
 const std::string config_file_loc = "../../libs/pattern_generator/configs.yaml";
