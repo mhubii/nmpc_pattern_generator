@@ -40,14 +40,13 @@ target_link_libraries(io_module
 # Build examples.
 if (${IO_MODULE_EXAMPLES})
     set(EXAMPLES
-        test_depth
-        test_reader
-        test_writer
+        reader_example
+	writer_example
     )
 
     foreach (example ${EXAMPLES})
         add_executable(${example}
-            src/${example}.cpp
+            examples/${example}.cpp
         )
 
         target_link_libraries(${example}
@@ -56,11 +55,6 @@ if (${IO_MODULE_EXAMPLES})
     endforeach(example ${EXAMPLES})
 endif (${IO_MODULE_EXAMPLES})
 
-
-# Build tests.
-if (${IO_MODULE_TESTS})
-
-endif (${IO_MODULE_TESTS})
 
 # Install directives input output module library.
 install(TARGETS io_module DESTINATION lib)

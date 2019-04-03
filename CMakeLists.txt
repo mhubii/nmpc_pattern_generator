@@ -35,48 +35,35 @@ add_subdirectory("${CMAKE_BINARY_DIR}/googletest-src"
 
 # Output for all libs.
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin)
 
 # Input output module library.
 option(IO_MODULE_EXAMPLES "Build input output module examples." ON)
-
-option(IO_MODULE_TESTS "Build input output module tests." ON)
-
 add_subdirectory(libs/io_module)
-
 
 # Kinematics library.
 option(KINEMATICS_EXAMPLES "Build kinematics examples." ON)
-
-option(KINEMATICS_TESTS "Build kinematics tests." ON)
-
 add_subdirectory(libs/kinematics)
-
 
 # Pattern generator library.
 option(PATTERN_GENERATOR_EXAMPLES "Build pattern generator examples." ON)
-
 option(PATTERN_GENERATOR_TESTS "Build pattern generator tests." ON)
-
 add_subdirectory(libs/pattern_generator)
-
 
 # Reinforcement learning library.
 option(LEARNING_EXAMPLES "Build reinforcement learning examples." ON)
-
-option(LEARNING_TESTS "Build reinforcement learning tests." ON)
-
 add_subdirectory(libs/learning)
-
 
 # Source.
 set(SOURCES
     app_user_interface
     artificially_controlled_walking
     keyboard_user_interface
-    learn_nmpc
-    # offline_walking
+    # learn_nmpc_dcgan
+    learn_nmpc_fc
+    offline_walking
     ppo_nmpc
+    predict_nmpc
     test_pg
     test_robot
     # train_artificial_walking

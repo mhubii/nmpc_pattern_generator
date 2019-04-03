@@ -28,12 +28,12 @@ target_link_libraries(kinematics
 # Build examples.
 if (${KINEMATICS_EXAMPLES})
     set(EXAMPLES
-        test_inverse_kinematics
+        inverse_kinematics_example
     )
 
     foreach (example ${EXAMPLES})
         add_executable(${example}
-            src/${example}.cpp
+            examples/${example}.cpp
         )
 
         target_link_libraries(${example}
@@ -42,11 +42,6 @@ if (${KINEMATICS_EXAMPLES})
     endforeach(example ${EXAMPLES})
 endif (${KINEMATICS_EXAMPLES})
 
-
-# Build tests.
-if (${KINEMATICS_TESTS})
-
-endif (${KINEMATICS_TESTS})
 
 # Install directives kinematics.
 install(TARGETS kinematics DESTINATION lib)

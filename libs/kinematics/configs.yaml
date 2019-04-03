@@ -1,5 +1,5 @@
 # Location of the urdf model.
-urdf_loc: ../models/icub_heidelberg01_no_weights.urdf
+urdf_loc: ../../models/icub_heidelberg01_no_weights.urdf
 
 # Number of pre-initializations for inverse kinematics.
 n_init: 10

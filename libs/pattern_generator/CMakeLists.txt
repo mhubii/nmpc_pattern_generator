@@ -62,10 +62,6 @@ if (${PATTERN_GENERATOR_TESTS})
         gtest_main
         pattern_generator
     )
-
-    add_test(pattern_generator_tests
-        pattern_generator_tests
-    )
 endif(${PATTERN_GENERATOR_TESTS})
 
 # Install derictives pattern generator.

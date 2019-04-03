@@ -7,7 +7,7 @@
 int main() {
     
     // Initialize inverse kinematics.
-    const std::string config_file_loc = "../libs/kinematics/configs.yaml";
+    const std::string config_file_loc = "../../libs/kinematics/configs.yaml";
 
     Kinematics k(config_file_loc);
 
