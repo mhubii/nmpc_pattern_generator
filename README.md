@@ -34,6 +34,13 @@ The pattern generator is based on the blazingly fast Eigen library. To install i
 sudo apt install libeigen3-dev
 ```
 
+You may need to create a symbolic link
+
+```
+sudo ln -s /usr/include/eigen3/Eigen/ /usr/include/
+sudo ln -s /usr/include/eigen3/unsupported/ /usr/include/
+```
+
 ### qpOASES
 To solve the sequential quadratic program, we need to install qpOASES. Please follow the [install instructions](https://projects.coin-or.org/qpOASES/wiki/QpoasesInstallation), or head on as described below
 ```shell
@@ -56,6 +63,8 @@ sudo apt install libyaml-cpp-dev
 ```
 
 ## Other Dependencies
+
+To run the NMPC generator on a real robot or the simulation, we will need to install some more dependencies.
 
 ### RBDL
 The rigid body kinematics are solved with RBDL. To install RBDL, do
@@ -104,6 +113,13 @@ Next, you need to tell Gazebo where to find the plugins, therefore add following
 
 ```
 export GAZEBO_PLUGIN_PATH=${GAZEBO_PLUGIN_PATH}:$HOME/gazebo-yarp-plugins/lib
+```
+
+### NCurses
+For the visualization of the control pannel, we need to install ncurses, do
+
+```
+sudo apt install libncurses5-dev
 ```
 
 ## Usage
