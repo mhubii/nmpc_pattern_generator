@@ -1,5 +1,5 @@
 # Configurations.
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.10)
 
 set(CMAKE_INSTALL_PREFIX $ENV{HOME}/nmpc_pattern_generator CACHE STRING "Install path prefix default.")
 
