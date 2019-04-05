@@ -11,7 +11,8 @@ int main() {
     // Random velocity generation.
     std::random_device rd;
     std::mt19937 re(rd());
-    std::uniform_real_distribution<double> dist(-1., 1.);
+    // std::uniform_real_distribution<double> dist(0., 1.);
+    std::uniform_int_distribution<> dist(1, 3);
 
     // Initialize pattern generator.
     const std::string config_file_loc = "../../libs/pattern_generator/configs.yaml";
@@ -35,8 +36,8 @@ int main() {
     nmpc.SetInitialValues(pg_state);  
     Eigen::Vector3d velocity_reference(0., 0., 0.);
 
-    int epochs = 1e4;
-    int iter = 1e2;
+    int epochs = 1e3;
+    int iter = 2e1;
 
     // Store trajectories. Optimal control := oc, preview horizon := ph.
     Eigen::MatrixXd init = Eigen::MatrixXd::Zero(iter, nmpc.LocalVelRef().size()+
@@ -63,7 +64,8 @@ int main() {
         printf("Epoch %d/%d\n", e, epochs);
 
         // Generate random velocity.
-        velocity_reference <<  dist(re)/2., dist(re)/5.,  dist(re)/10.;
+        velocity_reference <<  double(dist(re))*0.01, 0., 0.;// dist(re)/5., dist(re)/10.;
+        // velocity_reference << 0.01, 0., 0.;
 
         // Pattern generator event loop.
         for (int i = 0; i < iter; i++) {
@@ -75,7 +77,7 @@ int main() {
             init.row(i) << nmpc.LocalVelRef().transpose(), 
                            nmpc.Ckx0().transpose(), 
                            nmpc.Cky0().transpose(), 
-                           nmpc.Ckq0().transpose(), 
+                           nmpc.Ckq0().transpose(),
                            nmpc.Fkx0(), nmpc.Fky0(); 
 
             // Solve QP.
@@ -88,13 +90,13 @@ int main() {
 
             // Save the solutions of the OCP.
             oc_ph_com.row(i) << nmpc.Dddckx().transpose(), 
-                                nmpc.Dddcky().trace();
+                                nmpc.Dddcky().transpose();
 
             oc_ph_fkq.row(i) << nmpc.Dddfkql().transpose(), 
                                 nmpc.Dddfkqr().transpose();
 
-            oc_ph_fkp << nmpc.Fkx().transpose(), 
-                         nmpc.Fky().transpose();
+            oc_ph_fkp.row(i) << nmpc.Fkx().transpose(), 
+                                nmpc.Fky().transpose();
 
             // Simulate the preview horizon, given the current state and the jerks.
             nmpc.Simulate();
@@ -112,6 +114,8 @@ int main() {
             WriteCsv("data/fkq_epoch_" + std::to_string(e+1) + ".csv", oc_ph_fkq);
             WriteCsv("data/fkp_epoch_" + std::to_string(e+1) + ".csv", oc_ph_fkp);
         }
+
+        save = true;
 
         init.setZero();
         oc_ph_com.setZero();
@@ -133,5 +137,5 @@ int main() {
         nmpc.SetInitialValues(pg_state);
     }
 
-    out.clear();
+    out.close();
 }

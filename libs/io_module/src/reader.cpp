@@ -703,7 +703,7 @@ void AppReader::ReadCommands() {
             running_ = true;
 
             // Run user controlled walking.
-            std::system("gnome-terminal -x bash ../shell/run_user_controlled_walking.sh");
+            std::system("gnome-terminal -x bash ../sh/run_user_controlled_walking.sh");
         }
 
         if (robot_status_ == INITIALIZED) {
@@ -749,12 +749,12 @@ KeyReader::KeyReader()
       errors_(NO_ERRORS),
       warnings_(NO_WARNINGS),
       t_iter_(yarp::os::Time::now()), 
-      acc_w_( 0.1, 0., 0. ),
-      acc_a_( 0. , 0., -0.1),
-      acc_shift_a_(0., 0.1, 0.),
-      acc_s_(-0.1, 0., 0.),
-      acc_d_( 0. , 0., 0.1),
-      acc_shift_d_(0., -0.1, 0.),
+      acc_w_( 1., 0., 0. ),
+      acc_a_( 0. , 0., -1.),
+      acc_shift_a_(0., 1., 0.),
+      acc_s_(-1., 0., 0.),
+      acc_d_( 0. , 0., 1.),
+      acc_shift_d_(0., -1., 0.),
       vel_(3) {
 
     // Open port.

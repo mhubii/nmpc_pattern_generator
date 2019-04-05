@@ -1,4 +1,5 @@
 #include <Eigen/Core>
+#include <qpOASES.hpp>
 
 #include "nmpc_generator.h"
 #include "interpolation.h"
@@ -11,7 +12,8 @@ enum STATUS {
     REACHEDGOAL,
     MISSEDGOAL,
     HITOBSTACLE,
-    RESETTING
+    RESETTING,
+    ERROR
 };
 
 struct NMPCEnvironment
@@ -31,7 +33,7 @@ struct NMPCEnvironment
     double old_preview_dist_;
 
     // Constructor.
-    NMPCEnvironment(std::string config_file_loc) : nmpc_(config_file_loc), interpol_nmpc_(nmpc_), state_(11)
+    NMPCEnvironment(std::string config_file_loc) : nmpc_(config_file_loc), interpol_nmpc_(nmpc_), state_(4)
     {
         // Pattern generator preparation.
         nmpc_.SetSecurityMargin(nmpc_.SecurityMarginX(), 
@@ -54,20 +56,29 @@ struct NMPCEnvironment
         obs_ << nmpc_.XObs(), nmpc_.YObs();
         r_obs_ = nmpc_.RObs();
         goal_.setZero();
-        state_ << pos_, vel_, obs_, r_obs_, goal_;
+        state_ << pos_, goal_;
 
         old_dist_ = (goal_ - pos_).norm();
         old_preview_dist_ = PreviewDist();
     };
 
+    auto State() -> torch::Tensor
+    {
+        torch::Tensor state = torch::zeros({1, state_.size()}, torch::kF64);
+        std::memcpy(state.data_ptr(), state_.data(), state_.size()*sizeof(double));
+        return state;
+    }
+
     // Functions to interact with the environment for reinforcement learning.
-    auto Act(Eigen::Vector3d vel) -> std::tuple<Eigen::VectorXd /*state*/, STATUS>
+    auto Act(Eigen::Vector3d vel) -> std::tuple<torch::Tensor /*state*/, int, torch::Tensor>
     {
         old_dist_ = (goal_ - pos_).norm();
         old_preview_dist_ = PreviewDist();
 
         // Run nmpc for one episode.
-        nmpc_.SetVelocityReference(vel);
+        vel_ += vel;
+
+        nmpc_.SetVelocityReference(vel_);
         nmpc_.Solve();
         nmpc_.Simulate();
         interpol_nmpc_.InterpolateStep();
@@ -78,31 +89,61 @@ struct NMPCEnvironment
         // Update state.
         pos_ << nmpc_.Ckx0()[0], nmpc_.Cky0()[0];
         vel_ << nmpc_.LocalVelRef();
-        state_ << pos_, vel_, obs_, r_obs_, goal_;
+        state_ << pos_, goal_;
 
         // Check game targets.
+        torch::Tensor state = State();
+        torch::Tensor done = torch::zeros({1, 1}, torch::kF64);
         STATUS status;
 
-        if ((goal_ - pos_).norm() < 1e-1) {
+        if ((goal_ - pos_).norm() < 3e-1) {
             status = REACHEDGOAL;
+            done[0][0] = 1.;
         }
-        else if ((goal_ - pos_).norm() > 2.5) {
+        else if ((goal_ - pos_).norm() > 4.0) {
             status = MISSEDGOAL;
+            done[0][0] = 1.;
         }
         else if ((obs_ - pos_).norm() < nmpc_.RObs()) {
             status = HITOBSTACLE;
+            done[0][0] = 1.;
         }
         else {
             status = PLAYING;
+            done[0][0] = 0.;
+        }
+        if (nmpc_.GetStatus() != qpOASES::SUCCESSFUL_RETURN) {
+            status = ERROR;
+            done[0][0] = 0.;
         }
 
-        return std::make_tuple(state_, status);
+        return std::make_tuple(state, status, done);
     };
 
-    auto Reward(double factor) -> double
+    auto Reward(int status) -> torch::Tensor
     {
-        // return  - (goal_ - pos_).norm();//old_dist_ - (goal_ - pos_).norm();
-        return factor*(old_preview_dist_ - PreviewDist());
+        double goal_factor = 1e2;
+        torch::Tensor reward = torch::full({1, 1}, goal_factor*(old_preview_dist_ - PreviewDist()), torch::kF64);
+
+        switch (status)
+            {
+                case PLAYING:
+                    break;
+                case REACHEDGOAL:
+                    reward[0][0] += 1e2;
+                    printf("reached goal, reward: %f\n", *(reward.cpu().data<double>()));
+                    break;
+                case MISSEDGOAL:
+                    reward[0][0] -= 1e1;
+                    printf("missed goal, reward: %f\n", *(reward.cpu().data<double>()));
+                    break;
+                case HITOBSTACLE:
+                    reward[0][0] -= 1e1;
+                    printf("hit obstacle, reward: %f\n", *(reward.cpu().data<double>()));
+                    break;
+            }
+
+        return reward;
     };
 
     auto PreviewDist() -> double
@@ -117,6 +158,15 @@ struct NMPCEnvironment
         auto dist = (x_dist_sq + y_dist_sq).sqrt();
 
         return dist.matrix().sum()/dist.size();
+    }
+
+    auto PreviewAvgPos() -> Eigen::Vector2d
+    {
+        // Returns the averaged position on the preview horizon.
+        auto x = nmpc_.Ckp1x().mean();
+        auto y = nmpc_.Ckp1y().mean();
+
+        return Eigen::Vector2d(x, y);
     }
 
     auto Reset() -> void
@@ -137,7 +187,7 @@ struct NMPCEnvironment
         // Reset the states.
         pos_ << nmpc_.Ckx0()[0], nmpc_.Cky0()[0];
         vel_ << nmpc_.LocalVelRef();
-        state_ << pos_, vel_, obs_, r_obs_, goal_;
+        state_ << pos_, goal_;
     };
 
     auto SetGoal(Eigen::Vector2d& goal) -> void
@@ -147,7 +197,7 @@ struct NMPCEnvironment
 
         old_dist_ = (goal_ - pos_).norm();
         old_preview_dist_ = PreviewDist();
-        state_ << pos_, vel_, obs_, r_obs_, goal_;
+        state_ << pos_, goal_;
     };
 
     auto SetObstacle(Eigen::Vector2d obs, double r) -> void
@@ -156,6 +206,7 @@ struct NMPCEnvironment
         // obs_(1) = obs(1);
         obs_(0) = 10.;
         obs_(1) = 0.;
+
         r_obs_ = r;
         double r_margin = nmpc_.RMargin();
 
@@ -164,16 +215,9 @@ struct NMPCEnvironment
         nmpc_.SetObstacle(c);
 
         // Update state.
-        state_ << pos_, vel_, obs_, r_obs_, goal_;
+        state_ << pos_, goal_;
     };
 };
-
-
-// // Save interpolated results.
-// Eigen::MatrixXd trajectories = interpol_nmpc.GetTrajectories().transpose();
-// WriteCsv("example_nmpc_generator_interpolated_results.csv", trajectories);
-
-
 
 // just do it
 // goal of this example will be to use a combination of nmpc and ppo to solve navigation
@@ -193,44 +237,56 @@ int main(int argc, char** argv)
     // Random engine for spawning the goal and the obstacle.
     std::random_device rd;
     std::mt19937 re(rd());
-    std::uniform_real_distribution<> dist_goal(0, M_PI);
-    std::uniform_real_distribution<> dist_obs(0.4, 0.6); // spawn obstacle in the center of a line between spawn and goal
+    std::uniform_real_distribution<> dist(-M_PI/8., M_PI/8.);
 
-    double angle = dist_goal(re);
-    Eigen::Vector2d goal(cos(angle), sin(angle)); // spawn goal on unit circle
-    Eigen::Vector2d line = goal - env.pos_;
-    Eigen::Vector2d obs = dist_obs(re)*line;
+    double angle = dist(re);
+    Eigen::Vector2d goal(2*cos(angle), 2*sin(angle)); // spawn goal on a circle
+    angle = dist(re);
+    Eigen::Vector2d obs(cos(angle), sin(angle));
     double r_obs = 0.1;
 
     env.SetGoal(goal);
     env.SetObstacle(obs, r_obs);
 
     // Proximal policy optimization. We use informations of the states system as well as its environment for n_in.
+    torch::DeviceType device_type;
+    if (torch::cuda::is_available()) {
+        printf("CUDA available! Training on GPU.\n");
+        device_type = torch::kCUDA;
+    } 
+    else {
+        printf("Training on CPU.\n");
+        device_type = torch::kCPU;
+    }
+    torch::Device device(device_type);
+
     uint n_in = env.state_.size();
-    uint n_out = env.vel_.size();
+    uint n_out = 2;//env.vel_.size();
+    double mu_max = 1e-1;
     double std = 1e-2;
 
-    ActorCritic ac(n_in, n_out, std);
-    ac.to(torch::kF64);
-    ac.normal(0., 1e-2);
-    torch::optim::Adam opt(ac.parameters(), 1e-3);
+    ActorCritic ac(n_in, n_out, mu_max, std);
+    ac->to(torch::kF64);
+    ac->normal(0., 1e-2);
+    ac->to(device);
+    torch::optim::Adam opt(ac->parameters(), 1e-3);
 
     // Training loop.
-    uint n_iter = 10000;
-    uint n_steps = 64;
+    uint n_iter = 5000;
+    uint n_steps = 1250;
     uint n_epochs = 10;
-    uint mini_batch_size = 16;
-    uint ppo_epochs = uint(n_steps/mini_batch_size);
+    uint mini_batch_size = 4;
+    uint ppo_epochs = 4;
+    double beta = 1e-3;
 
-    VT states(n_steps, torch::zeros({1, n_in}, torch::kF64));
-    VT actions(n_steps, torch::zeros({1, n_out}, torch::kF64));
-    VT rewards(n_steps, torch::zeros({1, 1}, torch::kF64));
-    VT next_states(n_steps, torch::zeros({1, n_in}, torch::kF64));
-    VT dones(n_steps, torch::zeros({1, 1}, torch::kF64));
+    VT states;
+    VT actions;
+    VT rewards;
+    VT dones;
 
-    VT log_probs(n_steps, torch::zeros({1, n_out}, torch::kF64));
-    VT returns(n_steps, torch::zeros({1, 1}, torch::kF64));
-    VT values(n_steps+1, torch::zeros({1, 1}, torch::kF64));
+    VT log_probs;
+    VT returns;
+    VT values;
 
     // Output.
     std::ofstream out;
@@ -242,127 +298,146 @@ int main(int argc, char** argv)
     // Counter.
     uint c = 0;
 
+    // Average reward.
+    bool error = false;
+    double best_avg_reward = -std::numeric_limits<double>::max();
+    double avg_reward = 0.;
+    double avg_entropy = 0.;
+
+    // Save lost history.
+    std::ofstream out_loss;
+    out_loss.open("ppo_nmpc_loss_hist.csv");
+
     for (uint e=0;e<n_epochs;e++)
     {
         printf("epoch %u/%u\n", e+1, n_epochs);
 
         for (uint i=0;i<n_iter;i++)
         {
-            torch::Tensor state = torch::zeros({1, n_in}, torch::kF64);
-            torch::Tensor action = torch::zeros({1, n_out}, torch::kF64);
-            torch::Tensor reward = torch::zeros({1, 1}, torch::kF64);
-            torch::Tensor next_state = torch::zeros({1, n_in}, torch::kF64);
-            torch::Tensor done = torch::zeros({1, 1}, torch::kF64);
-
-            torch::Tensor log_prob = torch::zeros({1, 1}, torch::kF64);
-            torch::Tensor value = torch::zeros({1, 1}, torch::kF64);
-
-            // System's state.
-            for (uint i=0;i<n_in;i++)
-            {
-                state[0][i] = env.state_(i);
-            }
-
+            // State of env.
+            states.push_back(env.State().to(device));
+            
             // Play.
-            double v_max = 0.1;
+            double vx_max = 0.02;
+            double vy_max = 0.002;
+            double wz_max = 0.01;
 
-            auto av = ac.forward(state);
-            action = std::get<0>(av);
-            value = std::get<1>(av);
-            log_prob = ac.log_prob(action);
+            auto av = ac->forward(states[c]);
+            actions.push_back(std::get<0>(av));
+            values.push_back(std::get<1>(av));
+            log_probs.push_back(ac->log_prob(actions[c]));
 
-            Eigen::Vector3d vel(*(action.data<double>()), *(action.data<double>()+1), *(action.data<double>()+2));
-            auto sd = env.Act(v_max*vel);
+            // Eigen::Vector3d vel(*(actions[c].data<double>()), *(actions[c].data<double>()+1), *(actions[c].data<double>()+2));
+            Eigen::Vector3d vel(*(actions[c].cpu().data<double>())*vx_max, *(actions[c].cpu().data<double>()+1)*vy_max, 0.);// *(actions[c].cpu().data<double>()+1), *(actions[c].cpu().data<double>()+2));
+            auto sd = env.Act(vel);
 
-            // New state.
-            reward[0][0] = env.Reward(1e2);
-            for (uint i=0;i<n_in;i++)
+            if (std::get<1>(sd) == ERROR)
             {
-                next_state[0][i] = std::get<0>(sd)(i);
-            }
-            switch (std::get<1>(sd))
-            {
-                case PLAYING:
-                    done[0][0] = 0.;
-                    break;
-                case REACHEDGOAL:
-                    reward[0][0] += 100.;
-                    done[0][0] = 1.;
-                    printf("reached goal, reward: %f\n", *(reward.data<double>()));
-                    break;
-                case MISSEDGOAL:
-                    reward[0][0] -= 10.;
-                    done[0][0] = 1.;
-                    printf("missed goal, reward: %f\n", *(reward.data<double>()));
-                    break;
-                case HITOBSTACLE:
-                    reward[0][0] -= 10.;
-                    done[0][0] = 1.;
-                    printf("hit obstacle, reward: %f\n", *(reward.data<double>()));
-                    break;
-            }
+                error = true;
 
-            // episode, agent_x, agent_y, goal_x, goal_y, STATUS=(PLAYING, REACHEDGOAL, MISSEDGOAL, HITOBSTACLE, RESETTING)
-            out << e+1 << ", " << env.pos_(0) << ", " << env.pos_(1) << ", " << env.obs_(0) << ", " << env.obs_(1) << ", " << env.r_obs_ << ", " << env.goal_(0) << ", " << env.goal_(1)  << ", " << std::get<1>(sd) << "\n";
-
-            // Store everything.
-            states[c] = state;
-            rewards[c] = reward;
-            actions[c] = action;
-            next_states[c] = next_state;
-            dones[c] = done;
-
-            log_probs[c] = log_prob;
-            values[c] = value;
-            
-            c++;
-
-            // Update.
-            if (c%n_steps == 0)
-            {
-                values[c] = std::get<1>(ac.forward(next_state));
-
-                returns = PPO::returns(rewards, dones, values, .99, .95);
-
-                torch::Tensor t_log_probs = torch::cat(log_probs).detach();
-                torch::Tensor t_returns = torch::cat(returns).detach();
-                torch::Tensor t_values = torch::cat(values).detach();
-                torch::Tensor t_states = torch::cat(states);
-                torch::Tensor t_actions = torch::cat(actions);
-                torch::Tensor t_advantages = t_returns - t_values.slice(0, 0, n_steps);
-
-                PPO::update(ac, t_states, t_actions, t_log_probs, t_returns, t_advantages, opt, n_steps, ppo_epochs, mini_batch_size);
-            
+                printf("Quitting episode on unsuccessful return.\n");
                 c = 0;
+
+                states.clear();
+                actions.clear();
+                rewards.clear();
+                dones.clear();
+
+                log_probs.clear();
+                returns.clear();
+                values.clear();
+
+                break;
             }
-
-            if (*(done.data<double>()) == 1.) 
+            else
             {
-                // Reset the environment.
-                env.Reset();
+                // New state.
+                rewards.push_back(env.Reward(std::get<1>(sd)).to(device));
+                dones.push_back(std::get<2>(sd).to(device));
 
-                // Set a new goal and a new obstacle.
-                angle = dist_goal(re);
-                goal << cos(angle), sin(angle);
-                line = goal - env.pos_;
-                obs = dist_obs(re)*line;
-
-                env.SetGoal(goal);
-                env.SetObstacle(obs, r_obs);
+                avg_reward += *(rewards[c].cpu().data<double>())/n_iter;
+                avg_entropy += *(ac->entropy().cpu().data<double>())/n_iter;
 
                 // episode, agent_x, agent_y, goal_x, goal_y, STATUS=(PLAYING, REACHEDGOAL, MISSEDGOAL, HITOBSTACLE, RESETTING)
-                out << e+1 << ", " << env.pos_(0) << ", " << env.pos_(1) << ", " << env.obs_(0) << ", " << env.obs_(1) << ", " << env.r_obs_ << ", " << env.goal_(0) << ", " << env.goal_(1)  << ", " << RESETTING << "\n";
+                out << e+1 << ", " << env.pos_(0) << ", " << env.pos_(1) << ", " << env.obs_(0) << ", " << env.obs_(1) << ", " << env.r_obs_ << ", " << env.goal_(0) << ", " << env.goal_(1)  << ", " << std::get<1>(sd) << "\n";
+                
+                if (*(dones[c].cpu().data<double>()) == 1.) 
+                {
+                    // Reset the environment.
+                    env.Reset();
+
+                    // Set a new goal and a new obstacle.
+                    angle = dist(re);
+                    goal << 2*cos(angle), 2*sin(angle);
+                    angle = dist(re);
+                    obs << cos(angle), sin(angle);
+
+                    env.SetGoal(goal);
+                    env.SetObstacle(obs, r_obs);
+
+                    // episode, agent_x, agent_y, goal_x, goal_y, STATUS=(PLAYING, REACHEDGOAL, MISSEDGOAL, HITOBSTACLE, RESETTING)
+                    out << e+1 << ", " << env.pos_(0) << ", " << env.pos_(1) << ", " << env.obs_(0) << ", " << env.obs_(1) << ", " << env.r_obs_ << ", " << env.goal_(0) << ", " << env.goal_(1)  << ", " << RESETTING << "\n";
+                }
+
+                c++;
+
+                // Update.
+                if (c%n_steps == 0)
+                {
+                    values.push_back(std::get<1>(ac->forward(states[c-1])));
+
+                    returns = PPO::returns(rewards, dones, values, .99, .95);
+
+                    torch::Tensor t_log_probs = torch::cat(log_probs).detach();
+                    torch::Tensor t_returns = torch::cat(returns).detach();
+                    torch::Tensor t_values = torch::cat(values).detach();
+                    torch::Tensor t_states = torch::cat(states);
+                    torch::Tensor t_actions = torch::cat(actions);
+                    torch::Tensor t_advantages = t_returns - t_values.slice(0, 0, n_steps);
+
+                    printf("Updating network.\n");
+                    PPO::update(ac, t_states, t_actions, t_log_probs, t_returns, t_advantages, opt, n_steps, ppo_epochs, mini_batch_size, beta);
+                
+                    c = 0;
+
+                    states.clear();
+                    actions.clear();
+                    rewards.clear();
+                    dones.clear();
+
+                    log_probs.clear();
+                    returns.clear();
+                    values.clear();
+                }
             }
         }
+
+        if (!error) {
+
+            out_loss << e << ", " << avg_reward << ", " << avg_entropy << "\n";
+
+            // Save the best net.
+            if (avg_reward > best_avg_reward) {
+
+                best_avg_reward = avg_reward;
+                printf("Best average reward: %f\n", best_avg_reward);
+                torch::save(ac, "ppo_nmpc_best_model.pt");
+            }
+
+            printf("Average reward: %f at entropy %f\n", avg_reward, avg_entropy);
+        }
+        error = false;
+        avg_reward = 0.;
+        avg_entropy = 0.;
 
         // Reset the environment.
         env.Reset();
 
         // Set a new goal and a new obstacle.
-        angle = dist_goal(re);
-        goal << cos(angle), sin(angle);
-        line = goal - env.pos_;
-        obs = dist_obs(re)*line;
+        angle = dist(re);
+        goal << 2*cos(angle), 2*sin(angle);
+        angle = dist(re);
+        obs << cos(angle), sin(angle);
 
         env.SetGoal(goal);
         env.SetObstacle(obs, r_obs);
@@ -371,6 +446,7 @@ int main(int argc, char** argv)
         out << e+1 << ", " << env.pos_(0) << ", " << env.pos_(1) << ", " << env.obs_(0) << ", " << env.obs_(1) << ", " << env.r_obs_ << ", " << env.goal_(0) << ", " << env.goal_(1)  << ", " << RESETTING << "\n";
     }
 
+    out_loss.close();
     out.close();
 
     return 0;

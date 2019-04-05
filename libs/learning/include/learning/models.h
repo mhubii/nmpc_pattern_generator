@@ -7,36 +7,48 @@
 struct ActorCriticImpl : public torch::nn::Module 
 {
     // Actor.
-    torch::nn::Linear a_lin1_, a_lin2_, a_lin3_;
+    torch::nn::Linear a_lin1_, a_lin2_, a_lin3_, a_lin4_, a_lin5_;
     torch::Tensor mu_;
     torch::Tensor log_std_;
+    double mu_max_;
+    double std_max_;
 
     // Critic.
-    torch::nn::Linear c_lin1_, c_lin2_, c_lin3_, c_val_;
+    torch::nn::Linear c_lin1_, c_lin2_, c_lin3_, c_lin4_, c_lin5_, c_val_;
 
-    ActorCriticImpl(int64_t n_in, int64_t n_out, double std)
+    ActorCriticImpl(int64_t n_in, int64_t n_out, double mu_max, double std_max)
         : // Actor.
           a_lin1_(torch::nn::Linear(n_in, 16)),
           a_lin2_(torch::nn::Linear(16, 32)),
-          a_lin3_(torch::nn::Linear(32, n_out)),
+          a_lin3_(torch::nn::Linear(32, 64)),
+          a_lin4_(torch::nn::Linear(64, 32)),
+          a_lin5_(torch::nn::Linear(32, n_out)),
           mu_(torch::full(n_out, 0.)),
-          log_std_(torch::full(n_out, std, torch::kFloat64)),
+          log_std_(torch::full(n_out, log(std_max), torch::kFloat64)),
+          mu_max_(mu_max),
+          std_max_(std_max),
           
           // Critic
           c_lin1_(torch::nn::Linear(n_in, 16)),
           c_lin2_(torch::nn::Linear(16, 32)),
-          c_lin3_(torch::nn::Linear(32, n_out)),
+          c_lin3_(torch::nn::Linear(32, 64)),
+          c_lin4_(torch::nn::Linear(64, 32)),
+          c_lin5_(torch::nn::Linear(32, n_out)),
           c_val_(torch::nn::Linear(n_out, 1)) 
     {
         // Register the modules.
         register_module("a_lin1", a_lin1_);
         register_module("a_lin2", a_lin2_);
         register_module("a_lin3", a_lin3_);
+        register_module("a_lin4", a_lin4_);
+        register_module("a_lin5", a_lin5_);
         register_parameter("log_std", log_std_);
 
         register_module("c_lin1", c_lin1_);
         register_module("c_lin2", c_lin2_);
         register_module("c_lin3", c_lin3_);
+        register_module("c_lin4", c_lin4_);
+        register_module("c_lin5", c_lin5_);
         register_module("c_val", c_val_);
     }
 
@@ -47,12 +59,16 @@ struct ActorCriticImpl : public torch::nn::Module
         // Actor.
         mu_ = torch::relu(a_lin1_->forward(x));
         mu_ = torch::relu(a_lin2_->forward(mu_));
-        mu_ = torch::tanh(a_lin3_->forward(mu_));
+        mu_ = torch::relu(a_lin3_->forward(mu_));
+        mu_ = torch::relu(a_lin4_->forward(mu_));
+        mu_ = torch::tanh(a_lin5_->forward(mu_)).mul(mu_max_);
 
         // Critic.
         torch::Tensor val = torch::relu(c_lin1_->forward(x));
         val = torch::relu(c_lin2_->forward(val));
-        val = torch::tanh(c_lin3_->forward(val));
+        val = torch::relu(c_lin3_->forward(val));
+        val = torch::relu(c_lin4_->forward(val));
+        val = torch::tanh(c_lin5_->forward(val)).mul(mu_max_);
         val = c_val_->forward(val);
 
         // Reparametrization trick.
@@ -60,7 +76,7 @@ struct ActorCriticImpl : public torch::nn::Module
         {
             torch::NoGradGuard no_grad;
 
-            torch::Tensor action = torch::normal(mu_, log_std_.exp().expand_as(mu_));
+            torch::Tensor action = torch::normal(mu_, log_std_.exp().expand_as(mu_).mul(std_max_));
             return std::make_tuple(action, val);  
         }
         else 

@@ -22,7 +22,7 @@ class WriteJoints : public yarp::os::RateThread
         ~WriteJoints();
 
         // Getters.
-        inline const std::string&           GetPortName() const { return port_name_; };
+        inline const std::string& GetPortName()           const { return port_name_; };
         inline const RobotStatus& GetRobotStatus()        const { return robot_status_; };
 
     private:

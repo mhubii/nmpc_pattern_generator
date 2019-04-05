@@ -20,9 +20,10 @@ int main() {
     // Model.
     uint n_in = 4;
     uint n_out = 2;
+    double mu_max = 1.;
     double std = 1e-2;
 
-    ActorCritic ac(n_in, n_out, std);
+    ActorCritic ac(n_in, n_out, mu_max, std);
     ac->to(torch::kF64);
     ac->normal(0., std);
     torch::optim::Adam opt(ac->parameters(), 1e-3);
@@ -30,9 +31,10 @@ int main() {
     // Training loop.
     uint n_iter = 10000;
     uint n_steps = 64;
-    uint n_epochs = 20;
+    uint n_epochs = 10;
     uint mini_batch_size = 16;
     uint ppo_epochs = uint(n_steps/mini_batch_size);
+    double beta = 1e-3;
 
     VT states;
     VT actions;
@@ -115,7 +117,7 @@ int main() {
                 torch::Tensor t_actions = torch::cat(actions);
                 torch::Tensor t_advantages = t_returns - t_values.slice(0, 0, n_steps);
 
-                PPO::update(ac, t_states, t_actions, t_log_probs, t_returns, t_advantages, opt, n_steps, ppo_epochs, mini_batch_size);
+                PPO::update(ac, t_states, t_actions, t_log_probs, t_returns, t_advantages, opt, n_steps, ppo_epochs, mini_batch_size, beta);
             
                 c = 0;
 

@@ -3,50 +3,12 @@
 
 #include "base_generator.h"
 #include "utils.h"
+#include "models.h"
 
-int64_t n_epochs = 10;
-int64_t batch_size = 64;
-int64_t log_interval = 10;
 
-// Model for learning the preview horizon.
-struct NetImpl : public torch::nn::Module
-{
-    // Preview horizon.
-    torch::nn::Linear lin1_, lin2_, lin3_, lin4_;
-
-    NetImpl(int64_t n_in, int64_t n_out)
-        : lin1_(n_in, 64),
-          lin2_(64, 128),
-          lin3_(128, 64),
-          lin4_(64, n_out)
-    {
-        register_module("lin1", lin1_);
-        register_module("lin2", lin2_);
-        register_module("lin3", lin3_);
-        register_module("lin4", lin4_);
-    }
-
-    auto forward(torch::Tensor x) -> torch::Tensor
-    {
-        x = torch::relu(lin1_(x));
-        x = torch::relu(lin2_(x));
-        x = torch::relu(lin3_(x));
-        
-        return lin4_(x);
-    }
-
-    auto normal(float mu, float std) -> void
-    {
-        torch::NoGradGuard no_grad;
-
-        for (auto& p : this->parameters())
-        {
-            p.normal_(mu, std);
-        }
-    }
-};
-
-TORCH_MODULE(Net);
+int64_t n_epochs = 5e3;
+int64_t batch_size = 1280;
+int64_t log_interval = 1;
 
 
 // Dataset that loads from .csv files.
@@ -59,7 +21,7 @@ Tensor read_csv(const std::string& root, const std::string& csv /*e.g. ini, com,
     RowMatrixXd epochs = ReadCsv<RowMatrixXd>(root + "successful_epochs.csv");
     RowMatrixXd mat    = ReadCsv<RowMatrixXd>(root + csv + "_epoch_" + std::to_string(int(epochs(0))) + ".csv");
 
-    auto tensor = torch::empty({epochs.size()*mat.rows(), 1, mat.cols()}, kF64);
+    auto tensor = torch::empty({epochs.size()*mat.rows(), mat.cols()}, kF64);
 
     for (int i = 0; i < epochs.size(); i++) {
         mat = ReadCsv<RowMatrixXd>(root + csv + "_epoch_" + std::to_string(int(epochs(i))) + ".csv");
@@ -112,7 +74,7 @@ optional<size_t> PG::size() const
 // Training functions.
 template <typename DataLoader>
 float train(int32_t epoch,
-           Net& model,
+           NmpcNet& model,
            torch::Device device,
            DataLoader& data_loader,
            torch::optim::Optimizer& optimizer,
@@ -123,7 +85,7 @@ float train(int32_t epoch,
 
     // Track loss.
     float mse_ = 0.; // mean squared error
-    float lpb = 0.; // loss per batch
+    int count = 0;
 
     for (auto& batch : data_loader) 
     {
@@ -140,15 +102,17 @@ float train(int32_t epoch,
         if (batch_idx++ % log_interval == 0) 
         {
             std::printf(
-            "\rTrain Epoch: %ld [%5ld/%5ld] Loss: %.4f",
+            "\rTrain Epoch: %ld/%ld [%5ld/%5ld] Loss: %.4f",
             epoch,
-            batch_idx * batch.data.size(0),
+            n_epochs,
+            batch_idx * batch.data.size(0), 
             dataset_size,
             loss.template item<float>());
         }
+
+        count++;
     }
-    size_t N = batch_idx*batch_size;
-    mse_ /= (float)N;
+    mse_ /= (float)count;
     printf(" Mean squared error: %f\n", mse_);
 
     return mse_;
@@ -163,7 +127,8 @@ int main() {
     std::string targets = "com";
 
     // Generate a dataset.
-    auto data_set = torch::data::datasets::PG(root, states, targets).map(torch::data::transforms::Stack<>());
+    auto data_set = torch::data::datasets::PG(root, states, targets)
+        .map(torch::data::transforms::Stack<>());
 
     int data_set_size = data_set.size().value();
 
@@ -181,15 +146,15 @@ int main() {
     int64_t n_out = 32;
 
     printf("Initializing model.\n");
-    Net model(n_in, n_out);
+    NmpcNet model(n_in, n_out);
     model->to(torch::kF32);
-    model->normal(0., 1.);
+    model->normal(0., 10.);
     model->to(device);
     torch::optim::Adam opt(model->parameters(), torch::optim::AdamOptions(1e-3));
 
     // Track best loss and save best model.
     float best_mse = std::numeric_limits<float>::max();
-    float mse = 0.;;
+    float mse = 0.;
 
     // Save lost history.
     std::ofstream out;
@@ -206,7 +171,7 @@ int main() {
             best_mse = mse;
         }
 
-        out << epoch << ", " << mse << ", " << loss_per_batch << "\n";
+        out << epoch << ", " << mse << "\n";
     }
 
     printf("Saving loss history to lost_hist.csv\n");

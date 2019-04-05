@@ -41,7 +41,7 @@ class WalkingProcessor : public yarp::os::BufferedPort<yarp::sig::Matrix>
     public: // TEST.. change to private!
 
         // Building blocks of walking generation.
-        MPCGenerator pg_;
+        NMPCGenerator pg_;
         Interpolation ip_;
         Kinematics ki_;
 

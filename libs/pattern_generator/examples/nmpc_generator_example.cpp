@@ -26,7 +26,7 @@ int main() {
     nmpc.SetInitialValues(pg_state);
     Interpolation interpol_nmpc(nmpc);
     interpol_nmpc.StoreTrajectories(true);
-    Eigen::Vector3d velocity_reference(0.01, 0., 0.);
+    Eigen::Vector3d velocity_reference(0., 0., 0.1);
 
 
     // Pattern generator event loop.
