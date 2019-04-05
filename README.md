@@ -38,7 +38,19 @@ cmake -DCMAKE_BUILD_TYPE=Release -DRBDL_BUILD_ADDON_URDFREADER=ON ..
 ```
 
 ### qpOASES
-To solve the sequential quadratic program, we need to install qpOASES. Please follow the [install instructions](https://projects.coin-or.org/qpOASES/wiki/QpoasesInstallation). 
+To solve the sequential quadratic program, we need to install qpOASES. Please follow the [install instructions](https://projects.coin-or.org/qpOASES/wiki/QpoasesInstallation), or head on as described below
+```
+wget https://www.coin-or.org/download/source/qpOASES/qpOASES-3.2.1.zip
+unzip qpOASES-3.2.1.zip
+cd qpOASES-3.2.1
+```
+Now since we want a shared library, in the `CMakeLists.txt` change `ADD_LIBRARY(qpOASES STATIC ${SRC})` to `ADD_LIBRARY(qpOASES SHARED ${SRC})`. Then procede with
+```
+mkdir build && cd build
+cmake ..
+make
+sudo make install
+```
 
 ### PyTorch
 For PyTorch to work in combination with RBDL, we need a source installation. Please checkout this [gist](https://gist.github.com/mhubii/1c1049fb5043b8be262259efac4b89d5) to figure out how to perform a clean setup.
