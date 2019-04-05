@@ -32,7 +32,7 @@ The rigid body kinematics are solved with RBDL. To install RBDL, do
 ```
 hg clone https://bitbucket.org/rbdl/rbdl
 cd rbdl
-hd checkout dev
+hg checkout dev
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release -DRBDL_BUILD_ADDON_URDFREADER=ON ..
 ```
