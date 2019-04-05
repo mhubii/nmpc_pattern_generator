@@ -25,16 +25,13 @@ make install # to install
 make uninstall # to uninstall
 ```
 
-## Dependencies
+## Necessary Dependencies
 
-### RBDL
-The rigid body kinematics are solved with RBDL. To install RBDL, do
-```shell
-hg clone https://bitbucket.org/rbdl/rbdl
-cd rbdl
-hg checkout dev
-mkdir build && cd build
-cmake -DCMAKE_BUILD_TYPE=Release -DRBDL_BUILD_ADDON_URDFREADER=ON ..
+### Eigen
+The pattern generator is based on the blazingly fast Eigen library. To install it do
+
+```
+sudo apt install libeigen3-dev
 ```
 
 ### qpOASES
@@ -52,14 +49,26 @@ make
 sudo make install
 ```
 
-### PyTorch
-For PyTorch to work in combination with RBDL, we need a source installation. Please checkout this [gist](https://gist.github.com/mhubii/1c1049fb5043b8be262259efac4b89d5) to figure out how to perform a clean setup.
-
 ### YAML
 The configurations are read in using the YAML file format. Run the command
 ```shell
 sudo apt install libyaml-cpp-dev
 ```
+
+## Other Dependencies
+
+### RBDL
+The rigid body kinematics are solved with RBDL. To install RBDL, do
+```shell
+hg clone https://bitbucket.org/rbdl/rbdl
+cd rbdl
+hg checkout dev
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release -DRBDL_BUILD_ADDON_URDFREADER=ON ..
+```
+
+### PyTorch
+For PyTorch to work in combination with RBDL, we need a source installation. Please checkout this [gist](https://gist.github.com/mhubii/1c1049fb5043b8be262259efac4b89d5) to figure out how to perform a clean setup.
 
 ### YARP
 Additionally, for communicating with the real robot, or the simulation, we need [YARP](https://www.yarp.it/). To install YARP, follow the [installation instructions](https://www.yarp.it/install.html), or head on as described below
@@ -78,6 +87,23 @@ Then do
 cmake -DOpenCV_DIR=$HOME/anaconda3/envs/py37_torch/share/OpenCV ..
 make
 sudo make install
+```
+
+### Gazebo YARP Plugins
+Plugins for Gazebo are used to clone the behaviour of the real robot into the simulation environment. Procede as below
+
+```shell
+git clone https://github.com/robotology/gazebo-yarp-plugins.git
+cd gazebo-yarp-plugins
+mkdir build && cd build
+cmake -DCMAKE_INSTALL_PREFIX=$HOME/gazebo-yarp-plugins .. # install to $HOME or whatever you prefer
+make
+make install
+```
+Next, you need to tell Gazebo where to find the plugins, therefore add following to the `.bashrc`
+
+```
+export GAZEBO_PLUGIN_PATH=${GAZEBO_PLUGIN_PATH}:$HOME/gazebo-yarp-plugins/lib
 ```
 
 ## Usage
