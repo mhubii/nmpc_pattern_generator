@@ -12,7 +12,8 @@ int main() {
     std::random_device rd;
     std::mt19937 re(rd());
     // std::uniform_real_distribution<double> dist(0., 1.);
-    std::uniform_int_distribution<> dist(1, 3);
+    int range = 10;
+    std::uniform_int_distribution<> dist(1, range);
 
     // Initialize pattern generator.
     const std::string config_file_loc = "../../libs/pattern_generator/configs.yaml";
@@ -64,7 +65,8 @@ int main() {
         printf("Epoch %d/%d\n", e, epochs);
 
         // Generate random velocity.
-        velocity_reference <<  double(dist(re))*0.01, 0., 0.;// dist(re)/5., dist(re)/10.;
+        velocity_reference <<  double(dist(re))*0.1/(double)range, 0., 0.;// dist(re)/5., dist(re)/10.;
+        std::cout << velocity_reference.transpose() << std::endl;
         // velocity_reference << 0.01, 0., 0.;
 
         // Pattern generator event loop.
