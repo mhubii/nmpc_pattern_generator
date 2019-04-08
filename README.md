@@ -11,7 +11,7 @@ This project implements [A Reactive Walking Pattern Generator Based on Nonlinear
 The pattern generation itself only requires [necessary dependencies](#necessary-dependencies), while the support for the real robot and the simulation also requires [other dependencies](#other-dependencies).
 
 ## Build
-Once all dependencies are installed, build the project with
+Once the necessary dependencies are installed, build the project with
 
 ```shell
 cd nmpc_pattern_generator
@@ -19,6 +19,15 @@ mkdir build && cd build
 cmake ..
 make
 ```
+
+To build with deep learning or support for the simulation and the real robot, add the following flags
+
+```shell
+cmake -DBUILD_WITH_LEARNING=ON -DCMAKE_PREFIX_PATH= .. # to build with deep learning support
+cmake -DBUILD_WITH_YARP=ON .. # to build with simulation and real robot support
+```
+
+For simulation support, please also install the Gazebo models from [gazebo_models](https://github.com/mhubii/nmpc_pattern_generator/blob/dev-interpolation/README.md#other-dependencies).
 
 You can install and uninstall the project with
 
