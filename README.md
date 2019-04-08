@@ -8,7 +8,8 @@ This project implements [A Reactive Walking Pattern Generator Based on Nonlinear
 </figure>
 <br><br>
 
-<video><source src="img/heicub_user_controlled_walking.mp4" type="video/mp4"></video>
+<video><source src="img/heicub_user_controlled_walking.mp4" type="video/mp4">
+  Your browser does not support the video tag.</video>
 
 ## Build
 Once all dependencies are installed, build the project with
