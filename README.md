@@ -1,5 +1,5 @@
 # Nonlinear Model Predictive Control for Walking Pattern Generation
-This project implements [A Reactive Walking Pattern Generator Based on Nonlinear Model Predictive Control](https://hal.archives-ouvertes.fr/hal-01261415/document) to generate stable walking trajectories for a humanoid robot.
+This project implements [A Reactive Walking Pattern Generator Based on Nonlinear Model Predictive Control](https://hal.archives-ouvertes.fr/hal-01261415/document) to generate stable walking trajectories for a humanoid robot. Especially for Heicub, our humanoid robot at [Optimization for Robotics and Biomechanics](https://github.com/ORB-HD) in Heidelberg. 
 
 <br>
 <figure>
@@ -9,11 +9,9 @@ This project implements [A Reactive Walking Pattern Generator Based on Nonlinear
 <br><br>
 
 ## Quickstart
-This folder will enable you to use NMPC on heicub, our humanoid robot at [Optimization for Robotics and Biomechanics](https://github.com/ORB-HD) in Heidelberg. 
-
 You can go through the [build](#build) section to get everything going. To see if your installation worked as expected, you may want to check out the [run tests](#run-tests) section. The [library usage](#library-usage) section explains the code in more depth.
 
-There are two ways to control the robot, either via iJoy (to be linked), or a simple terminal interface. In simulation, you need to persue the following steps. In a terminal, start a yarpserver with
+There are two ways to control the robot, either via iJoy (to be linked), or a simple terminal interface. In simulation, you need to pursue the following steps. In a terminal, start a yarpserver with
 ```shell
 yarpserver --write
 ```
