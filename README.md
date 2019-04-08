@@ -1,4 +1,4 @@
-# Nonlinear Model Predictive Control for Walking Pattern Generation
+#Nonlinear Model Predictive Control for Walking Pattern Generation
 This project implements [A Reactive Walking Pattern Generator Based on Nonlinear Model Predictive Control](https://hal.archives-ouvertes.fr/hal-01261415/document) to generate stable walking trajectories for a humanoid robot.
 
 <br>
@@ -10,7 +10,7 @@ This project implements [A Reactive Walking Pattern Generator Based on Nonlinear
 
 The pattern generation itself only requires [necessary dependencies](##necessary-dependencies), while the support for the real robot and the simulation also requires [other dependencies](##other-dependencies).
 
-## Build
+##Build
 Once all dependencies are installed, build the project with
 
 ```shell
@@ -27,9 +27,9 @@ make install # to install
 make uninstall # to uninstall
 ```
 
-## Necessary Dependencies
+##Necessary Dependencies
 
-### Eigen
+###Eigen
 The pattern generator is based on the blazingly fast Eigen library. To install it do
 
 ```
@@ -43,7 +43,7 @@ sudo ln -s /usr/include/eigen3/Eigen/ /usr/include/
 sudo ln -s /usr/include/eigen3/unsupported/ /usr/include/
 ```
 
-### qpOASES
+###qpOASES
 To solve the sequential quadratic program, we need to install qpOASES. Please follow the [install instructions](https://projects.coin-or.org/qpOASES/wiki/QpoasesInstallation), or head on as described below
 ```shell
 wget https://www.coin-or.org/download/source/qpOASES/qpOASES-3.2.1.zip
@@ -58,17 +58,17 @@ make
 sudo make install
 ```
 
-### YAML
+###YAML
 The configurations are read in using the YAML file format. Run the command
 ```shell
 sudo apt install libyaml-cpp-dev
 ```
 
-## Other Dependencies
+##Other Dependencies
 
 To run the NMPC generator on a real robot or the simulation, we will need to install some more dependencies.
 
-### RBDL
+###RBDL
 The rigid body kinematics are solved with RBDL. To install RBDL, do
 ```shell
 hg clone https://bitbucket.org/rbdl/rbdl
@@ -78,10 +78,10 @@ mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release -DRBDL_BUILD_ADDON_URDFREADER=ON ..
 ```
 
-### PyTorch
+###PyTorch
 For PyTorch to work in combination with RBDL, we need a source installation. Please checkout this [gist](https://gist.github.com/mhubii/1c1049fb5043b8be262259efac4b89d5) to figure out how to perform a clean setup.
 
-### YARP
+###YARP
 Additionally, for communicating with the real robot, or the simulation, we need [YARP](https://www.yarp.it/). To install YARP, follow the [installation instructions](https://www.yarp.it/install.html), or head on as described below
 ```shell
 git clone https://github.com/robotology/yarp.git
@@ -100,7 +100,7 @@ make
 sudo make install
 ```
 
-### Gazebo YARP Plugins
+###Gazebo YARP Plugins
 Plugins for Gazebo are used to clone the behaviour of the real robot into the simulation environment. Procede as below
 
 ```shell
@@ -117,14 +117,14 @@ Next, you need to tell Gazebo where to find the plugins, therefore add following
 export GAZEBO_PLUGIN_PATH=${GAZEBO_PLUGIN_PATH}:$HOME/gazebo-yarp-plugins/lib
 ```
 
-### NCurses
+###NCurses
 For the visualization of the control pannel, we need to install ncurses, do
 
 ```
 sudo apt install libncurses5-dev
 ```
 
-## Usage
+##Usage
 An example on how the NMPC pattern generator is ment to be used, can be executed by calling
 ```shell
 cd build/bin
@@ -202,7 +202,7 @@ Eigen::MatrixXd trajectories = interpol_nmpc.GetTrajectories().transpose();
 WriteCsv("example_nmpc_generator_interpolated_results.csv", trajectories);
 ```
 
-## Run Tests
+##Run Tests
 To verify your installation, you can run the provided tests
 
 ```shell
