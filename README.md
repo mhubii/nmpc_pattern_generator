@@ -3,16 +3,12 @@ This project implements [A Reactive Walking Pattern Generator Based on Nonlinear
 
 <br>
 <figure>
-  <p align="center"><img src="img/keyboard_user_interface.png" width="45%" height="45%" hspace="20"><iframe src="src/heicub_vid.mp4" frameborder="0" allowfullscreen="true"> </iframe></p>
+  <p align="center"><img src="img/keyboard_user_interface.png" width="45%" height="45%" hspace="20"><img src="img/heicub_user_controlled_walking.gif" width="45%" height="45%" hspace="20"></p>
   <figcpation>Fig. 1: From the terminal API: User controlled navigation in the physics simulation environment <a href="http://gazebosim.org/">Gazebo</a>.</figcaption>
 </figure>
 <br><br>
 
-<figure class="video_container">
-  <video controls="true" allowfullscreen="true">
-    <source src="img/heicub_vid.mp4" type="video/mp4">
-  </video>
-</figure>
+The pattern generation itself only requires [necessary dependencies](#necessary-dependencies), while the support for the real robot and the simulation also requires [other dependencies](#other-dependencies).
 
 ## Build
 Once all dependencies are installed, build the project with
