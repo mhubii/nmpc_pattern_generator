@@ -3,13 +3,10 @@ This project implements [A Reactive Walking Pattern Generator Based on Nonlinear
 
 <br>
 <figure>
-  <p align="center"><img src="img/keyboard_user_interface.png" width="40%" height="40%" hspace="40"><img src="img/heicub_user_controlled_walking.gif" width="40%" height="40%" hspace="40"></p>
-  <figcpation>Fig. 1: Visualization of generated walking trajectories with <a href="https://github.com/ORB-HD/MeshUp">MeshUp</a>.</figcaption>
+  <p align="center"><img src="img/keyboard_user_interface.png" width="45%" height="45%" hspace="20"><img src="img/heicub_user_controlled_walking.gif" width="45%" height="45%" hspace="20"></p>
+  <figcpation>Fig. 1: User controlled navigation in <a href="http://gazebosim.org/">Gazebo</a> from a visual terminal API.</figcaption>
 </figure>
 <br><br>
-
-<video><source src="img/heicub_user_controlled_walking.mp4" type="video/mp4">
-  Your browser does not support the video tag.</video>
 
 ## Build
 Once all dependencies are installed, build the project with
