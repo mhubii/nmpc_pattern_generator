@@ -8,10 +8,29 @@ This project implements [A Reactive Walking Pattern Generator Based on Nonlinear
 </figure>
 <br><br>
 
-The pattern generation itself only requires [necessary dependencies](#necessary-dependencies), while the support for the real robot and the simulation also requires [real robot and simulation dependencies](#real-robot-and-simulation-dependencies). Also to support deep learning features, the [deep learning dependencies](#deep-learning-dependencies) need to be built.
+## Quickstart
+This folder will enable you to use NMPC on heicub, our humanoid robot at [Optimization for Robotics and Biomechanics](https://github.com/ORB-HD) in Heidelberg. 
+
+You can go through the [build](#build) section to get everything going. To see if your installation worked as expected, you may want to check out the [run tests](#run-tests) section. The [library usage](#library-usage) section explains the code in more depth.
+
+There are two ways to control the robot, either via iJoy (to be linked), or a simple terminal interface. In simulation, you need to persue the following steps. In a terminal, start a yarpserver with
+```shell
+yarpserver --write
+```
+In another terminal, run gazebo with
+```shell
+gazebo -s libgazebo_yarp_clock.so
+```
+and insert heicub_without_weigths, therefore, please refer to the [gazebo models](##gazebo-models) section. To finally access the keyboard user interface, or the app user interface, in a new terminal run
+```shell
+cd sh
+sh run_keyboard_user_interface.sh # for keyboard controlled walking
+sh run_app_user_interface.sh      # for app controlled walking
+```
+how to proceed from there is explained within the terminals.
 
 ## Build
-Once the necessary dependencies are installed, build the project with
+The pattern generation itself only requires [necessary dependencies](#necessary-dependencies), while the support for the real robot and the simulation also requires [real robot and simulation dependencies](#real-robot-and-simulation-dependencies). Also, to support deep learning features, the [deep learning dependencies](#deep-learning-dependencies) need to be built. Once the necessary dependencies are installed, build the project with
 
 ```shell
 cd nmpc_pattern_generator
@@ -39,13 +58,13 @@ make uninstall # to uninstall
 ### Eigen
 The pattern generator is based on the blazingly fast Eigen library. To install it do
 
-```
+```shell
 sudo apt install libeigen3-dev
 ```
 
 You may need to create a symbolic link
 
-```
+```shell
 sudo ln -s /usr/include/eigen3/Eigen/ /usr/include/
 sudo ln -s /usr/include/eigen3/unsupported/ /usr/include/
 ```
@@ -108,7 +127,7 @@ If you have previously installed Anaconda, YARP may complain here. Go and instal
 conda install opencv
 ```
 Then do
-```
+```shell
 cmake -DOpenCV_DIR=$HOME/anaconda3/envs/py37_torch/share/OpenCV ..
 make
 sudo make install
@@ -127,14 +146,14 @@ make install
 ```
 Next, you need to tell Gazebo where to find the plugins, therefore add following to the `.bashrc`
 
-```
+```shell
 export GAZEBO_PLUGIN_PATH=${GAZEBO_PLUGIN_PATH}:$HOME/gazebo-yarp-plugins/lib
 ```
 
 ### Gazebo Models
 The models, used for simulation, can be found in [gazebo_models](https://github.com/mhubii/gazebo_models/). The main steps for installation are
 
-```
+```shell
 git clone https://github.com/mhubii/gazebo_models.git
 cd gazebo_models
 mkdir build && cd build
@@ -145,7 +164,7 @@ make install
 ### NCurses
 For the visualization of the control pannel, we need to install ncurses, do
 
-```
+```shell
 sudo apt install libncurses5-dev
 ```
 
@@ -155,7 +174,7 @@ To learn Nonlinear Model Predictive Control or simple navigation on top of Nonli
 ### PyTorch
 For PyTorch to work in combination with RBDL, we need a source installation. Please checkout this [gist](https://gist.github.com/mhubii/1c1049fb5043b8be262259efac4b89d5) to figure out how to perform a clean setup.
 
-## Usage
+## Library Usage
 An example on how the NMPC pattern generator is ment to be used, can be executed by calling
 ```shell
 cd build/bin
