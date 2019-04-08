@@ -4,14 +4,16 @@ This project implements [A Reactive Walking Pattern Generator Based on Nonlinear
 <br>
 <figure>
   <p align="center"><img src="img/keyboard_user_interface.png" width="45%" height="45%" hspace="20"><img src="img/heicub_user_controlled_walking.gif" width="45%" height="45%" hspace="20"></p>
-  <figcaption>Fig. 1: From the terminal API: User controlled navigation in the physics simulation environment <a href="http://gazebosim.org/">Gazebo</a>.</figcaption>
+  <figcaption>Fig. 1: From the terminal API (left): User controlled navigation in the physics simulation environment <a href="http://gazebosim.org/">Gazebo (right).</a>.</figcaption>
 </figure>
 <br><br>
 
+The [quickstart](#quickstart) section explains to you, how to setup everything.
+
 <br>
 <figure>
-  <p align="center"><img src="img/generated_nmpc_pattern.png" width="60%" height="60%"></p>
-  <figcaption>Fig. 2: Generated center of mass and feet trajectories.</figcaption>
+  <p align="center"><img src="img/app_joystick.jpg" width="45%" height="45%" hspace="20"><img src="img/generated_nmpc_pattern.png" width="60%" height="60%"></p>
+  <figcaption>Fig. 2: Joystick to control the robot via our Android app (left), and an example of a generated pattern (right).</figcaption>
 </figure>
 <br><br>
 
