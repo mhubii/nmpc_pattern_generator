@@ -703,7 +703,7 @@ void AppReader::ReadCommands() {
             running_ = true;
 
             // Run user controlled walking.
-            std::system("gnome-terminal -x bash ../sh/run_user_controlled_walking.sh");
+            std::system("gnome-terminal -x bash ../../sh/run_user_controlled_walking.sh");
         }
 
         if (robot_status_ == INITIALIZED) {

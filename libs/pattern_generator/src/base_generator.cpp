@@ -457,7 +457,7 @@ void BaseGenerator::InitializeConvexHullSystems() {
   ComputeLinearSystem(lf_pos_hull_, "left", a0l_, ubb0l_);
   ComputeLinearSystem(rf_pos_hull_, "right", a0r_, ubb0r_);
 
-  // Linear system corresponding to the convec hulls.
+  // Linear system corresponding to the convex hulls.
   // Left foot.
   ComputeLinearSystem(lf_cop_hull_, "left", a0lf_, ubb0lf_);
 
@@ -1009,78 +1009,89 @@ void BaseGenerator::BuildFootIneqConstraint() {
   // A0 R(theta) (Fx_k+1 - Fx_k) <= ubB0
   //             (Fy_k+1 - Fy_k)
 
-  Eigen::Matrix2i mat_selec; // what is the mat select? sth like S0 - I
-  mat_selec <<  1., 0.,
-               -1., 1.;
+  Eigen::MatrixXi mat_selec = -Eigen::MatrixXi::Ones(nf_, nf_);
+  mat_selec = mat_selec.triangularView<Eigen::UnitLower>();
 
   Eigen::Matrix2d foot_selec;
   foot_selec << f_k_x_0_, f_k_y_0_,
                 0.      , 0.;
 
-  Eigen::Vector2d theta_vec(f_k_q_0_, f_k_q_(0)); // where do i get the corresponding angles from? maybe need all angles nf
+  Eigen::VectorXd theta_vec(nf_);
+  theta_vec << f_k_q_0_, f_k_q_.topRows(nf_ - 1); // where do i get the corresponding angles from? maybe need all angles nf
 
-  // Rotation matrix from F_k+1 to F_k
-  Eigen::Matrix2d rot_mat1;
-  Eigen::Matrix2d rot_mat2;
+  // int switcher = (current_support_.foot == "left" ? 1 : 0);
 
-  rot_mat1 << cos(theta_vec(0)), sin(theta_vec(0)),
-             -sin(theta_vec(0)), cos(theta_vec(0));
+  // for (int i = 0; i < nf_; i++) {
 
-  rot_mat2 << cos(theta_vec(1)), sin(theta_vec(1)),
-             -sin(theta_vec(1)), cos(theta_vec(1));
+  //   if (switcher % 2) {
+  //     // in case switcher starts at one == left
+  //   }
+  //   else {
+  //     // in case switcher starts at zero == right
+  //   }
 
-  Eigen::MatrixXd a_f1(n_foot_pos_hull_edges_, 2);
-  Eigen::MatrixXd a_f2(n_foot_pos_hull_edges_, 2);
-  Eigen::VectorXd b_f1(n_foot_pos_hull_edges_);
-  Eigen::VectorXd b_f2(n_foot_pos_hull_edges_);
+    // switcher++;
 
-  if (current_support_.foot == "left") {
-    a_f1 << a0r_*rot_mat1;
-    a_f2 << a0l_*rot_mat2;
-    b_f1 << ubb0r_;
-    b_f2 << ubb0l_;
-  }
-  else {
-    a_f1 << a0l_*rot_mat1;
-    a_f2 << a0r_*rot_mat2;
-    b_f1 << ubb0l_;
-    b_f2 << ubb0r_;
-  }
+    // Rotation matrix from F_k+1 to F_k
+    Eigen::Matrix2d rot_mat1;
+    Eigen::Matrix2d rot_mat2;
 
-  Eigen::MatrixXd tmp1(n_foot_pos_hull_edges_, 2);
-  Eigen::MatrixXd tmp2(n_foot_pos_hull_edges_, 2);
-  Eigen::MatrixXd tmp3(n_foot_pos_hull_edges_, 2);
-  Eigen::MatrixXd tmp4(n_foot_pos_hull_edges_, 2);
+    rot_mat1 << cos(theta_vec(0)), sin(theta_vec(0)),
+              -sin(theta_vec(0)), cos(theta_vec(0));
 
-  tmp1 << a_f1.col(0), Eigen::VectorXd::Zero(n_foot_pos_hull_edges_);
-  tmp2 << Eigen::VectorXd::Zero(n_foot_pos_hull_edges_), a_f2.col(0);
-  tmp3 << a_f1.col(1), Eigen::VectorXd::Zero(n_foot_pos_hull_edges_);
-  tmp4 << Eigen::VectorXd::Zero(n_foot_pos_hull_edges_), a_f2.col(1);
+    rot_mat2 << cos(theta_vec(1)), sin(theta_vec(1)),
+              -sin(theta_vec(1)), cos(theta_vec(1));
+
+    Eigen::MatrixXd a_f1(n_foot_pos_hull_edges_, 2);
+    Eigen::MatrixXd a_f2(n_foot_pos_hull_edges_, 2);
+    Eigen::VectorXd b_f1(n_foot_pos_hull_edges_);
+    Eigen::VectorXd b_f2(n_foot_pos_hull_edges_);
+
+    if (current_support_.foot == "left") {
+      a_f1 << a0r_*rot_mat1;
+      a_f2 << a0l_*rot_mat2;
+      b_f1 << ubb0r_;
+      b_f2 << ubb0l_;
+    }
+    else {
+      a_f1 << a0l_*rot_mat1;
+      a_f2 << a0r_*rot_mat2;
+      b_f1 << ubb0l_;
+      b_f2 << ubb0r_;
+    }
+
+    Eigen::MatrixXd tmp1(n_foot_pos_hull_edges_, 2);
+    Eigen::MatrixXd tmp2(n_foot_pos_hull_edges_, 2);
+    Eigen::MatrixXd tmp3(n_foot_pos_hull_edges_, 2);
+    Eigen::MatrixXd tmp4(n_foot_pos_hull_edges_, 2);
+
+    tmp1 << a_f1.col(0), Eigen::VectorXd::Zero(n_foot_pos_hull_edges_);
+    tmp2 << Eigen::VectorXd::Zero(n_foot_pos_hull_edges_), a_f2.col(0);
+    tmp3 << a_f1.col(1), Eigen::VectorXd::Zero(n_foot_pos_hull_edges_);
+    tmp4 << Eigen::VectorXd::Zero(n_foot_pos_hull_edges_), a_f2.col(1);
 
 
+    // here needs to be some kind of for loop over all steps nf
+    Eigen::MatrixXd x_mat(nc_foot_position_, nf_); // rather nf than 2
+    Eigen::MatrixXd  a0_x(nc_foot_position_, nf_); // nf*n_foot_pos_hull_edges = nc_foot_position
+    Eigen::MatrixXd y_mat(nc_foot_position_, nf_);
+    Eigen::MatrixXd  a0_y(nc_foot_position_, nf_);
 
+    x_mat << tmp1, tmp2;
+    a0_x  << x_mat*mat_selec.cast<double>();
+    y_mat << tmp3, tmp4;
+    a0_y  << y_mat*mat_selec.cast<double>();
 
-  // here needs to be some kind of for loop over all steps nf
+    Eigen::VectorXd b0_full(2*n_foot_pos_hull_edges_);
+    Eigen::VectorXd b0(2*n_foot_pos_hull_edges_);
 
-  Eigen::MatrixXd x_mat(2*n_foot_pos_hull_edges_, 2); // rather nf than 2
-  Eigen::MatrixXd  a0_x(2*n_foot_pos_hull_edges_, 2); // nf*n_foot_pos_hull_edges = nc_foot_position
-  Eigen::MatrixXd y_mat(2*n_foot_pos_hull_edges_, 2);
-  Eigen::MatrixXd  a0_y(2*n_foot_pos_hull_edges_, 2);
+    b0_full << b_f1, b_f2;
+    b0 << b0_full + x_mat*foot_selec.col(0) + y_mat*foot_selec.col(1);
 
-  x_mat << tmp1, tmp2;
-  a0_x  << x_mat*mat_selec.cast<double>();
-  y_mat << tmp3, tmp4;
-  a0_y  << y_mat*mat_selec.cast<double>();
-
-  Eigen::VectorXd b0_full(2*n_foot_pos_hull_edges_);
-  Eigen::VectorXd b0(2*n_foot_pos_hull_edges_);
-
-  b0_full << b_f1, b_f2;
-  b0 << b0_full + x_mat*foot_selec.col(0) + y_mat*foot_selec.col(1);
-
-  a_foot_ << Eigen::MatrixXd::Zero(nc_foot_position_, n_), a0_x, // how do i introduce for loops for this problem?
-             Eigen::MatrixXd::Zero(nc_foot_position_, n_), a0_y;
-  ubb_foot_ << b0;
+    a_foot_ << Eigen::MatrixXd::Zero(nc_foot_position_, n_), a0_x, // how do i introduce for loops for this problem?
+              Eigen::MatrixXd::Zero(nc_foot_position_, n_), a0_y;
+    ubb_foot_ << b0;
+  // }
 }
 
 void BaseGenerator::BuildFootRotationConstraints() {
@@ -1165,7 +1176,8 @@ void BaseGenerator::UpdateCopConstraintTransformation() {
 
   // Every time instant in the pattern generator constraints
   // depends on the support order.
-  Eigen::Vector3d theta_vec(f_k_q_0_, f_k_q_(0), f_k_q_(1)); // where do i get the correct angles from, what is the order?
+  Eigen::VectorXd theta_vec(nf_ + 1);
+  theta_vec << f_k_q_0_, f_k_q_; // where do i get the correct angles from, what is the order?
 
   Eigen::MatrixXd  a0(n_foot_edge_, 2);
   Eigen::VectorXd  b0(n_foot_edge_);
