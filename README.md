@@ -8,16 +8,23 @@ This project implements [A Reactive Walking Pattern Generator Based on Nonlinear
 </figure>
 <br><br>
 
-The pattern generation itself only requires [necessary dependencies](#necessary-dependencies), while the support for the real robot and the simulation also requires [other dependencies](#other-dependencies).
+The pattern generation itself only requires [necessary dependencies](#necessary-dependencies), while the support for the real robot and the simulation also requires [real robot and simulation dependencies](#real-robot-and-simulation-dependencies). Also to support deep learning features, the [deep learning dependencies](#deep-learning-dependencies) need to be built.
 
 ## Build
-Once all dependencies are installed, build the project with
+Once the necessary dependencies are installed, build the project with
 
 ```shell
 cd nmpc_pattern_generator
 mkdir build && cd build
 cmake ..
 make
+```
+
+To build with deep learning or support for the simulation and the real robot, add the following flags
+
+```shell
+cmake -DBUILD_WITH_LEARNING=ON -DCMAKE_PREFIX_PATH= .. # to build with deep learning support
+cmake -DBUILD_WITH_YARP=ON .. # to build with simulation and real robot support
 ```
 
 You can install and uninstall the project with
@@ -64,9 +71,19 @@ The configurations are read in using the YAML file format. Run the command
 sudo apt install libyaml-cpp-dev
 ```
 
-## Other Dependencies
-
+## Real Robot and Simulation Dependencies
 To run the NMPC generator on a real robot or the simulation, we will need to install some more dependencies.
+
+### Gazebo
+The simulation environment can be installed according to the [install instructions](http://gazebosim.org/tutorials?tut=install_ubuntu&cat=install). The main steps are 
+
+```shell
+sudo sh -c 'echo "deb http://packages.osrfoundation.org/gazebo/ubuntu-stable `lsb_release -cs` main" > /etc/apt/sources.list.d/gazebo-stable.list'
+wget http://packages.osrfoundation.org/gazebo.key -O - | sudo apt-key add -
+sudo apt-get update
+sudo apt-get install gazebo9
+sudo apt-get install libgazebo9-dev
+```
 
 ### RBDL
 The rigid body kinematics are solved with RBDL. To install RBDL, do
@@ -77,9 +94,6 @@ hg checkout dev
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release -DRBDL_BUILD_ADDON_URDFREADER=ON ..
 ```
-
-### PyTorch
-For PyTorch to work in combination with RBDL, we need a source installation. Please checkout this [gist](https://gist.github.com/mhubii/1c1049fb5043b8be262259efac4b89d5) to figure out how to perform a clean setup.
 
 ### YARP
 Additionally, for communicating with the real robot, or the simulation, we need [YARP](https://www.yarp.it/). To install YARP, follow the [installation instructions](https://www.yarp.it/install.html), or head on as described below
@@ -117,12 +131,29 @@ Next, you need to tell Gazebo where to find the plugins, therefore add following
 export GAZEBO_PLUGIN_PATH=${GAZEBO_PLUGIN_PATH}:$HOME/gazebo-yarp-plugins/lib
 ```
 
+### Gazebo Models
+The models, used for simulation, can be found in [gazebo_models](https://github.com/mhubii/gazebo_models/). The main steps for installation are
+
+```
+git clone https://github.com/mhubii/gazebo_models.git
+cd gazebo_models
+mkdir build && cd build
+cmake -DCMAKE_INSTALL_PREFIX=~/.gazebo ..
+make install
+```
+
 ### NCurses
 For the visualization of the control pannel, we need to install ncurses, do
 
 ```
 sudo apt install libncurses5-dev
 ```
+
+## Deep Learning Dependencies
+To learn Nonlinear Model Predictive Control or simple navigation on top of Nonlinear Model Predictive Control, we will need to install PyTorch.
+
+### PyTorch
+For PyTorch to work in combination with RBDL, we need a source installation. Please checkout this [gist](https://gist.github.com/mhubii/1c1049fb5043b8be262259efac4b89d5) to figure out how to perform a clean setup.
 
 ## Usage
 An example on how the NMPC pattern generator is ment to be used, can be executed by calling
