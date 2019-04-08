@@ -103,7 +103,6 @@ int main(int argc, char *argv[]) {
             vel << 0., 0., 0.;
         }
 
-
         // Set reference velocities.
         pg.SetVelocityReference(vel);
 
@@ -125,7 +124,7 @@ int main(int argc, char *argv[]) {
     // Kinematics.
     Kinematics ki(ki_config);
 
-        // Initialize position with a good guess.
+    // Initialize position with a good guess.
     Eigen::VectorXd q_init(21);
     q_init.setZero();
     
