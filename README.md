@@ -4,7 +4,14 @@ This project implements [A Reactive Walking Pattern Generator Based on Nonlinear
 <br>
 <figure>
   <p align="center"><img src="img/keyboard_user_interface.png" width="45%" height="45%" hspace="20"><img src="img/heicub_user_controlled_walking.gif" width="45%" height="45%" hspace="20"></p>
-  <figcpation>Fig. 1: From the terminal API: User controlled navigation in the physics simulation environment <a href="http://gazebosim.org/">Gazebo</a>.</figcaption>
+  <figcaption>Fig. 1: From the terminal API: User controlled navigation in the physics simulation environment <a href="http://gazebosim.org/">Gazebo</a>.</figcaption>
+</figure>
+<br><br>
+
+<br>
+<figure>
+  <p align="center"><img src="img/generated_nmpc_pattern.png" width="60%" height="60%"></p>
+  <figcaption>Fig. 2: Generated center of mass and feet trajectories.</figcaption>
 </figure>
 <br><br>
 
@@ -184,13 +191,6 @@ The generated center of mass and feet trajectories are then written to `build/bi
 cd plot
 python plot_pattern.py
 ```
-
-<br>
-<figure>
-  <p align="center"><img src="img/generated_nmpc_pattern.png" width="60%" height="60%"></p>
-  <figcpation>Fig. 2: Generated center of mass and feet trajectories.</figcaption>
-</figure>
-<br><br>
 
 We will go through the most important parts of the pattern generation in the following. The pattern generator reads in the configurations as a YAML file
 ```cpp
