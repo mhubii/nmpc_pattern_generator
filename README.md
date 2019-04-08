@@ -44,7 +44,7 @@ python plot_pattern.py
 
 <br>
 <figure>
-  <img src="img/generated_nmpc_pattern.png" width="60%" height="60%">
+  <p align="center"><img src="img/generated_nmpc_pattern.png" width="60%" height="60%"></p>
   <figcaption>Fig. 3: Generated pattern for the center of mass and the feet.</figcaption>
 </figure>
 <br><br>
