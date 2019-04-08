@@ -27,8 +27,6 @@ cmake -DBUILD_WITH_LEARNING=ON -DCMAKE_PREFIX_PATH= .. # to build with deep lear
 cmake -DBUILD_WITH_YARP=ON .. # to build with simulation and real robot support
 ```
 
-For simulation support, please also install the Gazebo models from [gazebo_models](https://github.com/mhubii/nmpc_pattern_generator/blob/dev-interpolation/README.md#other-dependencies).
-
 You can install and uninstall the project with
 
 ```shell
@@ -120,6 +118,17 @@ Next, you need to tell Gazebo where to find the plugins, therefore add following
 
 ```
 export GAZEBO_PLUGIN_PATH=${GAZEBO_PLUGIN_PATH}:$HOME/gazebo-yarp-plugins/lib
+```
+
+### Gazebo Models
+The models, used for simulation, can be found in [gazebo_models](https://github.com/mhubii/gazebo_models/). The main steps for installation are
+
+```
+git clone https://github.com/mhubii/gazebo_models.git
+cd gazebo_models
+mkdir build && cd build
+cmake -DCMAKE_INSTALL_PREFIX=~/.gazebo ..
+make install
 ```
 
 ### NCurses
