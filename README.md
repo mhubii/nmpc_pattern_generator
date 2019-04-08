@@ -3,7 +3,7 @@ This project implements [A Reactive Walking Pattern Generator Based on Nonlinear
 
 <br>
 <figure>
-  <p align="center"><img src="img/keyboard_user_interface.png" width="45%" height="55%" hspace="20"><img src="img/heicub_user_controlled_walking.gif" width="45%" height="45%" hspace="20"></p>
+  <p align="center"><img src="img/keyboard_user_interface.png" width="50%" height="50%" hspace="20"><img src="img/heicub_user_controlled_walking.gif" width="45%" height="45%" hspace="20"></p>
   <figcpation>Fig. 1: From the terminal API: User controlled navigation in the physics simulation environment <a href="http://gazebosim.org/">Gazebo</a>.</figcaption>
 </figure>
 <br><br>
