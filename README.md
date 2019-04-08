@@ -8,7 +8,7 @@ This project implements [A Reactive Walking Pattern Generator Based on Nonlinear
 </figure>
 <br><br>
 
-The pattern generation itself only requires [necessary dependencies](#necessary-dependencies), while the support for the real robot and the simulation also requires [other dependencies](#other-dependencies).
+The pattern generation itself only requires [necessary dependencies](#necessary-dependencies), while the support for the real robot and the simulation also requires [real robot and simulation dependencies](#real-robot-and-simulation-dependencies). Also to support deep learning features, the [deep learning dependencies](#deep-learning-dependencies) need to be built.
 
 ## Build
 Once the necessary dependencies are installed, build the project with
