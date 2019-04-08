@@ -74,6 +74,17 @@ sudo apt install libyaml-cpp-dev
 ## Real Robot and Simulation Dependencies
 To run the NMPC generator on a real robot or the simulation, we will need to install some more dependencies.
 
+### Gazebo
+The simulation environment can be installed according to the [install instructions](http://gazebosim.org/tutorials?tut=install_ubuntu&cat=install). The main steps are 
+
+```shell
+sudo sh -c 'echo "deb http://packages.osrfoundation.org/gazebo/ubuntu-stable `lsb_release -cs` main" > /etc/apt/sources.list.d/gazebo-stable.list'
+wget http://packages.osrfoundation.org/gazebo.key -O - | sudo apt-key add -
+sudo apt-get update
+sudo apt-get install gazebo9
+sudo apt-get install libgazebo9-dev
+```
+
 ### RBDL
 The rigid body kinematics are solved with RBDL. To install RBDL, do
 ```shell
