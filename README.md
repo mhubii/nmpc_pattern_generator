@@ -4,7 +4,7 @@ This project implements [A Reactive Walking Pattern Generator Based on Nonlinear
 <br>
 <figure>
   <p align="center"><img src="img/keyboard_user_interface.png" width="45%" height="45%" hspace="20"><img src="img/heicub_user_controlled_walking.gif" width="45%" height="45%" hspace="20"></p>
-  <figcaption>Fig. 1: From the terminal API (left): User controlled navigation in the physics simulation environment <a href="http://gazebosim.org/">Gazebo (right).</a>.</figcaption>
+  <figcaption>Fig. 1: From the terminal API (left): User controlled navigation in the physics simulation environment <a href="http://gazebosim.org/">Gazebo</a> (right).</figcaption>
 </figure>
 <br><br>
 
@@ -28,6 +28,30 @@ sh run_keyboard_user_interface.sh # for keyboard controlled walking
 sh run_app_user_interface.sh      # for app controlled walking
 ```
 how to proceed from there is explained within the terminals.
+
+## Build
+The pattern generation itself only requires [necessary dependencies](#necessary-dependencies), while the support for the real robot and the simulation also requires [real robot and simulation dependencies](#real-robot-and-simulation-dependencies). Also, to support deep learning features, the [deep learning dependencies](#deep-learning-dependencies) need to be built. Once the necessary dependencies are installed, build the project with
+
+```shell
+cd nmpc_pattern_generator
+mkdir build && cd build
+cmake ..
+make
+```
+
+To build with deep learning or support for the simulation and the real robot, add the following flags
+
+```shell
+cmake -DBUILD_WITH_LEARNING=ON -DCMAKE_PREFIX_PATH= .. # to build with deep learning support
+cmake -DBUILD_WITH_YARP=ON .. # to build with simulation and real robot support
+```
+
+You can install and uninstall the project with
+
+```shell
+make install # to install
+make uninstall # to uninstall
+```
 
 ## Library Usage
 An example on how the NMPC pattern generator is ment to be used, can be executed by calling
@@ -105,30 +129,6 @@ Finally, we can store the resulting trajectories
 // Save interpolated results.
 Eigen::MatrixXd trajectories = interpol_nmpc.GetTrajectories().transpose();
 WriteCsv("example_nmpc_generator_interpolated_results.csv", trajectories);
-```
-
-## Build
-The pattern generation itself only requires [necessary dependencies](#necessary-dependencies), while the support for the real robot and the simulation also requires [real robot and simulation dependencies](#real-robot-and-simulation-dependencies). Also, to support deep learning features, the [deep learning dependencies](#deep-learning-dependencies) need to be built. Once the necessary dependencies are installed, build the project with
-
-```shell
-cd nmpc_pattern_generator
-mkdir build && cd build
-cmake ..
-make
-```
-
-To build with deep learning or support for the simulation and the real robot, add the following flags
-
-```shell
-cmake -DBUILD_WITH_LEARNING=ON -DCMAKE_PREFIX_PATH= .. # to build with deep learning support
-cmake -DBUILD_WITH_YARP=ON .. # to build with simulation and real robot support
-```
-
-You can install and uninstall the project with
-
-```shell
-make install # to install
-make uninstall # to uninstall
 ```
 
 ## Necessary Dependencies
