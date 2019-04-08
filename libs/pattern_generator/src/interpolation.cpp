@@ -180,7 +180,7 @@ Eigen::Map<const Eigen::MatrixXd> Interpolation::Interpolate() {
     }
 }
 
-void Interpolation::InterpolateStep() {
+Eigen::Map<const Eigen::MatrixXd> Interpolation::InterpolateStep() {
     
     // Interpolate.
     InterpolateLIPMStep();
@@ -192,6 +192,8 @@ void Interpolation::InterpolateStep() {
         trajectories_.conservativeResize(trajectories_.rows(), trajectories_.cols() + intervals_);
         trajectories_.rightCols(intervals_) = trajectories_buffer_.leftCols(intervals_);
     }
+
+    return Eigen::Map<const Eigen::MatrixXd>(trajectories_buffer_.data(), trajectories_buffer_.rows(), trajectories_buffer_.cols() - 1);
 }
 
 template <typename Derived>

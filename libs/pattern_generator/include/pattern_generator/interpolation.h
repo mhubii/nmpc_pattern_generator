@@ -21,9 +21,9 @@ class Interpolation
 public:
     Interpolation(BaseGenerator& base_generator);
 
-    Eigen::Map<const Eigen::MatrixXd> Interpolate();
+    Eigen::Map<const Eigen::MatrixXd> Interpolate();     // Interpolate on interpolation time scale
 
-    void InterpolateStep();
+    Eigen::Map<const Eigen::MatrixXd> InterpolateStep(); // Interpolate on preview horizon
 
     // Getters.
     inline const Eigen::MatrixXd&                  GetTrajectories()       const { return trajectories_; };
@@ -31,6 +31,7 @@ public:
     inline const int&                              GetIntervals()          const { return intervals_; };
     inline const int&                              GetCurrentInterval()    const { return current_interval_; };
     inline const double&                           GetCommandPeriod()      const { return tc_; }
+    inline const bool                              IsDoubleSupport()       const { return base_generator_.TStep() - base_generator_.Vkp10().sum()*t_ < t_ds_; };
 
     // Setters.
     inline void StoreTrajectories(bool store_trajectories) { store_trajectories_ = store_trajectories; };
