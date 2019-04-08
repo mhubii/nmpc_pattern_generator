@@ -3,11 +3,12 @@ This project implements [A Reactive Walking Pattern Generator Based on Nonlinear
 
 <br>
 <figure>
-  <p align="center"><img src="img/heicub_walking.gif" width="80%" height="80%">
-    <video><source src="img/heicub_user_controlled_walking.mp4" type="video/mp4"></video></p>
+  <p align="center"><img src="img/heicub_walking.gif" width="80%" height="80%"></p>
   <figcpation>Fig. 1: Visualization of generated walking trajectories with <a href="https://github.com/ORB-HD/MeshUp">MeshUp</a>.</figcaption>
 </figure>
 <br><br>
+
+<video><source src="img/heicub_user_controlled_walking.mp4" type="video/mp4"></video>
 
 ## Build
 Once all dependencies are installed, build the project with
