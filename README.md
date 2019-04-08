@@ -73,8 +73,7 @@ The configurations are read in using the YAML file format. Run the command
 sudo apt install libyaml-cpp-dev
 ```
 
-## Other Dependencies
-
+## Real Robot and Simulation Dependencies
 To run the NMPC generator on a real robot or the simulation, we will need to install some more dependencies.
 
 ### RBDL
@@ -86,9 +85,6 @@ hg checkout dev
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release -DRBDL_BUILD_ADDON_URDFREADER=ON ..
 ```
-
-### PyTorch
-For PyTorch to work in combination with RBDL, we need a source installation. Please checkout this [gist](https://gist.github.com/mhubii/1c1049fb5043b8be262259efac4b89d5) to figure out how to perform a clean setup.
 
 ### YARP
 Additionally, for communicating with the real robot, or the simulation, we need [YARP](https://www.yarp.it/). To install YARP, follow the [installation instructions](https://www.yarp.it/install.html), or head on as described below
@@ -132,6 +128,12 @@ For the visualization of the control pannel, we need to install ncurses, do
 ```
 sudo apt install libncurses5-dev
 ```
+
+## Deep Learning Dependencies
+To learn Nonlinear Model Predictive Control or simple navigation on top of Nonlinear Model Predictive Control, we will need to install PyTorch.
+
+### PyTorch
+For PyTorch to work in combination with RBDL, we need a source installation. Please checkout this [gist](https://gist.github.com/mhubii/1c1049fb5043b8be262259efac4b89d5) to figure out how to perform a clean setup.
 
 ## Usage
 An example on how the NMPC pattern generator is ment to be used, can be executed by calling
