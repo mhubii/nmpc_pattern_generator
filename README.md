@@ -10,13 +10,6 @@ This project implements [A Reactive Walking Pattern Generator Based on Nonlinear
 
 The [quickstart](#quickstart) section explains to you, how to setup everything.
 
-<br>
-<figure>
-  <p align="center"><img src="img/app_joystick.jpg" width="45%" height="45%" hspace="20"><img src="img/generated_nmpc_pattern.png" width="45%" height="45%" hspace="20"></p>
-  <figcaption>Fig. 2: Joystick to control the robot via our Android app (left), and an example of a generated pattern (right).</figcaption>
-</figure>
-<br><br>
-
 ## Quickstart
 You can go through the [build](#build) section to get everything going. To see if your installation worked as expected, you may want to check out the [run tests](#run-tests) section. The [library usage](#library-usage) section explains the code in more depth.
 
@@ -35,6 +28,84 @@ sh run_keyboard_user_interface.sh # for keyboard controlled walking
 sh run_app_user_interface.sh      # for app controlled walking
 ```
 how to proceed from there is explained within the terminals.
+
+## Library Usage
+An example on how the NMPC pattern generator is ment to be used, can be executed by calling
+```shell
+cd build/bin
+./nmpc_generator_example
+```
+The generated center of mass and feet trajectories are then written to `build/bin/example_nmpc_generator_interpolated_results.csv`. They can be visualized by 
+
+```shell
+cd plot
+python plot_pattern.py
+```
+
+<br>
+<figure>
+  <img src="img/generated_nmpc_pattern.png" width="60%" height="60%">
+  <figcaption>Fig. 3: Generated pattern for the center of mass and the feet.</figcaption>
+</figure>
+<br><br>
+
+We will go through the most important parts of the pattern generation in the following. The pattern generator reads in the configurations as a YAML file
+```cpp
+// Initialize pattern generator.
+const std::string config_file_loc = "../../libs/pattern_generator/configs.yaml";
+
+NMPCGenerator nmpc(config_file_loc);
+```
+Then, we need to set the initial values
+```cpp
+// Pattern generator preparation.
+nmpc.SetSecurityMargin(nmpc.SecurityMarginX(), 
+                       nmpc.SecurityMarginY());
+
+// Set initial values.
+PatternGeneratorState pg_state = {nmpc.Ckx0(),
+                                  nmpc.Cky0(),
+                                  nmpc.Hcom(),
+                                  nmpc.Fkx0(),
+                                  nmpc.Fky0(),
+                                  nmpc.Fkq0(),
+                                  nmpc.CurrentSupport().foot,
+                                  nmpc.Ckq0()};
+                                  
+nmpc.SetInitialValues(pg_state);
+```
+We further interpolate between consecutive positions of the preview horizon and specify that we want to keep the interpolated points in memory, so we can safe them afterwards
+```cpp
+Interpolation interpol_nmpc(nmpc);
+interpol_nmpc.StoreTrajectories(true);
+```
+Then, a desired velocity can be set, and the pattern generation will be executed for some steps
+```cpp
+Eigen::Vector3d velocity_reference(0.1, 0., 0.);
+
+// Pattern generator event loop.
+for (int i = 0; i < 100; i++) {
+    std::cout << "Iteration: " << i << std::endl;
+
+    // Set reference velocities.
+    nmpc.SetVelocityReference(velocity_reference);
+
+    // Solve QP.
+    nmpc.Solve();
+    nmpc.Simulate();
+    interpol_nmpc.InterpolateStep();
+
+    // Initial value embedding by internal states and simulation.
+    pg_state = nmpc.Update();
+    nmpc.SetInitialValues(pg_state);
+}
+```
+Finally, we can store the resulting trajectories
+```cpp
+// Save interpolated results.
+Eigen::MatrixXd trajectories = interpol_nmpc.GetTrajectories().transpose();
+WriteCsv("example_nmpc_generator_interpolated_results.csv", trajectories);
+```
 
 ## Build
 The pattern generation itself only requires [necessary dependencies](#necessary-dependencies), while the support for the real robot and the simulation also requires [real robot and simulation dependencies](#real-robot-and-simulation-dependencies). Also, to support deep learning features, the [deep learning dependencies](#deep-learning-dependencies) need to be built. Once the necessary dependencies are installed, build the project with
@@ -180,77 +251,6 @@ To learn Nonlinear Model Predictive Control or simple navigation on top of Nonli
 
 ### PyTorch
 For PyTorch to work in combination with RBDL, we need a source installation. Please checkout this [gist](https://gist.github.com/mhubii/1c1049fb5043b8be262259efac4b89d5) to figure out how to perform a clean setup.
-
-## Library Usage
-An example on how the NMPC pattern generator is ment to be used, can be executed by calling
-```shell
-cd build/bin
-./nmpc_generator_example
-```
-The generated center of mass and feet trajectories are then written to `build/bin/example_nmpc_generator_interpolated_results.csv`. They can be visualized by 
-
-```shell
-cd plot
-python plot_pattern.py
-```
-
-We will go through the most important parts of the pattern generation in the following. The pattern generator reads in the configurations as a YAML file
-```cpp
-// Initialize pattern generator.
-const std::string config_file_loc = "../../libs/pattern_generator/configs.yaml";
-
-NMPCGenerator nmpc(config_file_loc);
-```
-Then, we need to set the initial values
-```cpp
-// Pattern generator preparation.
-nmpc.SetSecurityMargin(nmpc.SecurityMarginX(), 
-                       nmpc.SecurityMarginY());
-
-// Set initial values.
-PatternGeneratorState pg_state = {nmpc.Ckx0(),
-                                  nmpc.Cky0(),
-                                  nmpc.Hcom(),
-                                  nmpc.Fkx0(),
-                                  nmpc.Fky0(),
-                                  nmpc.Fkq0(),
-                                  nmpc.CurrentSupport().foot,
-                                  nmpc.Ckq0()};
-                                  
-nmpc.SetInitialValues(pg_state);
-```
-We further interpolate between consecutive positions of the preview horizon and specify that we want to keep the interpolated points in memory, so we can safe them afterwards
-```cpp
-Interpolation interpol_nmpc(nmpc);
-interpol_nmpc.StoreTrajectories(true);
-```
-Then, a desired velocity can be set, and the pattern generation will be executed for some steps
-```cpp
-Eigen::Vector3d velocity_reference(0.1, 0., 0.);
-
-// Pattern generator event loop.
-for (int i = 0; i < 100; i++) {
-    std::cout << "Iteration: " << i << std::endl;
-
-    // Set reference velocities.
-    nmpc.SetVelocityReference(velocity_reference);
-
-    // Solve QP.
-    nmpc.Solve();
-    nmpc.Simulate();
-    interpol_nmpc.InterpolateStep();
-
-    // Initial value embedding by internal states and simulation.
-    pg_state = nmpc.Update();
-    nmpc.SetInitialValues(pg_state);
-}
-```
-Finally, we can store the resulting trajectories
-```cpp
-// Save interpolated results.
-Eigen::MatrixXd trajectories = interpol_nmpc.GetTrajectories().transpose();
-WriteCsv("example_nmpc_generator_interpolated_results.csv", trajectories);
-```
 
 ## Run Tests
 To verify your installation, you can run the provided tests
