@@ -12,7 +12,7 @@ The [quickstart](#quickstart) section explains to you, how to setup everything.
 
 <br>
 <figure>
-  <p align="center"><img src="img/app_joystick.jpg" width="45%" height="45%" hspace="20"><img src="img/generated_nmpc_pattern.png" width="45%" height="45%"></p>
+  <p align="center"><img src="img/app_joystick.jpg" width="45%" height="45%" hspace="20"><img src="img/generated_nmpc_pattern.png" width="45%" height="45%" hspace="20"></p>
   <figcaption>Fig. 2: Joystick to control the robot via our Android app (left), and an example of a generated pattern (right).</figcaption>
 </figure>
 <br><br>
