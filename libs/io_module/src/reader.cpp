@@ -396,8 +396,8 @@ AppReader::AppReader()
 
     bkgd(COLOR_PAIR(1));
     wbkgd(win_q_, COLOR_PAIR(2));
-    wbkgd(win_e_, COLOR_PAIR(5));
-    wbkgd(win_r_, COLOR_PAIR(5));
+    wbkgd(win_e_, COLOR_PAIR(3));
+    wbkgd(win_r_, COLOR_PAIR(4));
     wbkgd(win_guide_, COLOR_PAIR(1));
     wbkgd(win_robot_status_, COLOR_PAIR(3));
     wbkgd(win_err_, COLOR_PAIR(4));
@@ -444,6 +444,9 @@ AppReader::AppReader()
 
 
 AppReader::~AppReader() {
+
+    this->interrupt(); // interrupt any communication
+    this->close();
 
     // Set velocity to zero before closing.
     vel_.zero();
@@ -726,6 +729,32 @@ void AppReader::ReadCommands() {
                 WriteToPort();
             }
         }
+
+        if (ch == 'e' || ch == 'E')
+        {
+            vel_.zero();
+            WriteToPort();
+            running_ = false;
+            this->interrupt(); // interrupt any communication
+            this->close();
+
+            // Set red colours.
+            wbkgd(win_r_, COLOR_PAIR(3));
+            wclear(win_guide_);
+            wbkgd(win_guide_, COLOR_PAIR(3));
+            mvwaddstr(win_guide_, 0, 0, "Emergency stop called. Press q to quit this interface.");
+
+            wclear(win_robot_status_);
+            wbkgd(win_robot_status_, COLOR_PAIR(3));
+            wclear(win_err_);
+            wbkgd(win_err_, COLOR_PAIR(3));
+
+            // Refresh windows.
+            wrefresh(win_r_);
+            wrefresh(win_guide_); 
+            wrefresh(win_robot_status_);
+            wrefresh(win_err_);
+        }
         
         // Update user interface.  
         mvwaddstr(win_vel_, 0, 0, ("Current velocity:\n\n"
@@ -801,7 +830,7 @@ KeyReader::KeyReader()
     wbkgd(win_s_, COLOR_PAIR(2));
     wbkgd(win_d_, COLOR_PAIR(2));
     wbkgd(win_q_, COLOR_PAIR(3));
-    wbkgd(win_e_, COLOR_PAIR(3));
+    wbkgd(win_e_, COLOR_PAIR(4));
     wbkgd(win_r_, COLOR_PAIR(5));
     wbkgd(win_guide_, COLOR_PAIR(1));
     wbkgd(win_robot_status_, COLOR_PAIR(4));
@@ -852,6 +881,9 @@ KeyReader::KeyReader()
 }
 
 KeyReader::~KeyReader() {
+
+    this->interrupt(); // interrupt any communication
+    this->close();
 
     // Set velocity to zero before closing.
     vel_.zero();
@@ -1050,6 +1082,35 @@ void KeyReader::ReadCommands() {
                 case 'E':
                     vel_.zero();
                     WriteToPort();
+                    running_ = false;
+                    this->interrupt(); // interrupt any communication
+                    this->close();
+
+                    // Set red colours.
+                    wbkgd(win_w_, COLOR_PAIR(4));
+                    wbkgd(win_a_, COLOR_PAIR(4));
+                    wbkgd(win_s_, COLOR_PAIR(4));
+                    wbkgd(win_d_, COLOR_PAIR(4));
+                    wbkgd(win_e_, COLOR_PAIR(4));
+
+                    wclear(win_guide_);
+                    wbkgd(win_guide_, COLOR_PAIR(4));
+                    mvwaddstr(win_guide_, 0, 0, "Emergency stop called. Press q to quit this interface.");
+
+                    wclear(win_robot_status_);
+                    wbkgd(win_robot_status_, COLOR_PAIR(4));
+                    wclear(win_err_);
+                    wbkgd(win_err_, COLOR_PAIR(4));
+
+                    // Refresh windows.
+                    wrefresh(win_w_);
+                    wrefresh(win_a_);
+                    wrefresh(win_s_);
+                    wrefresh(win_d_);
+                    wrefresh(win_e_);
+                    wrefresh(win_guide_); 
+                    wrefresh(win_robot_status_);
+                    wrefresh(win_err_);
                     break;
             }
         }
@@ -1098,3 +1159,4 @@ void KeyReader::WriteToPort() {
     data = vel_;
     port_.write();
 }
+

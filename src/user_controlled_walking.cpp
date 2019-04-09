@@ -149,21 +149,21 @@ int main(int argc, char *argv[]) {
     pg_port.open("/test/port");
 
     // Connect reader to external commands (possibly ai thread).
-    yarp::os::Network::connect("/vel/command", "/vel");
+    yarp::os::Network::connect("/vel/command", "/vel"); // send commands from terminal (reader.cpp) to this main
 
     // Put reader, processor, and writer together.
     yarp::os::Network::connect(rj.GetPortName(), "/test/port");    // connect reader to walkingprocessor -> onRead gets called
     yarp::os::Network::connect("/joint_angles", wj.GetPortName()); // connect to port_q of walkingprocessor
-    yarp::os::Network::connect("/client_write/robot_status", "/reader/commands");
-    yarp::os::Network::connect("/client_write/robot_status", "/walking_processor/commands");
-    yarp::os::Network::connect("/walking_processor/commands", "/reader/commands");
+    yarp::os::Network::connect("/client_write/robot_status", "/reader/commands"); // send commands from writer.cpp to terminal
+    yarp::os::Network::connect("/client_write/robot_status", "/walking_processor/commands"); // send commands from writer.cpp to this main
+    yarp::os::Network::connect("/walking_processor/commands", "/reader/commands"); // send commands from this main to terminal
 
     // Start the read and write threads.
     rj.start();
     wj.start();
     
     // Run program for a certain delay.
-    yarp::os::Time::delay(120);
+    yarp::os::Time::delay(120); // replace this by some command to stop the programm
 
     // TEST
     WriteCsv("test.csv", pg_port.ip_.GetTrajectories().transpose());
@@ -234,9 +234,9 @@ WalkingProcessor::WalkingProcessor(Eigen::VectorXd q_min, Eigen::VectorXd q_max)
     vel_.setZero();
 
     // Open port for velocity input.
-    port_vel_.open("/vel");
-    port_q_.open("/joint_angles");
-    port_status_.open("/walking_processor/commands");
+    port_vel_.open("/vel"); // open /vel port to read velocity commands from terminal via reader.cpp
+    port_q_.open("/joint_angles"); // open /joint_angles port to read joint angles from writer.cpp
+    port_status_.open("/walking_processor/commands"); // open /walking_processor/commands to write status information to the terminal via reader.cpp
 
     ip_.StoreTrajectories(true);
 }
@@ -253,6 +253,12 @@ WalkingProcessor::~WalkingProcessor() {
 
 // Implement onRead() method.
 void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
+
+    // Stop pattern generation on emergency stop.
+    if (!yarp::os::Network::isConnected(port_status_.getName(), "/reader/commands")) {
+        std::cout << "Quitting pattern generation on emergency stop." << std::endl;
+        std::exit(1);
+    }
 
     // Lock callbacks during the computation.
     lockCallback();
@@ -302,7 +308,7 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
             yarp::os::Property& dict = bottle.addDict();
 
             dict.put("Warning", IK_DID_NOT_CONVERGE);
-            port_status_.write();
+            port_status_.write(); // write status to port which calls onRead() method of KeyReader or AppReader and is received by the app
         }
 
         // Check for hardware limits.
@@ -318,7 +324,7 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
             yarp::os::Property& dict = bottle.addDict();
 
             dict.put("ERROR", HARDWARE_LIMITS);
-            port_status_.write();
+            port_status_.write(); // write status to port which calls onRead() method of KeyReader or AppReader and is received by the app
 
             std::exit(1);
         }

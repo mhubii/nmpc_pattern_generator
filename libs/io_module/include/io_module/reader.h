@@ -245,6 +245,9 @@ class KeyReader : public yarp::os::BufferedPort<yarp::os::Bottle>
         // Write to port.
         void WriteToPort();
 
+        // Send stop signal.
+        void StopSignal();
+
         // Robot status, errors and warnings.
         RobotStatus robot_status_;
         Errors errors_;
