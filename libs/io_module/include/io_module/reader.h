@@ -250,6 +250,9 @@ class KeyReader : public yarp::os::BufferedPort<yarp::os::Bottle>
         Errors errors_;
         Warnings warnings_;
 
+        // Started user controlled walking.
+        bool running_;
+
         // Accelerations.
         Eigen::Vector3d acc_w_, acc_a_, acc_shift_a_, acc_s_, acc_d_, acc_shift_d_;
 
@@ -261,7 +264,7 @@ class KeyReader : public yarp::os::BufferedPort<yarp::os::Bottle>
 
         // User interface.
         WINDOW *win_w_, *win_a_, *win_s_, *win_d_;
-        WINDOW *win_q_, *win_e_, *win_guide_, *win_robot_status_, *win_err_, *win_vel_;
+        WINDOW *win_q_, *win_e_, *win_r_, *win_guide_, *win_robot_status_, *win_err_, *win_vel_;
         WINDOW *win_inv_;
 
         // Mutex.
