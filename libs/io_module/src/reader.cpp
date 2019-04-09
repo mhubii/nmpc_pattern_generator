@@ -849,7 +849,7 @@ KeyReader::KeyReader()
                                 "Use w and s to accelerate forwards and backwards.\n\n"
                                 "Use a and d to accelerate angular left and right.\n\n"
                                 "Use shift+a and shift+d to accelerate left and right.\n\n"
-                                "Only one pressed key is used to accelerate, leaving all other velocities untouched, except for the opposite ones.\n\n"
+                                "Use x to set the velocity to zero. Only one pressed key is read in, leaving all other velocities untouched.\n\n"
                                 "For an emergency stop press e.\n\n"
                                 "Press q to quit this interface."); 
     mvwaddstr(win_robot_status_, 0, 2, "Robot:\n"
@@ -1082,6 +1082,11 @@ void KeyReader::ReadCommands() {
                     break;
                 case 'D':
                     SetVelocity(acc_shift_d_, dt);
+                    WriteToPort();
+                    break;
+                case 'x':
+                case 'X':
+                    vel_.zero();
                     WriteToPort();
                     break;
                 case 'e':
