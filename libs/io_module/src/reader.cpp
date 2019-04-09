@@ -934,7 +934,7 @@ void KeyReader::onRead(yarp::os::Bottle& info) {
             case QP_INFEASIBLE:
                 errors_ = QP_INFEASIBLE;
                 wclear(win_err_);
-                wbkgd(win_err_, COLOR_PAIR(4));
+                wbkgd(win_err_, COLOR_PAIR(3));
                 mvwaddstr(win_err_, 0, 2, "Warnings:\n"
                                           "  QP infeasible!");
                 wrefresh(win_err_);
@@ -942,7 +942,7 @@ void KeyReader::onRead(yarp::os::Bottle& info) {
                 // Reaction to infeasible qp.
                 robot_status_ = NOT_CONNECTED;
                 wclear(win_robot_status_);
-                wbkgd(win_robot_status_, COLOR_PAIR(5));
+                wbkgd(win_robot_status_, COLOR_PAIR(4));
                 mvwaddstr(win_robot_status_, 0, 2, "Robot:\n"
                                                    "  Removed connection.");
                 wrefresh(win_robot_status_);
@@ -951,7 +951,7 @@ void KeyReader::onRead(yarp::os::Bottle& info) {
             case HARDWARE_LIMITS:
                 errors_ = HARDWARE_LIMITS;
                 wclear(win_err_);
-                wbkgd(win_err_, COLOR_PAIR(4));
+                wbkgd(win_err_, COLOR_PAIR(3));
                 mvwaddstr(win_err_, 0, 2, "Warnings:\n"
                                           "  Hardware limits!");
                 wrefresh(win_err_);
@@ -959,7 +959,7 @@ void KeyReader::onRead(yarp::os::Bottle& info) {
                 // Reaction to hardware limits.
                 robot_status_ = NOT_CONNECTED;
                 wclear(win_robot_status_);
-                wbkgd(win_robot_status_, COLOR_PAIR(5));
+                wbkgd(win_robot_status_, COLOR_PAIR(4));
                 mvwaddstr(win_robot_status_, 0, 2, "Robot:\n"
                                                    "  Removed connection.");
                 wrefresh(win_robot_status_);
@@ -1064,8 +1064,11 @@ void KeyReader::ReadCommands() {
                     WriteToPort();
                     break;
                 case 'a':
-                case 'A':
                     SetVelocity(acc_a_, dt);
+                    WriteToPort();
+                    break;
+                case 'A':
+                    SetVelocity(acc_shift_a_, dt);
                     WriteToPort();
                     break;
                 case 's':
@@ -1074,8 +1077,11 @@ void KeyReader::ReadCommands() {
                     WriteToPort();
                     break;
                 case 'd':
-                case 'D':
                     SetVelocity(acc_d_, dt);
+                    WriteToPort();
+                    break;
+                case 'D':
+                    SetVelocity(acc_shift_d_, dt);
                     WriteToPort();
                     break;
                 case 'e':

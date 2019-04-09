@@ -289,6 +289,18 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
         pg_.Simulate();
         traj_ = ip_.InterpolateStep();
 
+        if (pg_.GetStatus() != qpOASES::SUCCESSFUL_RETURN) {
+
+            // Communicate unfeasible qp.
+            yarp::os::Bottle& bottle = port_status_.prepare();
+            yarp::os::Property& dict = bottle.addDict();
+
+            dict.put("ERROR", QP_INFEASIBLE);
+            port_status_.write(); // write status to port which calls onRead() method of KeyReader or AppReader and is received by the app
+
+            std::exit(1);
+        }
+
         // Use forward kinematics to obtain the com feedback.
         q_ << ki_.GetQTraj().topRows(6).col(0), yarp::eigen::toEigen(state.getCol(0)).bottomRows(15);
 
