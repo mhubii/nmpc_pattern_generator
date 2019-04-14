@@ -38,6 +38,9 @@ class WalkingProcessor : public yarp::os::BufferedPort<yarp::sig::Matrix>
         // Setter.
         inline void SetRobotStatus(RobotStatus stat) { robot_status_ = stat; };
 
+        // State of this port.
+        bool interrupted;
+
     public: // TEST.. change to private!
 
         // Building blocks of walking generation.
@@ -163,7 +166,11 @@ int main(int argc, char *argv[]) {
     wj.start();
     
     // Run program for a certain delay.
-    yarp::os::Time::delay(120); // replace this by some command to stop the programm
+    while (!pg_port.interrupted) {
+
+        // Run until port is disconnected.
+        yarp::os::Time::delay(1e-1);
+    }
 
     // TEST
     WriteCsv("test.csv", pg_port.ip_.GetTrajectories().transpose());
@@ -181,15 +188,15 @@ int main(int argc, char *argv[]) {
     rj.stop();
     wj.stop();
 
-    // system("pause");
-
     return 0;
 }
 
 
 // Implement WalkingProcessor.
 WalkingProcessor::WalkingProcessor(Eigen::VectorXd q_min, Eigen::VectorXd q_max)
-  : pg_(pg_config),
+  : interrupted(false),
+
+    pg_(pg_config),
     ip_(pg_), 
     ki_(ki_config),
 
@@ -257,7 +264,8 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
     // Stop pattern generation on emergency stop.
     if (!yarp::os::Network::isConnected(port_status_.getName(), "/reader/commands")) {
         std::cout << "Quitting pattern generation on emergency stop." << std::endl;
-        std::exit(1);
+        this->interrupt();
+        interrupted = true;
     }
 
     // Lock callbacks during the computation.
