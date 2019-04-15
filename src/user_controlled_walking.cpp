@@ -163,6 +163,7 @@ int main(int argc, char *argv[]) {
     yarp::os::Network::connect("/write_joints/robot_status", "/keyboard_user_interface/robot_status"); // send commands from writer.cpp to terminal
     yarp::os::Network::connect("/write_joints/robot_status", "/user_controlled_walking/robot_status"); // send commands from writer.cpp to this main
     yarp::os::Network::connect("/user_controlled_walking/robot_status", "/keyboard_user_interface/robot_status"); // send robot status from keyreader to this main
+    yarp::os::Network::connect("/key_reader/robot_status", "/user_controlled_walking/robot_status"); // send robot status from keyreader to this main
 
     // Start the read and write threads.
     rj.start();
@@ -275,7 +276,12 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
         robot_status_ = RobotStatus(bottle->pop().asDict()->find("RobotStatus").asInt());
     }
 
-    if (initialized_ && robot_status_ == INITIALIZED) {
+    if (robot_status_ == STOPPING) {
+        
+        interrupted = true;
+    }
+
+    if (initialized_ && robot_status_ == INITIALIZED && !interrupted) {
 
         // Read the desired velocity and keep it unchanged if
         // no command arrives.
@@ -366,7 +372,7 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
         }
      }
 
-    else if (!initialized_) {
+    else if (!initialized_ && !interrupted) {
 
         // Initialize position with a good guess.
         Eigen::VectorXd q_init(21);

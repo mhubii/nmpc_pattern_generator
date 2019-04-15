@@ -954,6 +954,7 @@ KeyReader::~KeyReader() {
 
     // Close port.
     port_.close();
+    port_status_.close();
 
     // Release the user interface.
     delwin(win_w_);
@@ -1168,6 +1169,31 @@ void KeyReader::ReadCommands() {
 
                     // Refresh window.
                     wrefresh(win_hello_);
+                    break;
+                case 'r':
+                case 'R':
+                    vel_.zero();
+                    WriteToPort();
+                    running_ = false;
+
+                    robot_status_ = STOPPING;
+
+                    // Write status to user_controlled_walking.
+                    yarp::os::Bottle& bottle = port_status_.prepare();
+                    yarp::os::Property& dict = bottle.addDict();
+
+                    dict.put("RobotStatus", robot_status_);
+                    port_status_.write();
+
+                    wbkgd(win_r_, COLOR_PAIR(5));
+                    wrefresh(win_r_);
+
+                    wclear(win_robot_status_);
+                    wbkgd(win_robot_status_, COLOR_PAIR(3));
+                    mvwaddstr(win_robot_status_, 0, 2, "Robot:\n"
+                                                    "  Stopping...");
+                    wrefresh(win_robot_status_);
+
                     break;
             }
         }
