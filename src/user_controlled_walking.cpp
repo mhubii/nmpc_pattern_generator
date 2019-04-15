@@ -139,9 +139,11 @@ int main(int argc, char *argv[]) {
     // Reader and writer.
     // int period = YAML::LoadFile(pg_config)["t"].as<double>()*1e3;              // preview horizon
     int period = YAML::LoadFile(pg_config)["command_period"].as<double>()*1e3; // interpolation time resolution
+    int img_period = 100; // 10 images per second
 
     ReadJoints rj(period, io_config, robot);
     WriteJoints wj(period, io_config, robot);
+    ReadCameras rc(img_period, io_config, robot);
 
     // Get the extremal angles for the joints. // TODO add some kind of min max init
     Eigen::VectorXd min = rj.GetMinAngles();
@@ -160,10 +162,12 @@ int main(int argc, char *argv[]) {
     yarp::os::Network::connect("/client_write/robot_status", "/reader/commands"); // send commands from writer.cpp to terminal
     yarp::os::Network::connect("/client_write/robot_status", "/walking_processor/commands"); // send commands from writer.cpp to this main
     yarp::os::Network::connect("/walking_processor/commands", "/reader/commands"); // send commands from this main to terminal
+    yarp::os::Network::connect("/vel/command", rc.GetInVelPort());
 
     // Start the read and write threads.
     rj.start();
     wj.start();
+    rc.start();
     
     // Run program for a certain delay.
     while (!pg_port.interrupted) {
@@ -187,6 +191,7 @@ int main(int argc, char *argv[]) {
     pg_port.close();
     rj.stop();
     wj.stop();
+    rc.stop();
 
     return 0;
 }

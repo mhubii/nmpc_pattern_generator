@@ -4,11 +4,16 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core_c.h>
 
-#ifdef BUILD_WITH_OPENCV_CONTRIB
-#include <opencv2/ximgproc.hpp>
+#ifndef BUILD_WITH_OPENCV_CONTRIB
+    #define BUILD_WITH_OPENCV_CONTRIB 0
+#endif
+
+#if BUILD_WITH_OPENCV_CONTRIB
+    #include <opencv2/ximgproc.hpp>
 #endif
 
 #include <iostream>
+#include <chrono>
 #include <yarp/dev/all.h>
 #include <yarp/os/all.h>
 #include <yarp/sig/all.h>
@@ -96,6 +101,10 @@ class ReadCameras : public yarp::os::RateThread
 
         ~ReadCameras();
 
+        // Getters.
+        inline std::string const& GetInVelPort()  const { return in_port_name_;  };
+        inline std::string const& GetOutVelPort() const { return out_port_name_; };
+
     private:
 
         // Methods to be implemented for RateThread.
@@ -116,7 +125,11 @@ class ReadCameras : public yarp::os::RateThread
 
         // Possible outputs.
         bool show_depth_view_;
-        bool save_depth_view_;
+        bool record_;
+        std::string out_location_; // location of txt file and images
+
+        std::chrono::steady_clock::time_point start_time_;
+    	std::chrono::milliseconds time_stamp_;
 
         // Configurations.
         YAML::Node configs_;
@@ -133,29 +146,34 @@ class ReadCameras : public yarp::os::RateThread
 
         // Images of the cameras.
         std::map<std::string, yarp::sig::ImageOf<yarp::sig::PixelRgb>> img_;
-        std::map<std::string, cv::Mat> img_cv_;
+        std::map<std::string, cv::Mat> img_cv_rgb_;
+        std::map<std::string, cv::Mat> img_cv_gra_;
 
         // Stereo matching and weighted least square filter.
         cv::Ptr<cv::StereoBM> l_matcher_;
 
-	#ifdef BUILD_WITH_OPENCV_CONTRIB
-        cv::Ptr<cv::StereoMatcher> r_matcher_;
-        cv::Ptr<cv::ximgproc::DisparityWLSFilter> wls_;
-	#endif
+        #if BUILD_WITH_OPENCV_CONTRIB
+            cv::Ptr<cv::StereoMatcher> r_matcher_;
+            cv::Ptr<cv::ximgproc::DisparityWLSFilter> wls_;
+        #endif
 
         // Disparity map.
         cv::Mat l_disp_; 
 
-	#ifdef BUILD_WITH_OPENCV_CONTRIB
-        cv::Mat r_disp_; 
-        cv::Mat wls_disp_;
-	#endif
+        #if BUILD_WITH_OPENCV_CONTRIB
+            cv::Mat r_disp_; 
+            cv::Mat wls_disp_;
+        #endif
 
         // Outgoing information.
         yarp::sig::Vector vel_;
 
         // Outgoing port.
-        yarp::os::BufferedPort<yarp::sig::Vector> port_;
+        std::string in_port_name_;
+        std::string out_port_name_;
+
+        yarp::os::BufferedPort<yarp::sig::Vector> port_vel_in_;
+        yarp::os::BufferedPort<yarp::sig::Vector> port_vel_out_;
 };
 
 

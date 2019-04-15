@@ -4,14 +4,6 @@ find_package(OpenCV REQUIRED)
 find_package(Curses REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
-option(BUILD_WITH_OPENCV_CONTRIB "Whether to build with contribution modules of OpenCV" OFF)
-
-if (${BUILD_WITH_OPENCV_CONTRIB})
-
-    add_definitions(-DBUILD_WITH_OPENCV_CONTRIB)
-
-endif ()
-
 set(IO_MODULE_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/io_module)
 include_directories(${IO_MODULE_INCLUDE_DIR})
 

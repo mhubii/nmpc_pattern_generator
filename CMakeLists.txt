@@ -49,6 +49,14 @@ option(BUILD_WITH_LEARNING "Build the deep learning library." OFF)
 
 if (${BUILD_WITH_YARP})
     # Input output module library.
+    option(BUILD_WITH_OPENCV_CONTRIB "Whether to build with contribution modules of OpenCV" OFF)
+
+    if (${BUILD_WITH_OPENCV_CONTRIB})
+
+        add_definitions(-DBUILD_WITH_OPENCV_CONTRIB)
+
+    endif ()
+
     option(IO_MODULE_EXAMPLES "Build input output module examples." ON)
     add_subdirectory(libs/io_module)
 

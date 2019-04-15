@@ -199,27 +199,35 @@ ReadCameras::ReadCameras(int period, const std::string config_file_loc,
   : RateThread(period),
     robot_name_(robot_name),
     period_(period),
-    show_depth_view_(true),
-    save_depth_view_(false),
+    show_depth_view_(false),
+    record_(false),
+    out_location_(""),
+
+    // Set current time stamp.
+	start_time_(std::chrono::steady_clock::now()),
+	time_stamp_(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time_)),
     configs_(YAML::LoadFile(config_file_loc)),
-    vel_(3) {
+    vel_(3),
+    in_port_name_("/read_cameras/vel:i"),
+    out_port_name_(out_port_name) {
     
     // Stereo matching and weighted least square filter.
     l_matcher_ = cv::StereoBM::create(16, 9);
 
-    #ifdef BUILD_WITH_OPENCV_CONTRIB
-    r_matcher_ = cv::ximgproc::createRightMatcher(l_matcher_);
-    wls_ = cv::ximgproc::createDisparityWLSFilter(l_matcher_);
+    #if BUILD_WITH_OPENCV_CONTRIB
+        r_matcher_ = cv::ximgproc::createRightMatcher(l_matcher_);
+        wls_ = cv::ximgproc::createDisparityWLSFilter(l_matcher_);
 
-    wls_->setLambda(1e3);
-    wls_->setSigmaColor(1.5);
+        wls_->setLambda(1e3);
+        wls_->setSigmaColor(1.5);
     #endif
 
     // Outgoing velocity.
     vel_.zero();
 
     // Outgoing port.
-    port_.open(out_port_name);
+    port_vel_in_.open(in_port_name_);
+    port_vel_out_.open(out_port_name_);
 
     // Set configurations and drivers.
     SetConfigs();
@@ -233,7 +241,8 @@ ReadCameras::~ReadCameras() {
     UnsetDrivers();
 
     // Close ports.
-    port_.close();
+    port_vel_in_.close();
+    port_vel_out_.close();
 }
 
 
@@ -245,41 +254,84 @@ void ReadCameras::run() {
             grab_[camera]->getImage(img_[camera]);
 
             // Convert the images to a format that OpenCV uses.
-            img_cv_[camera] = cv::cvarrToMat(img_[camera].getIplImage());
+            img_cv_rgb_[camera] = cv::cvarrToMat(img_[camera].getIplImage());
 
             // Convert to gray image.
-            cv::cvtColor(img_cv_[camera], img_cv_[camera], cv::COLOR_BGR2GRAY);
+            cv::cvtColor(img_cv_rgb_[camera], img_cv_gra_[camera], cv::COLOR_BGR2GRAY);
         }
     }
 
     // Determine disparity.
-    l_matcher_->compute(img_cv_[parts_[0].cameras[0]], img_cv_[parts_[0].cameras[1]], l_disp_);
+    l_matcher_->compute(img_cv_gra_[parts_[0].cameras[0]], img_cv_gra_[parts_[0].cameras[1]], l_disp_);
 
-    #ifdef BUILD_WITH_OPENCV_CONTRIB
-    r_matcher_->compute(img_cv_[parts_[0].cameras[1]], img_cv_[parts_[0].cameras[0]], r_disp_);
+    #if BUILD_WITH_OPENCV_CONTRIB
+        r_matcher_->compute(img_cv_gra_[parts_[0].cameras[1]], img_cv_gra_[parts_[0].cameras[0]], r_disp_);
 
-    // Perform weighted least squares filtering.
-    wls_->filter(l_disp_, img_cv_[parts_[0].cameras[0]], wls_disp_, r_disp_);
+        // Perform weighted least squares filtering.
+        wls_->filter(l_disp_, img_cv_gra_[parts_[0].cameras[0]], wls_disp_, r_disp_);
 
-    cv::ximgproc::getDisparityVis(wls_disp_, wls_disp_, 1);
-    cv::normalize(wls_disp_, wls_disp_, 0, 255, CV_MINMAX, CV_8U);
+        cv::ximgproc::getDisparityVis(wls_disp_, wls_disp_, 1);
+        cv::normalize(wls_disp_, wls_disp_, 0, 255, CV_MINMAX, CV_8U);
 
-    // Show and or save the depth view.
-    if (show_depth_view_) {
-        cv::namedWindow("Depth View", cv::WINDOW_AUTOSIZE);
-        cv::imshow("Depth View", wls_disp_);
-        cv::waitKey(period_);
-    }
+        // Show and or save the depth view.
+        if (show_depth_view_) {
+            cv::namedWindow("Depth View", cv::WINDOW_AUTOSIZE);
+            cv::imshow("Depth View", wls_disp_);
+            cv::waitKey(period_);
+        }
     #endif
 
-    if (save_depth_view_) {
+    if (record_) {
 
+        // Set the time stamp.
+	    time_stamp_ = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time_);
+
+        // Record images with time stamp.
+        // Fill stringstream with preceeding zeros.
+        std::ostringstream ss;
+        ss << std::setw(8) << std::setfill('0') << std::to_string(time_stamp_.count());
+
+        // Track locations of stored images and corresponding velocity.
+        std::ofstream txt(out_location_ + "/log.txt", std::ios_base::app);
+
+        for (const auto& part : parts_) {
+            for (const auto& camera : part.cameras) {
+
+                std::string loc = out_location_ + "/data/" + camera + "_" + ss.str() + ".png";
+                cv::imwrite(loc, img_cv_rgb_[camera]);
+                txt << "data/" + camera + "_" + ss.str() + ".png" + ", ";
+            }
+        }
+
+        std::string loc = out_location_ + "/data/l_disp_" + ss.str() + ".png";
+        cv::imwrite(loc, l_disp_);
+        txt << "data/l_disp_" + ss.str() + ".png" + ", ";
+
+        #if BUILD_WITH_OPENCV_CONTRIB
+            loc = out_location_ + "/data/wls_disp_" + ss.str() + ".png";
+            cv::imwrite(loc, wls_disp_);
+            txt << "data/wls_disp_" + ss.str() + ".png" + ", ";
+        #endif
+
+        int i = 0;
+        while (i < vel_.size()-1) {
+            txt << vel_[i] << ", ";
+            i++;
+        }
+        // Read the desired velocity and keep it unchanged if
+        // no command arrives.
+        yarp::sig::Vector* vel = port_vel_in_.read(false);
+        if (vel != YARP_NULLPTR) {
+            vel_ = *vel;
+        }
+
+        txt << vel_[vel_.size()-1] << "\n";
     }
 
     // Apply neural net to the depth view to make a decision.
-    yarp::sig::Vector& data = port_.prepare();
+    yarp::sig::Vector& data = port_vel_out_.prepare();
     data = vel_;
-    port_.write();       
+    port_vel_out_.write();       
 }
 
 
@@ -314,6 +366,9 @@ void ReadCameras::SetConfigs() {
                                   (*part)["cameras"].as<std::vector<std::string>>()});
         }
     }
+
+    record_ = configs_["record"].as<bool>();
+    out_location_ = configs_["out_location"].as<std::string>();
 }
 
 
