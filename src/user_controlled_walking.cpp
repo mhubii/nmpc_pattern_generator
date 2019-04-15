@@ -176,16 +176,8 @@ int main(int argc, char *argv[]) {
         yarp::os::Time::delay(1e-1);
     }
 
-    // TEST
+    // Save trajectories.
     WriteCsv("user_controlled_walking_trajectories.csv", pg_port.ip_.GetTrajectories().transpose());
-
-    // // Store com feedback for reference.
-    // Eigen::MatrixXd comfb = pg_port.ip_.GetTrajectories().rightCols(pg_port.com_.cols());
-    // comfb.row(0) = pg_port.com_.row(0);
-    // comfb.row(3) = pg_port.com_.row(1);
-    // comfb.row(6) = pg_port.com_.row(2);
-    // WriteCsv("test_com_feedback.csv", comfb.transpose());
-    // TEST END
 
     // Stop reader and writer (on command later).
     pg_port.close();

@@ -1161,31 +1161,13 @@ void KeyReader::ReadCommands() {
                     this->interrupt(); // interrupt any communication
                     this->close();
 
-                    // Set red colours.
-                    wbkgd(win_w_, COLOR_PAIR(4));
-                    wbkgd(win_a_, COLOR_PAIR(4));
-                    wbkgd(win_s_, COLOR_PAIR(4));
-                    wbkgd(win_d_, COLOR_PAIR(4));
-                    wbkgd(win_e_, COLOR_PAIR(4));
+                    // Set red colour.
+                    wclear(win_hello_);
+                    wbkgd(win_hello_, COLOR_PAIR(4));
+                    mvwaddstr(win_hello_, 0, 0, "Emergency stop called. Press q to quit this interface.");
 
-                    wclear(win_guide_);
-                    wbkgd(win_guide_, COLOR_PAIR(4));
-                    mvwaddstr(win_guide_, 0, 0, "Emergency stop called. Press q to quit this interface.");
-
-                    wclear(win_robot_status_);
-                    wbkgd(win_robot_status_, COLOR_PAIR(4));
-                    wclear(win_err_);
-                    wbkgd(win_err_, COLOR_PAIR(4));
-
-                    // Refresh windows.
-                    wrefresh(win_w_);
-                    wrefresh(win_a_);
-                    wrefresh(win_s_);
-                    wrefresh(win_d_);
-                    wrefresh(win_e_);
-                    wrefresh(win_guide_); 
-                    wrefresh(win_robot_status_);
-                    wrefresh(win_err_);
+                    // Refresh window.
+                    wrefresh(win_hello_);
                     break;
             }
         }
