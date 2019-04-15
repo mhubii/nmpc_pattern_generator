@@ -151,18 +151,18 @@ int main(int argc, char *argv[]) {
 
     // Process data, read from joints.
     WalkingProcessor pg_port(min, max); 
-    pg_port.open("/test/port");
+    pg_port.open("/user_controlled_walking/nmpc_pattern_generator");
 
     // Connect reader to external commands (possibly ai thread).
-    yarp::os::Network::connect("/vel/command", "/vel"); // send commands from terminal (reader.cpp) to this main
+    yarp::os::Network::connect("/key_reader/vel", "/user_controlled_walking/vel"); // send commands from terminal (reader.cpp) to this main
+    yarp::os::Network::connect("/key_reader/vel", rc.GetInVelPort()); // send velocity from terminal to readcamera for tracking
 
     // Put reader, processor, and writer together.
-    yarp::os::Network::connect(rj.GetPortName(), "/test/port");    // connect reader to walkingprocessor -> onRead gets called
-    yarp::os::Network::connect("/joint_angles", wj.GetPortName()); // connect to port_q of walkingprocessor
-    yarp::os::Network::connect("/client_write/robot_status", "/reader/commands"); // send commands from writer.cpp to terminal
-    yarp::os::Network::connect("/client_write/robot_status", "/walking_processor/commands"); // send commands from writer.cpp to this main
-    yarp::os::Network::connect("/walking_processor/commands", "/reader/commands"); // send commands from this main to terminal
-    yarp::os::Network::connect("/vel/command", rc.GetInVelPort());
+    yarp::os::Network::connect(rj.GetPortName(), "/user_controlled_walking/nmpc_pattern_generator");    // connect reader to walkingprocessor -> onRead gets called
+    yarp::os::Network::connect("/user_controlled_walking/joint_angles", wj.GetPortName()); // connect to port_q of walkingprocessor
+    yarp::os::Network::connect("/write_joints/robot_status", "/keyboard_user_interface/robot_status"); // send commands from writer.cpp to terminal
+    yarp::os::Network::connect("/write_joints/robot_status", "/user_controlled_walking/robot_status"); // send commands from writer.cpp to this main
+    yarp::os::Network::connect("/user_controlled_walking/robot_status", "/keyboard_user_interface/robot_status"); // send robot status from keyreader to this main
 
     // Start the read and write threads.
     rj.start();
@@ -177,14 +177,14 @@ int main(int argc, char *argv[]) {
     }
 
     // TEST
-    WriteCsv("test.csv", pg_port.ip_.GetTrajectories().transpose());
+    WriteCsv("user_controlled_walking_trajectories.csv", pg_port.ip_.GetTrajectories().transpose());
 
-    // Store com feedback for reference.
-    Eigen::MatrixXd comfb = pg_port.ip_.GetTrajectories().rightCols(pg_port.com_.cols());
-    comfb.row(0) = pg_port.com_.row(0);
-    comfb.row(3) = pg_port.com_.row(1);
-    comfb.row(6) = pg_port.com_.row(2);
-    WriteCsv("test_com_feedback.csv", comfb.transpose());
+    // // Store com feedback for reference.
+    // Eigen::MatrixXd comfb = pg_port.ip_.GetTrajectories().rightCols(pg_port.com_.cols());
+    // comfb.row(0) = pg_port.com_.row(0);
+    // comfb.row(3) = pg_port.com_.row(1);
+    // comfb.row(6) = pg_port.com_.row(2);
+    // WriteCsv("test_com_feedback.csv", comfb.transpose());
     // TEST END
 
     // Stop reader and writer (on command later).
@@ -246,9 +246,9 @@ WalkingProcessor::WalkingProcessor(Eigen::VectorXd q_min, Eigen::VectorXd q_max)
     vel_.setZero();
 
     // Open port for velocity input.
-    port_vel_.open("/vel"); // open /vel port to read velocity commands from terminal via reader.cpp
-    port_q_.open("/joint_angles"); // open /joint_angles port to read joint angles from writer.cpp
-    port_status_.open("/walking_processor/commands"); // open /walking_processor/commands to write status information to the terminal via reader.cpp
+    port_vel_.open("/user_controlled_walking/vel"); // open /user_controlled_walking/vel port to read velocity commands from terminal via reader.cpp
+    port_q_.open("/user_controlled_walking/joint_angles"); // open /user_controlled_walking/joint_angles port to read joint angles from writer.cpp
+    port_status_.open("/user_controlled_walking/robot_status"); // open /user_controlled_walking/robot_status to write status information to the terminal via reader.cpp
 
     ip_.StoreTrajectories(true);
 }
@@ -267,7 +267,7 @@ WalkingProcessor::~WalkingProcessor() {
 void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
 
     // Stop pattern generation on emergency stop.
-    if (!yarp::os::Network::isConnected(port_status_.getName(), "/reader/commands")) {
+    if (!yarp::os::Network::isConnected(port_status_.getName(), "/keyboard_user_interface/robot_status")) {
         std::cout << "Quitting pattern generation on emergency stop." << std::endl;
         this->interrupt();
         interrupted = true;

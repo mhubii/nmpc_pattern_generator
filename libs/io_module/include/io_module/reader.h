@@ -256,6 +256,7 @@ class KeyReader : public yarp::os::BufferedPort<yarp::os::Bottle>
 
         // Port for sending velocities.
         yarp::os::BufferedPort<yarp::sig::Vector> port_;
+        yarp::os::BufferedPort<yarp::os::Bottle> port_status_;
     
         // Set velocity.
         void SetVelocity(Eigen::Vector3d& acc, double t);
@@ -285,7 +286,7 @@ class KeyReader : public yarp::os::BufferedPort<yarp::os::Bottle>
 
         // User interface.
         WINDOW *win_w_, *win_a_, *win_s_, *win_d_;
-        WINDOW *win_q_, *win_e_, *win_r_, *win_guide_, *win_robot_status_, *win_err_, *win_vel_;
+        WINDOW *win_q_, *win_e_, *win_r_, *win_hello_, *win_guide_, *win_robot_status_, *win_err_, *win_vel_;
         WINDOW *win_inv_;
 
         // Mutex.

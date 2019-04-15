@@ -59,7 +59,7 @@ class WriteJoints : public yarp::os::RateThread
         double initial_vel_;
 
         // Port to communicate initial position status.
-        yarp::os::BufferedPort<yarp::os::Bottle> port_robot_status_;
+        yarp::os::BufferedPort<yarp::os::Bottle> port_status_;
 
         // Input.
         yarp::sig::Vector q_;

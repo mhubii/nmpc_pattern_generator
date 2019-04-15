@@ -14,7 +14,7 @@ WriteJoints::WriteJoints(int period, const std::string config_file_loc,
     SetDrivers();
 
     // Open port to communicate initial position status.
-    port_robot_status_.open("/client_write/robot_status");
+    port_status_.open("/write_joints/robot_status");
 
     // Open port to read from.
     port_.open(port_name_);
@@ -31,7 +31,7 @@ WriteJoints::~WriteJoints() {
     UnsetDrivers();
 
     // Close ports.
-    port_robot_status_.close();
+    port_status_.close();
     port_.close();
 }
 
@@ -75,11 +75,11 @@ void WriteJoints::run() {
         }
 
         // Communicate initial position status.
-        yarp::os::Bottle& bottle = port_robot_status_.prepare();
+        yarp::os::Bottle& bottle = port_status_.prepare();
         yarp::os::Property& dict = bottle.addDict();
 
         dict.put("RobotStatus", robot_status_);
-        port_robot_status_.write();
+        port_status_.write();
     }
 
     else if (robot_status_ == INITIALIZING) {
@@ -106,11 +106,11 @@ void WriteJoints::run() {
             ok = ok && SetControlModes(VOCAB_CM_POSITION_DIRECT);
 
             // Communicate initial position status.
-            yarp::os::Bottle& bottle = port_robot_status_.prepare();
+            yarp::os::Bottle& bottle = port_status_.prepare();
             yarp::os::Property& dict = bottle.addDict();
 
             dict.put("RobotStatus", robot_status_);
-            port_robot_status_.write();
+            port_status_.write();
         }
     }
 

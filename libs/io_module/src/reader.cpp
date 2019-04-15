@@ -847,7 +847,8 @@ KeyReader::KeyReader()
       vel_(3) {
 
     // Open port.
-    port_.open("/vel/command");
+    port_.open("/key_reader/vel");
+    port_status_.open("/key_reader/robot_status");
 
     // Set velocity to zero.
     vel_.zero();
@@ -865,8 +866,9 @@ KeyReader::KeyReader()
     win_d_ = newwin( 3, 6,  6, 18);
     win_q_ = newwin( 3, 6,  2,  2);
     win_e_ = newwin( 3, 6,  2, 18);
-    win_r_ = newwin( 3, 6,  2, 18);
-    win_guide_ = newwin(20, 44, 2, 28);
+    win_r_ = newwin( 3, 6,  2, 26);
+    win_hello_ = newwin( 3, 36, 2, 36);
+    win_guide_ = newwin(12, 44, 6, 28);
     win_robot_status_ = newwin(2, 22, 10, 2);
     win_err_ = newwin(2, 22, 13, 2);
     win_vel_ = newwin(6, 20, 16, 2);
@@ -887,6 +889,7 @@ KeyReader::KeyReader()
     wbkgd(win_q_, COLOR_PAIR(3));
     wbkgd(win_e_, COLOR_PAIR(4));
     wbkgd(win_r_, COLOR_PAIR(5));
+    wbkgd(win_hello_, COLOR_PAIR(1));
     wbkgd(win_guide_, COLOR_PAIR(1));
     wbkgd(win_robot_status_, COLOR_PAIR(4));
     wbkgd(win_err_, COLOR_PAIR(5));
@@ -900,13 +903,17 @@ KeyReader::KeyReader()
     mvwaddstr(win_q_, 1, 2, "q");
     mvwaddstr(win_e_, 1, 2, "e");
     mvwaddstr(win_r_, 1, 2, "r");
-    mvwaddstr(win_guide_, 0, 0, "Hello, I am the keyboard user interface of the heicub robot. Press r to run the robot.\n\n"
-                                "Use w and s to accelerate forwards and backwards.\n\n"
-                                "Use a and d to accelerate angular left and right.\n\n"
-                                "Use shift+a and shift+d to accelerate left and right.\n\n"
-                                "Use x to set the velocity to zero. Only one pressed key is read in, leaving all other velocities untouched.\n\n"
-                                "For an emergency stop press e.\n\n"
-                                "Press q to quit this interface."); 
+    mvwaddstr(win_hello_, 0, 0, "Hello, I am the keyboard user interface of the heicub robot.");
+    mvwaddstr(win_guide_, 0, 0, "r: run/reset robot\n"
+                                "w: accelerate forwards\n"
+                                "s: accelerate backwards\n"
+                                "a: accelerate angular left\n"
+                                "d: accelerate angular right\n"
+                                "shift+a: accelerate left\n"
+                                "shift+d: accelerate right\n"
+                                "x: set the velocity to zero\n\n"
+                                "e: emergency stop\n"
+                                "q: quit this interface"); 
     mvwaddstr(win_robot_status_, 0, 2, "Robot:\n"
                                         "  Not connected!");
     mvwaddstr(win_err_, 0, 2, "Warnings:\n"
@@ -922,8 +929,9 @@ KeyReader::KeyReader()
     wrefresh(win_s_);
     wrefresh(win_d_);
     wrefresh(win_q_);
-    // wrefresh(win_e_); // refresh once r is pressed
+    wrefresh(win_e_);
     wrefresh(win_r_);
+    wrefresh(win_hello_);
     wrefresh(win_guide_);
     wrefresh(win_robot_status_);
     wrefresh(win_err_);
@@ -955,6 +963,7 @@ KeyReader::~KeyReader() {
     delwin(win_q_);
     delwin(win_e_);
     delwin(win_r_);
+    delwin(win_hello_);
     delwin(win_guide_);
     delwin(win_robot_status_);
     delwin(win_err_);
@@ -1182,19 +1191,16 @@ void KeyReader::ReadCommands() {
         }
         else if (!running_ && (ch == 'r' || ch == 'R')) {
 
-            wrefresh(win_e_);
+            running_ = true;
 
-            if (!running_) {
+            wbkgd(win_r_, COLOR_PAIR(3));
+            wrefresh(win_r_);
 
-                wrefresh(win_e_);
-                running_ = true;
-
-                // Run user controlled walking.
-                if (std::system("gnome-terminal -x bash ../../sh/run_user_controlled_walking.sh") != 0)
-                {
-                    std::cout << "Could not run the pattern generator." << std::endl;
-                    std::exit(1);
-                }
+            // Run user controlled walking.
+            if (std::system("gnome-terminal -x bash ../../sh/run_user_controlled_walking.sh") != 0)
+            {
+                std::cout << "Could not run the pattern generator." << std::endl;
+                std::exit(1);
             }
         }
 
