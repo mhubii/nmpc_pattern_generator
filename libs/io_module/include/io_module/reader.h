@@ -174,6 +174,10 @@ class ReadCameras : public yarp::os::RateThread
 
         yarp::os::BufferedPort<yarp::sig::Vector> port_vel_in_;
         yarp::os::BufferedPort<yarp::sig::Vector> port_vel_out_;
+
+        // Index of the current epoch.
+        yarp::os::BufferedPort<yarp::os::Bottle> port_epoch_;
+        int epoch_;
 };
 
 
@@ -257,6 +261,10 @@ class KeyReader : public yarp::os::BufferedPort<yarp::os::Bottle>
         // Port for sending velocities.
         yarp::os::BufferedPort<yarp::sig::Vector> port_;
         yarp::os::BufferedPort<yarp::os::Bottle> port_status_;
+
+        // Index of the current epoch.
+        yarp::os::BufferedPort<yarp::os::Bottle> port_epoch_;
+        int epoch_;
     
         // Set velocity.
         void SetVelocity(Eigen::Vector3d& acc, double t);

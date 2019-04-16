@@ -156,14 +156,15 @@ int main(int argc, char *argv[]) {
     // Connect reader to external commands (possibly ai thread).
     yarp::os::Network::connect("/key_reader/vel", "/user_controlled_walking/vel"); // send commands from terminal (reader.cpp) to this main
     yarp::os::Network::connect("/key_reader/vel", rc.GetInVelPort()); // send velocity from terminal to readcamera for tracking
+    yarp::os::Network::connect("/key_reader/epoch","/read_cameras/epoch");// connect to readcamera to keyreader tell it the index of the current epoch
+    yarp::os::Network::connect("/key_reader/robot_status", "/user_controlled_walking/robot_status"); // send robot status from keyreader to this main
 
     // Put reader, processor, and writer together.
     yarp::os::Network::connect(rj.GetPortName(), "/user_controlled_walking/nmpc_pattern_generator");    // connect reader to walkingprocessor -> onRead gets called
     yarp::os::Network::connect("/user_controlled_walking/joint_angles", wj.GetPortName()); // connect to port_q of walkingprocessor
+    yarp::os::Network::connect("/user_controlled_walking/robot_status", "/keyboard_user_interface/robot_status"); // send robot status from keyreader to this main
     yarp::os::Network::connect("/write_joints/robot_status", "/keyboard_user_interface/robot_status"); // send commands from writer.cpp to terminal
     yarp::os::Network::connect("/write_joints/robot_status", "/user_controlled_walking/robot_status"); // send commands from writer.cpp to this main
-    yarp::os::Network::connect("/user_controlled_walking/robot_status", "/keyboard_user_interface/robot_status"); // send robot status from keyreader to this main
-    yarp::os::Network::connect("/key_reader/robot_status", "/user_controlled_walking/robot_status"); // send robot status from keyreader to this main
 
     // Start the read and write threads.
     rj.start();

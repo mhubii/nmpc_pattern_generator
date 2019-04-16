@@ -228,6 +228,9 @@ ReadCameras::ReadCameras(int period, const std::string config_file_loc,
     // Outgoing port.
     port_vel_in_.open(in_port_name_);
     port_vel_out_.open(out_port_name_);
+    port_epoch_.open("/read_cameras/epoch");
+
+    epoch_ = 0;
 
     // Set configurations and drivers.
     SetConfigs();
@@ -243,6 +246,7 @@ ReadCameras::~ReadCameras() {
     // Close ports.
     port_vel_in_.close();
     port_vel_out_.close();
+    port_epoch_.close();
 }
 
 
@@ -286,6 +290,11 @@ void ReadCameras::run() {
         // Set the time stamp.
 	    time_stamp_ = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time_);
 
+        yarp::os::Bottle* epoch = port_epoch_.read(false);
+        if (epoch != YARP_NULLPTR) {
+            epoch_ = epoch->get(0).asInt();
+        }
+
         // Record images with time stamp.
         // Fill stringstream with preceeding zeros.
         std::ostringstream ss;
@@ -297,20 +306,20 @@ void ReadCameras::run() {
         for (const auto& part : parts_) {
             for (const auto& camera : part.cameras) {
 
-                std::string loc = out_location_ + "/data/" + camera + "_" + ss.str() + ".png";
+                std::string loc = out_location_ + "/data/" + camera + "_" + "epoch_" + std::to_string(epoch_) + "_" + ss.str() + ".png";
                 cv::imwrite(loc, img_cv_rgb_[camera]);
-                txt << "data/" + camera + "_" + ss.str() + ".png" + ", ";
+                txt << "data/" + camera + "_" + "epoch_" + std::to_string(epoch_) + "_" + ss.str() + ".png" + ", ";
             }
         }
 
-        std::string loc = out_location_ + "/data/l_disp_" + ss.str() + ".png";
+        std::string loc = out_location_ + "/data/l_disp_epoch_" + std::to_string(epoch_) + "_" + ss.str() + ".png";
         cv::imwrite(loc, l_disp_);
-        txt << "data/l_disp_" + ss.str() + ".png" + ", ";
+        txt << "data/l_disp_epoch_" + std::to_string(epoch_) + "_" + ss.str() + ".png" + ", ";
 
         #if BUILD_WITH_OPENCV_CONTRIB
-            loc = out_location_ + "/data/wls_disp_" + ss.str() + ".png";
+            loc = out_location_ + "/data/wls_disp_epoch_" + std::to_string(epoch_) + "_" + ss.str() + ".png";
             cv::imwrite(loc, wls_disp_);
-            txt << "data/wls_disp_" + ss.str() + ".png" + ", ";
+            txt << "data/wls_disp_epoch_" + std::to_string(epoch_) + "_" + ss.str() + ".png" + ", ";
         #endif
 
         int i = 0;
@@ -849,6 +858,9 @@ KeyReader::KeyReader()
     // Open port.
     port_.open("/key_reader/vel");
     port_status_.open("/key_reader/robot_status");
+    port_epoch_.open("/key_reader/epoch");
+
+    epoch_ = 0;
 
     // Set velocity to zero.
     vel_.zero();
@@ -955,6 +967,7 @@ KeyReader::~KeyReader() {
     // Close port.
     port_.close();
     port_status_.close();
+    port_epoch_.close();
 
     // Release the user interface.
     delwin(win_w_);
@@ -1204,6 +1217,9 @@ void KeyReader::ReadCommands() {
             wbkgd(win_r_, COLOR_PAIR(3));
             wrefresh(win_r_);
 
+            // Set current epoch.
+            epoch_++;
+
             // Run user controlled walking.
             if (std::system("gnome-terminal -x bash ../../sh/run_user_controlled_walking.sh") != 0)
             {
@@ -1211,6 +1227,12 @@ void KeyReader::ReadCommands() {
                 std::exit(1);
             }
         }
+
+        // Spam current epoch to port, so that read cameras can receive it.
+        yarp::os::Bottle& epoch = port_epoch_.prepare();
+        epoch.clear();
+        epoch.addInt(epoch_);
+        port_epoch_.write();
 
         // Update user interface.  
         mvwaddstr(win_vel_, 0, 0, ("Current velocity:\n\n"
