@@ -14,7 +14,7 @@ int main() {
     kr.open("/keyboard_user_interface/robot_status");
 
     // Start reading incomming commands.
-    kr.ReadCommands();
+    kr.ReadCommands(); // program caught in while loop until q is pressed
 
     // Close connections.
     kr.close();
