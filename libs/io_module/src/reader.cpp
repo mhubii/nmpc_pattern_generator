@@ -287,6 +287,20 @@ void ReadCameras::run() {
 
     if (record_) {
 
+        // Resize images.
+        for (const auto& part : parts_) {
+            for (const auto& camera : part.cameras) {
+
+                cv::resize(img_cv_rgb_[camera], img_cv_rgb_[camera], cv::Size(img_cv_rgb_[camera].cols * 0.25, img_cv_rgb_[camera].rows * 0.25));
+            }
+        }
+
+        cv::resize(l_disp_, l_disp_, cv::Size(l_disp_.cols * 0.25, l_disp_.rows * 0.25));
+
+        # if BUILD_WITH_OPENCV_CONTRIB
+            cv::resize(wls_disp_, wls_disp_, cv::Size(wls_disp_.cols * 0.25, wls_disp_.rows * 0.25));
+        #endif
+
         // Set the time stamp.
 	    time_stamp_ = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time_);
 
