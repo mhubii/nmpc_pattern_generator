@@ -1,3 +1,5 @@
+#include <opencv2/opencv.hpp>
+#include <opencv2/ximgproc.hpp>
 #include <yarp/os/all.h>
 #include <Eigen/Core>
 #include <rbdl/rbdl.h>
@@ -19,27 +21,30 @@ std::string ki_config;
 // Forward declare name of the robot.
 std::string robot;
 
-// Forward declare WalkingProcessor. This is actually the heart
+// Forward declare output location.
+std::string out_loc;
+
+// Forward declare BehaviouralCloning. This is actually the heart
 // of the application. Within it, the pattern is generated,
-// and the  inverse kinematics is computed.
-class WalkingProcessor : public yarp::os::BufferedPort<yarp::sig::Matrix>
+// and the  inverse kinematics is computed. Also, images and velocities
+// are recorded and stored.
+class BehaviouralCloning : public yarp::os::BufferedPort<yarp::sig::Matrix>
 {
     public:
 
-        WalkingProcessor(Eigen::VectorXd q_min, Eigen::VectorXd q_max);
+        BehaviouralCloning(Eigen::VectorXd q_min, Eigen::VectorXd q_max, std::vector<Part> parts, std::string out_location);
 
-        ~WalkingProcessor();
+        ~BehaviouralCloning();
 
         using yarp::os::BufferedPort<yarp::sig::Matrix>::onRead;
         virtual void onRead(yarp::sig::Matrix& state);
-
-        // Setter.
-        inline void SetRobotStatus(RobotStatus stat) { robot_status_ = stat; };
 
         // State of this port.
         bool interrupted;
 
     public: // TEST.. change to private!
+
+        void ProcessImages();
 
         // Building blocks of walking generation.
         NMPCGenerator pg_;
@@ -74,6 +79,10 @@ class WalkingProcessor : public yarp::os::BufferedPort<yarp::sig::Matrix>
         yarp::os::BufferedPort<yarp::sig::Vector> port_vel_;
         yarp::os::BufferedPort<yarp::sig::Vector> port_q_;
 
+        // Ports to read images and the current epoch.
+        std::map<std::string, yarp::os::BufferedPort<yarp::sig::ImageOf<yarp::sig::PixelRgb>>> ports_img_;
+        yarp::os::BufferedPort<yarp::os::Bottle> port_epoch_;
+
         // Mutex.
         yarp::os::Mutex mutex_;
 
@@ -87,6 +96,31 @@ class WalkingProcessor : public yarp::os::BufferedPort<yarp::sig::Matrix>
         // TEST: COM feedback.
         Eigen::MatrixXd com_;
         // TEST END
+
+        // Output images, and corresponding velocities.
+        std::string out_location_; // location of txt file and images
+
+        std::chrono::steady_clock::time_point start_time_; // time stamp and epoch for labeling output
+        std::chrono::milliseconds time_stamp_;
+        int epoch_;
+
+        // Parts.
+        std::vector<Part> parts_;
+
+        // Images of the cameras.
+        std::map<std::string, yarp::sig::ImageOf<yarp::sig::PixelRgb>> imgs_;
+        std::map<std::string, cv::Mat> imgs_cv_rgb_;
+        std::map<std::string, cv::Mat> imgs_cv_gra_;
+
+        // Stereo matching and weighted least square filter.
+        cv::Ptr<cv::StereoBM> l_matcher_;
+        cv::Ptr<cv::StereoMatcher> r_matcher_;
+        cv::Ptr<cv::ximgproc::DisparityWLSFilter> wls_;
+
+        // Disparity map.
+        cv::Mat l_disp_; 
+        cv::Mat r_disp_; 
+        cv::Mat wls_disp_;
 };
 
 
@@ -130,6 +164,16 @@ int main(int argc, char *argv[]) {
         std::cerr << "--robot (e.g. icubGazeboSim)" << std::endl;
         std::exit(1);
     }
+    if (params.check("out_loc")) {
+        out_loc = params.find("out_loc").asString();
+    }
+    else
+    {
+        std::cerr << "Please specify output location" << std::endl;
+        std::cerr << "--out_loc (e.g. ../out)" << std::endl;
+        std::exit(1);
+    }
+    
 
     // Set up the yarp network.
     yarp::os::Network yarp;
@@ -137,54 +181,67 @@ int main(int argc, char *argv[]) {
     // Reader and writer.
     // int period = YAML::LoadFile(pg_config)["t"].as<double>()*1e3;              // preview horizon
     int period = YAML::LoadFile(pg_config)["command_period"].as<double>()*1e3; // interpolation time resolution
+    int period_cam = 100;
 
     ReadJoints rj(period, io_config, robot);
     WriteJoints wj(period, io_config, robot);
+    ReadCameras rc(period_cam, io_config, robot);
 
     // Get the extremal angles for the joints. // TODO add some kind of min max init
     Eigen::VectorXd min = rj.GetMinAngles();
     Eigen::VectorXd max = rj.GetMaxAngles();
 
     // Process data, read from joints.
-    WalkingProcessor pg_port(min, max); 
-    pg_port.open("/user_controlled_walking/nmpc_pattern_generator");
+    BehaviouralCloning bc_port(min, max, rc.GetParts(), out_loc); 
+    bc_port.open("/behavioural_cloning/nmpc_pattern_generator");
 
     // Connect reader to external commands (possibly ai thread).
-    yarp::os::Network::connect("/key_reader/vel", "/user_controlled_walking/vel"); // send commands from terminal (reader.cpp) to this main
-    yarp::os::Network::connect("/key_reader/robot_status", "/user_controlled_walking/robot_status"); // send robot status from keyreader to this main
+    yarp::os::Network::connect("/key_reader/vel", "/behavioural_cloning/vel"); // send commands from terminal (reader.cpp) to this main
+    yarp::os::Network::connect("/key_reader/robot_status", "/behavioural_cloning/robot_status"); // send robot status from keyreader to this main
+
+    // Ports to read images and the current epoch.
+    for (const auto& part : rc.GetParts()) {
+        for (const auto& camera : part.cameras) {
+
+            yarp::os::Network::connect("/read_cameras/" + camera, "/behavioural_cloning/" + camera);
+        }
+    }
+    yarp::os::Network::connect("/key_reader/epoch", "/behavioural_cloning/epoch");
 
     // Put reader, processor, and writer together.
-    yarp::os::Network::connect(rj.GetPortName(), "/user_controlled_walking/nmpc_pattern_generator");    // connect reader to walkingprocessor -> onRead gets called
-    yarp::os::Network::connect("/user_controlled_walking/joint_angles", wj.GetPortName()); // connect to port_q of walkingprocessor
-    yarp::os::Network::connect("/user_controlled_walking/robot_status", "/keyboard_user_interface/robot_status"); // send robot status from keyreader to this main
+    yarp::os::Network::connect(rj.GetPortName(), "/behavioural_cloning/nmpc_pattern_generator");    // connect reader to BehaviouralCloning -> onRead gets called
+    yarp::os::Network::connect("/behavioural_cloning/joint_angles", wj.GetPortName()); // connect to port_q of BehaviouralCloning
+    yarp::os::Network::connect("/behavioural_cloning/robot_status", "/keyboard_user_interface/robot_status"); // send robot status from keyreader to this main
     yarp::os::Network::connect("/write_joints/robot_status", "/keyboard_user_interface/robot_status"); // send commands from writer.cpp to terminal
-    yarp::os::Network::connect("/write_joints/robot_status", "/user_controlled_walking/robot_status"); // send commands from writer.cpp to this main
+    yarp::os::Network::connect("/write_joints/robot_status", "/behavioural_cloning/robot_status"); // send commands from writer.cpp to this main
 
     // Start the read and write threads.
     rj.start();
     wj.start();
+    rc.start();
     
     // Run program for a certain delay.
-    while (!pg_port.interrupted) {
+    while (!bc_port.interrupted) {
 
         // Run until port is disconnected.
         yarp::os::Time::delay(1e-1);
     }
 
     // Save trajectories.
-    WriteCsv("user_controlled_walking_trajectories.csv", pg_port.ip_.GetTrajectories().transpose());
+    WriteCsv("behavioural_cloning_walking_trajectories.csv", bc_port.ip_.GetTrajectories().transpose());
 
     // Stop reader and writer (on command later).
-    pg_port.close();
+    bc_port.close();
     rj.stop();
     wj.stop();
+    rc.stop();
 
     return 0;
 }
 
 
-// Implement WalkingProcessor.
-WalkingProcessor::WalkingProcessor(Eigen::VectorXd q_min, Eigen::VectorXd q_max)
+// Implement BehaviouralCloning.
+BehaviouralCloning::BehaviouralCloning(Eigen::VectorXd q_min, Eigen::VectorXd q_max, std::vector<Part> parts, std::string out_location)
   : interrupted(false),
 
     pg_(pg_config),
@@ -206,7 +263,15 @@ WalkingProcessor::WalkingProcessor(Eigen::VectorXd q_min, Eigen::VectorXd q_max)
     
     // Position initialized.
     robot_status_(NOT_INITIALIZED),
-    initialized_(false) {
+    initialized_(false),
+    
+    // Output location.
+    out_location_(out_loc),
+    
+	start_time_(std::chrono::steady_clock::now()),
+	time_stamp_(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time_)),
+    epoch_(0),
+    parts_(parts) {
 
     // Pattern generator preparation.
     pg_.SetSecurityMargin(pg_.SecurityMarginX(), 
@@ -232,15 +297,33 @@ WalkingProcessor::WalkingProcessor(Eigen::VectorXd q_min, Eigen::VectorXd q_max)
     vel_.setZero();
 
     // Open port for velocity input.
-    port_vel_.open("/user_controlled_walking/vel"); // open /user_controlled_walking/vel port to read velocity commands from terminal via reader.cpp
-    port_q_.open("/user_controlled_walking/joint_angles"); // open /user_controlled_walking/joint_angles port to read joint angles from writer.cpp
-    port_status_.open("/user_controlled_walking/robot_status"); // open /user_controlled_walking/robot_status to write status information to the terminal via reader.cpp
+    port_vel_.open("/behavioural_cloning/vel"); // open /behavioural_cloning/vel port to read velocity commands from terminal via reader.cpp
+    port_q_.open("/behavioural_cloning/joint_angles"); // open /behavioural_cloning/joint_angles port to read joint angles from writer.cpp
+    
+    // Ports to read images and the current epoch.
+    for (const auto& part : parts_) {
+        for (const auto& camera : part.cameras) {
+
+            ports_img_[camera].open("/behavioural_cloning/" + camera);
+        }
+    }
+
+    port_epoch_.open("/behavioural_cloning/epoch");
+    port_status_.open("/behavioural_cloning/robot_status"); // open /behavioural_cloning/robot_status to write status information to the terminal via reader.cpp
 
     ip_.StoreTrajectories(true);
+
+    // Stereo matching and weighted least square filter.
+    l_matcher_ = cv::StereoBM::create(16, 9);
+    r_matcher_ = cv::ximgproc::createRightMatcher(l_matcher_);
+    wls_ = cv::ximgproc::createDisparityWLSFilter(l_matcher_);
+
+    wls_->setLambda(1e3);
+    wls_->setSigmaColor(1.5);
 }
 
 
-WalkingProcessor::~WalkingProcessor() {
+BehaviouralCloning::~BehaviouralCloning() {
 
     // Close ports.
     port_vel_.close();
@@ -250,7 +333,7 @@ WalkingProcessor::~WalkingProcessor() {
 
 
 // Implement onRead() method.
-void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
+void  BehaviouralCloning::onRead(yarp::sig::Matrix& state) {
 
     // Stop pattern generation on emergency stop.
     if (!yarp::os::Network::isConnected(port_status_.getName(), "/keyboard_user_interface/robot_status")) {
@@ -284,6 +367,9 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
             // Convert to Eigen.
             vel_ = yarp::eigen::toEigen(*vel);
         }
+
+        // Read current images, compute depth image, and save them with corresponding velocity and time stamp.
+        ProcessImages();
 
         // Set desired velocity.
         pg_.SetVelocityReference(vel_);
@@ -404,4 +490,85 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
 
     // Unlock the callback.
     unlockCallback();
+}
+
+void BehaviouralCloning::ProcessImages() {
+
+    // Read the camera images.
+    for (const auto& part : parts_) {
+        for (const auto& camera : part.cameras) {
+
+            yarp::sig::ImageOf<yarp::sig::PixelRgb>* img = ports_img_[camera].read(false);
+            if (img != YARP_NULLPTR) {
+
+                // Convert the images to a format that OpenCV uses.
+                imgs_cv_rgb_[camera] = cv::cvarrToMat(img->getIplImage());
+
+                // Convert to gray image.
+                cv::cvtColor(imgs_cv_rgb_[camera], imgs_cv_gra_[camera], cv::COLOR_BGR2GRAY);
+            }
+        }
+    }
+
+    // Determine disparity.
+    l_matcher_->compute(imgs_cv_gra_[parts_[0].cameras[0]], imgs_cv_gra_[parts_[0].cameras[1]], l_disp_);
+
+    r_matcher_->compute(imgs_cv_gra_[parts_[0].cameras[1]], imgs_cv_gra_[parts_[0].cameras[0]], r_disp_);
+
+    // Perform weighted least squares filtering.
+    wls_->filter(l_disp_, imgs_cv_gra_[parts_[0].cameras[0]], wls_disp_, r_disp_);
+
+    cv::ximgproc::getDisparityVis(wls_disp_, wls_disp_, 1);
+    cv::normalize(wls_disp_, wls_disp_, 0, 255, CV_MINMAX, CV_8U);
+
+    // Resize images.
+    for (const auto& part : parts_) {
+        for (const auto& camera : part.cameras) {
+
+            cv::resize(imgs_cv_rgb_[camera], imgs_cv_rgb_[camera], cv::Size(imgs_cv_rgb_[camera].cols * 0.25, imgs_cv_rgb_[camera].rows * 0.25));
+        }
+    }
+
+    cv::resize(l_disp_, l_disp_, cv::Size(l_disp_.cols * 0.25, l_disp_.rows * 0.25));
+    cv::resize(wls_disp_, wls_disp_, cv::Size(wls_disp_.cols * 0.25, wls_disp_.rows * 0.25));
+
+    // Set the time stamp.
+    time_stamp_ = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time_);
+
+    yarp::os::Bottle* epoch = port_epoch_.read(false);
+    if (epoch != YARP_NULLPTR) {
+        epoch_ = epoch->get(0).asInt();
+    }
+
+    // Record images with time stamp.
+    // Fill stringstream with preceeding zeros.
+    std::ostringstream ss;
+    ss << std::setw(8) << std::setfill('0') << std::to_string(time_stamp_.count());
+
+    // Track locations of stored images and corresponding velocity.
+    std::ofstream txt(out_location_ + "/log.txt", std::ios_base::app);
+
+    for (const auto& part : parts_) {
+        for (const auto& camera : part.cameras) {
+
+            std::string loc = out_location_ + "/data/" + camera + "_" + "epoch_" + std::to_string(epoch_) + "_" + ss.str() + ".png";
+            cv::imwrite(loc, imgs_cv_rgb_[camera]);
+            txt << "data/" + camera + "_" + "epoch_" + std::to_string(epoch_) + "_" + ss.str() + ".png" + ", ";
+        }
+    }
+
+    std::string loc = out_location_ + "/data/l_disp_epoch_" + std::to_string(epoch_) + "_" + ss.str() + ".png";
+    cv::imwrite(loc, l_disp_);
+    txt << "data/l_disp_epoch_" + std::to_string(epoch_) + "_" + ss.str() + ".png" + ", ";
+
+    loc = out_location_ + "/data/wls_disp_epoch_" + std::to_string(epoch_) + "_" + ss.str() + ".png";
+    cv::imwrite(loc, wls_disp_);
+    txt << "data/wls_disp_epoch_" + std::to_string(epoch_) + "_" + ss.str() + ".png" + ", ";
+
+    int i = 0;
+    while (i < vel_.size()-1) {
+        txt << vel_[i] << ", ";
+        i++;
+    }
+    txt << vel_[vel_.size()-1] << "\n";
 }

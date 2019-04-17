@@ -2,13 +2,27 @@
 
 #include "reader.h"
 
-int main() {
+int main(int argc, char** argv) {
+
+    // Read in the mode.
+    std::string mode = argv[1];
+
+    if (!(!strcmp(mode.c_str(), "uc") || 
+          !strcmp(mode.c_str(), "bc") || 
+          !strcmp(mode.c_str(), "ac"))) {
+
+        printf("Please provide a mode in which the interface shall be run. Modes are \n\
+                uc = user conrolled\n\
+                bc = behavioural cloning\n\
+                ac = autonomous control\n");
+        std::exit(1);
+    }
 
     // Create yarp network.
     yarp::os::Network yarp;
 
     // Create a keyboard user interface.
-    KeyReader kr;
+    KeyReader kr(mode);
 
     // Open port for communication.
     kr.open("/keyboard_user_interface/robot_status");
