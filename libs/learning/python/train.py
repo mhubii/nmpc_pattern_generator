@@ -56,7 +56,7 @@ def train(args):
 
             if idx % 10 == 0:
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                      epoch, idx * len(img_rgbd), len(data_loader.dataset),
+                      epoch+1, idx * len(img_rgbd), len(data_loader.dataset),
                       100. * idx / len(data_loader), loss.data.item()))
 
                 history.append(loss.data.item())
@@ -91,7 +91,7 @@ if __name__ == '__main__':
 	
 	trained_model.load_state_dict(torch.load('trained.pt'))
 
-	example = torch.rand(1, utils.IMAGE_CHANNELS, utils.IMAGE_HEIGHT, utils.IMAGE_WIDTH)
+	example = torch.rand(1, utils.IMAGE_CHANNELS, utils.CROPPED_IMAGE_HEIGHT, utils.CROPPED_IMAGE_WIDTH)
 
-	traced_script_module = torch.jit.trace(trained_model, (example, example))
+	traced_script_module = torch.jit.trace(trained_model, example)
 	traced_script_module.save('trained_script_module.pt')

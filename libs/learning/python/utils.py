@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import skimage.io
+import cv2
 import torch
 from torch.utils.data import Dataset
 import os
@@ -58,6 +59,7 @@ class PreProcessData(object):
 
         # Change HxWxC to CxHxW.
         img_left = np.transpose(img_left, (2, 0, 1))
+        #img_wls_dips = np.transpose(img_wls_disp, (2, 0, 1)) TODO
 
         # Concatenate rgb, d to rgbd image.    
         img_wls_disp = np.expand_dims(img_wls_disp, 0)
@@ -108,8 +110,8 @@ def load_rgbd(data_dir, image_file_rgb, image_file_d):
         Load RGB image from a file.
     """
 
-    image_rgb = skimage.io.imread(os.path.join(data_dir, image_file_rgb))
-    image_d = skimage.io.imread(os.path.join(data_dir, image_file_d))
+    image_rgb = cv2.imread(os.path.join(data_dir, image_file_rgb), cv2.IMREAD_COLOR)
+    image_d = cv2.imread(os.path.join(data_dir, image_file_d), cv2.IMREAD_GRAYSCALE)
 
     return image_rgb, image_d
 
@@ -135,7 +137,7 @@ def crop(image):
 
 import matplotlib.pyplot as plt
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     
     data_dir = "/home/martin/Downloads/nmpc_pattern_generator/out"
     file_rgb = "data/left_epoch_1_00000145.png"
