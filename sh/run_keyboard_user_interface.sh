@@ -3,7 +3,7 @@
 # Possible commands are:
 # uc = user controlled
 # bc = behavioural cloning
-# ac = autonomous control
+# ba = behavioural augmentation
 
 # Location of shell script.
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"

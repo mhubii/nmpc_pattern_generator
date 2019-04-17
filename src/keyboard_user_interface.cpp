@@ -9,12 +9,12 @@ int main(int argc, char** argv) {
 
     if (!(!strcmp(mode.c_str(), "uc") || 
           !strcmp(mode.c_str(), "bc") || 
-          !strcmp(mode.c_str(), "ac"))) {
+          !strcmp(mode.c_str(), "ba"))) {
 
         printf("Please provide a mode in which the interface shall be run. Modes are \n\
                 uc = user conrolled\n\
                 bc = behavioural cloning\n\
-                ac = autonomous control\n");
+                ba = behavioural augmentation\n");
         std::exit(1);
     }
 

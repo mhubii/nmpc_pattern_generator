@@ -124,7 +124,7 @@ if (${BUILD_WITH_YARP} AND ${BUILD_WITH_LEARNING})
     # Source.
     set(SOURCES
         behavioural_cloning
-        # behavioural_augmentation        
+        behavioural_augmentation        
     )
 
     foreach (source ${SOURCES})

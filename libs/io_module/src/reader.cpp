@@ -1133,8 +1133,8 @@ void KeyReader::ReadCommands() {
                     std::exit(1);
                 }
             }
-            else if (!strcmp(mode_.c_str(), "bc")) {
-                if (std::system("gnome-terminal -x bash ../../sh/run_autonomous_control.sh") != 0)
+            else if (!strcmp(mode_.c_str(), "ba")) {
+                if (std::system("gnome-terminal -x bash ../../sh/run_behavioural_augmentation.sh") != 0)
                 {
                     std::cout << "Could not run the pattern generator." << std::endl;
                     std::exit(1);

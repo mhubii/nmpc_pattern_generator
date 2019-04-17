@@ -1,6 +1,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/ximgproc.hpp>
-#include <chrono>
+#include <torch/torch.h>
+#include <torch/script.h>
 #include <yarp/os/all.h>
 #include <Eigen/Core>
 #include <rbdl/rbdl.h>
@@ -23,19 +24,19 @@ std::string ki_config;
 std::string robot;
 
 // Forward declare output location.
-std::string out_loc;
+std::string net_loc;
 
-// Forward declare BehaviouralCloning. This is actually the heart
+// Forward declare BehaviouralAugmentation. This is actually the heart
 // of the application. Within it, the pattern is generated,
 // and the  inverse kinematics is computed. Also, images and velocities
 // are recorded and stored.
-class BehaviouralCloning : public yarp::os::BufferedPort<yarp::sig::Matrix>
+class BehaviouralAugmentation : public yarp::os::BufferedPort<yarp::sig::Matrix>
 {
     public:
 
-        BehaviouralCloning(Eigen::VectorXd q_min, Eigen::VectorXd q_max, std::vector<Part> parts, std::string out_location);
+        BehaviouralAugmentation(Eigen::VectorXd q_min, Eigen::VectorXd q_max, std::vector<Part> parts, std::string net_location);
 
-        ~BehaviouralCloning();
+        ~BehaviouralAugmentation();
 
         using yarp::os::BufferedPort<yarp::sig::Matrix>::onRead;
         virtual void onRead(yarp::sig::Matrix& state);
@@ -46,6 +47,7 @@ class BehaviouralCloning : public yarp::os::BufferedPort<yarp::sig::Matrix>
     public: // TEST.. change to private!
 
         void ProcessImages();
+        cv::Mat Crop(cv::Mat& img);
 
         // Building blocks of walking generation.
         NMPCGenerator pg_;
@@ -77,12 +79,10 @@ class BehaviouralCloning : public yarp::os::BufferedPort<yarp::sig::Matrix>
         Eigen::MatrixXd q_traj_;
 
         // External velocity input and joint angle port.
-        yarp::os::BufferedPort<yarp::sig::Vector> port_vel_;
         yarp::os::BufferedPort<yarp::sig::Vector> port_q_;
 
         // Ports to read images and the current epoch.
         std::map<std::string, yarp::os::BufferedPort<yarp::sig::ImageOf<yarp::sig::PixelRgb>>> ports_img_;
-        yarp::os::BufferedPort<yarp::os::Bottle> port_epoch_;
 
         // Mutex.
         yarp::os::Mutex mutex_;
@@ -98,12 +98,14 @@ class BehaviouralCloning : public yarp::os::BufferedPort<yarp::sig::Matrix>
         Eigen::MatrixXd com_;
         // TEST END
 
-        // Output images, and corresponding velocities.
-        std::string out_location_; // location of txt file and images
+        // Script module to perform actions.
+        std::shared_ptr<torch::jit::script::Module> module_;
+        
+        torch::Tensor rgb_;
+        torch::Tensor d_;
+        torch::Tensor rgbd_;
 
-        std::chrono::steady_clock::time_point start_time_; // time stamp and epoch for labeling output
-        std::chrono::milliseconds time_stamp_;
-        int epoch_;
+        torch::Tensor t_vel_;
 
         // Parts.
         std::vector<Part> parts_;
@@ -165,13 +167,13 @@ int main(int argc, char *argv[]) {
         std::cerr << "--robot (e.g. icubGazeboSim)" << std::endl;
         std::exit(1);
     }
-    if (params.check("out_loc")) {
-        out_loc = params.find("out_loc").asString();
+    if (params.check("net_loc")) {
+        net_loc = params.find("net_loc").asString();
     }
     else
     {
         std::cerr << "Please specify output location" << std::endl;
-        std::cerr << "--out_loc (e.g. ../out)" << std::endl;
+        std::cerr << "--net_loc (e.g. ../home/martin/Downloads/nmpc_pattern_generator/libs/learning/python/trained_script_module.pt)" << std::endl;
         std::exit(1);
     }
     
@@ -193,28 +195,26 @@ int main(int argc, char *argv[]) {
     Eigen::VectorXd max = rj.GetMaxAngles();
 
     // Process data, read from joints.
-    BehaviouralCloning bc_port(min, max, rc.GetParts(), out_loc); 
-    bc_port.open("/behavioural_cloning/nmpc_pattern_generator");
+    BehaviouralAugmentation ba_port(min, max, rc.GetParts(), net_loc); 
+    ba_port.open("/behavioural_augmentation/nmpc_pattern_generator");
 
     // Connect reader to external commands (possibly ai thread).
-    yarp::os::Network::connect("/key_reader/vel", "/behavioural_cloning/vel"); // send commands from terminal (reader.cpp) to this main
-    yarp::os::Network::connect("/key_reader/robot_status", "/behavioural_cloning/robot_status"); // send robot status from keyreader to this main
+    yarp::os::Network::connect("/key_reader/robot_status", "/behavioural_augmentation/robot_status"); // send robot status from keyreader to this main
 
     // Ports to read images and the current epoch.
     for (const auto& part : rc.GetParts()) {
         for (const auto& camera : part.cameras) {
 
-            yarp::os::Network::connect("/read_cameras/" + camera, "/behavioural_cloning/" + camera);
+            yarp::os::Network::connect("/read_cameras/" + camera, "/behavioural_augmentation/" + camera);
         }
     }
-    yarp::os::Network::connect("/key_reader/epoch", "/behavioural_cloning/epoch");
 
     // Put reader, processor, and writer together.
-    yarp::os::Network::connect(rj.GetPortName(), "/behavioural_cloning/nmpc_pattern_generator");    // connect reader to BehaviouralCloning -> onRead gets called
-    yarp::os::Network::connect("/behavioural_cloning/joint_angles", wj.GetPortName()); // connect to port_q of BehaviouralCloning
-    yarp::os::Network::connect("/behavioural_cloning/robot_status", "/keyboard_user_interface/robot_status"); // send robot status from keyreader to this main
+    yarp::os::Network::connect(rj.GetPortName(), "/behavioural_augmentation/nmpc_pattern_generator");    // connect reader to BehaviouralAugmentation -> onRead gets called
+    yarp::os::Network::connect("/behavioural_augmentation/joint_angles", wj.GetPortName()); // connect to port_q of BehaviouralAugmentation
+    yarp::os::Network::connect("/behavioural_augmentation/robot_status", "/keyboard_user_interface/robot_status"); // send robot status from keyreader to this main
     yarp::os::Network::connect("/write_joints/robot_status", "/keyboard_user_interface/robot_status"); // send commands from writer.cpp to terminal
-    yarp::os::Network::connect("/write_joints/robot_status", "/behavioural_cloning/robot_status"); // send commands from writer.cpp to this main
+    yarp::os::Network::connect("/write_joints/robot_status", "/behavioural_augmentation/robot_status"); // send commands from writer.cpp to this main
 
     // Start the read and write threads.
     rj.start();
@@ -222,17 +222,17 @@ int main(int argc, char *argv[]) {
     rc.start();
     
     // Run program for a certain delay.
-    while (!bc_port.interrupted) {
+    while (!ba_port.interrupted) {
 
         // Run until port is disconnected.
         yarp::os::Time::delay(1e-1);
     }
 
     // Save trajectories.
-    WriteCsv("behavioural_cloning_walking_trajectories.csv", bc_port.ip_.GetTrajectories().transpose());
+    WriteCsv("behavioural_augmentation_walking_trajectories.csv", ba_port.ip_.GetTrajectories().transpose());
 
     // Stop reader and writer (on command later).
-    bc_port.close();
+    ba_port.close();
     rj.stop();
     wj.stop();
     rc.stop();
@@ -241,8 +241,8 @@ int main(int argc, char *argv[]) {
 }
 
 
-// Implement BehaviouralCloning.
-BehaviouralCloning::BehaviouralCloning(Eigen::VectorXd q_min, Eigen::VectorXd q_max, std::vector<Part> parts, std::string out_location)
+// Implement BehaviouralAugmentation.
+BehaviouralAugmentation::BehaviouralAugmentation(Eigen::VectorXd q_min, Eigen::VectorXd q_max, std::vector<Part> parts, std::string net_location)
   : interrupted(false),
 
     pg_(pg_config),
@@ -266,12 +266,6 @@ BehaviouralCloning::BehaviouralCloning(Eigen::VectorXd q_min, Eigen::VectorXd q_
     robot_status_(NOT_INITIALIZED),
     initialized_(false),
     
-    // Output location.
-    out_location_(out_loc),
-    
-	start_time_(std::chrono::steady_clock::now()),
-	time_stamp_(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time_)),
-    epoch_(0),
     parts_(parts) {
 
     // Pattern generator preparation.
@@ -297,20 +291,21 @@ BehaviouralCloning::BehaviouralCloning(Eigen::VectorXd q_min, Eigen::VectorXd q_
     // Set initial velocity to zero.
     vel_.setZero();
 
-    // Open port for velocity input.
-    port_vel_.open("/behavioural_cloning/vel"); // open /behavioural_cloning/vel port to read velocity commands from terminal via reader.cpp
-    port_q_.open("/behavioural_cloning/joint_angles"); // open /behavioural_cloning/joint_angles port to read joint angles from writer.cpp
+    // Open port for joint angles.
+    port_q_.open("/behavioural_augmentation/joint_angles"); // open /behavioural_augmentation/joint_angles port to read joint angles from writer.cpp
     
     // Ports to read images and the current epoch.
     for (const auto& part : parts_) {
         for (const auto& camera : part.cameras) {
 
-            ports_img_[camera].open("/behavioural_cloning/" + camera);
+            ports_img_[camera].open("/behavioural_augmentation/" + camera);
         }
     }
 
-    port_epoch_.open("/behavioural_cloning/epoch");
-    port_status_.open("/behavioural_cloning/robot_status"); // open /behavioural_cloning/robot_status to write status information to the terminal via reader.cpp
+    port_status_.open("/behavioural_augmentation/robot_status"); // open /behavioural_augmentation/robot_status to write status information to the terminal via reader.cpp
+
+    // Script module to perform actions.
+    module_ = torch::jit::load(net_loc);
 
     ip_.StoreTrajectories(true);
 
@@ -324,10 +319,9 @@ BehaviouralCloning::BehaviouralCloning(Eigen::VectorXd q_min, Eigen::VectorXd q_
 }
 
 
-BehaviouralCloning::~BehaviouralCloning() {
+BehaviouralAugmentation::~BehaviouralAugmentation() {
 
     // Close ports.
-    port_vel_.close();
     port_q_.close();
 
     for (const auto& part : parts_) {
@@ -337,13 +331,12 @@ BehaviouralCloning::~BehaviouralCloning() {
         }
     }
 
-    port_epoch_.close();
     port_status_.close();
 }
 
 
 // Implement onRead() method.
-void  BehaviouralCloning::onRead(yarp::sig::Matrix& state) {
+void  BehaviouralAugmentation::onRead(yarp::sig::Matrix& state) {
 
     // Stop pattern generation on emergency stop.
     if (!yarp::os::Network::isConnected(port_status_.getName(), "/keyboard_user_interface/robot_status")) {
@@ -369,17 +362,39 @@ void  BehaviouralCloning::onRead(yarp::sig::Matrix& state) {
 
     if (initialized_ && robot_status_ == INITIALIZED && !interrupted) {
 
-        // Read the desired velocity and keep it unchanged if
-        // no command arrives.
-        yarp::sig::Vector* vel = port_vel_.read(false);
-        if (vel != YARP_NULLPTR) {
-
-            // Convert to Eigen.
-            vel_ = yarp::eigen::toEigen(*vel);
-        }
-
         // Read current images, compute depth image, and save them with corresponding velocity and time stamp.
         ProcessImages();
+
+        // Crop images.
+        cv::Mat c_img_rgb = Crop(imgs_cv_rgb_["left"]);
+        cv::Mat c_img_d = Crop(wls_disp_);
+
+        // Convert to tensor.
+        torch::Tensor rgb = torch::from_blob(c_img_rgb.data, {1, c_img_rgb.rows, c_img_rgb.cols, 3}, torch::kByte); // different order cv hxwxc -> torch cxhxw
+	    torch::Tensor d = torch::from_blob(c_img_d.data, {1, c_img_d.rows, c_img_d.cols, 1}, torch::kByte);
+
+        rgb = rgb.to(torch::kF32); // of course convert to float
+        d = d.to(torch::kF32);
+
+        // Concatenate and normalize images.
+        rgb = rgb.permute({0, 3, 1, 2}); // hxwxc -> cxhxw
+        d = d.permute({0, 3, 1, 2});
+
+        // Normalize images.
+        rgb.div(127.5).sub(1.);
+        d.div(127.5).sub(1.);
+
+        torch::Tensor rgbd = torch::cat({rgb, d}, 1);
+
+        // Create a vector of input.
+        std::vector<torch::jit::IValue> input;
+        input.push_back(rgbd);
+
+        // Execute the model and turn its output into a tensor.
+        t_vel_ = module_->forward(input).toTensor();
+
+        // Transform tensor to eigen vector.
+	    std::memcpy(vel_.data(), t_vel_.data_ptr(), sizeof(float)*t_vel_.numel());
 
         // Set desired velocity.
         pg_.SetVelocityReference(vel_);
@@ -502,7 +517,7 @@ void  BehaviouralCloning::onRead(yarp::sig::Matrix& state) {
     unlockCallback();
 }
 
-void BehaviouralCloning::ProcessImages() {
+void BehaviouralAugmentation::ProcessImages() {
 
     // Read the camera images.
     for (const auto& part : parts_) {
@@ -541,44 +556,12 @@ void BehaviouralCloning::ProcessImages() {
 
     cv::resize(l_disp_, l_disp_, cv::Size(l_disp_.cols * 0.25, l_disp_.rows * 0.25));
     cv::resize(wls_disp_, wls_disp_, cv::Size(wls_disp_.cols * 0.25, wls_disp_.rows * 0.25));
+}
 
-    // Set the time stamp.
-    time_stamp_ = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time_);
+cv::Mat BehaviouralAugmentation::Crop(cv::Mat& img) {
 
-    yarp::os::Bottle* epoch = port_epoch_.read(false);
-    if (epoch != YARP_NULLPTR) {
-        epoch_ = epoch->get(0).asInt();
-    }
-
-    // Record images with time stamp.
-    // Fill stringstream with preceeding zeros.
-    std::ostringstream ss;
-    ss << std::setw(8) << std::setfill('0') << std::to_string(time_stamp_.count());
-
-    // Track locations of stored images and corresponding velocity.
-    std::ofstream txt(out_location_ + "/log.txt", std::ios_base::app);
-
-    for (const auto& part : parts_) {
-        for (const auto& camera : part.cameras) {
-
-            std::string loc = out_location_ + "/data/" + camera + "_" + "epoch_" + std::to_string(epoch_) + "_" + ss.str() + ".png";
-            cv::imwrite(loc, imgs_cv_rgb_[camera]);
-            txt << "data/" + camera + "_" + "epoch_" + std::to_string(epoch_) + "_" + ss.str() + ".png" + ", ";
-        }
-    }
-
-    std::string loc = out_location_ + "/data/l_disp_epoch_" + std::to_string(epoch_) + "_" + ss.str() + ".png";
-    cv::imwrite(loc, l_disp_);
-    txt << "data/l_disp_epoch_" + std::to_string(epoch_) + "_" + ss.str() + ".png" + ", ";
-
-    loc = out_location_ + "/data/wls_disp_epoch_" + std::to_string(epoch_) + "_" + ss.str() + ".png";
-    cv::imwrite(loc, wls_disp_);
-    txt << "data/wls_disp_epoch_" + std::to_string(epoch_) + "_" + ss.str() + ".png" + ", ";
-
-    int i = 0;
-    while (i < vel_.size()-1) {
-        txt << vel_[i] << ", ";
-        i++;
-    }
-    txt << vel_[vel_.size()-1] << "\n";
+    // The sizes are a little hacky right now.
+    // It crops the sky, as well as borders where the wls disparity map
+    // has no values.
+    return cv::Mat(img, cv::Rect(5, 20, img.cols-7, img.rows-22)).clone(); // rect is only a rapper on the memory, need to clone
 }
