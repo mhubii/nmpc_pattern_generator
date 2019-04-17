@@ -21,10 +21,6 @@ sensors:
   - part: chest
     cameras: [left, right]
 
-# Record images and store them to out_location. Keep track of the locations in txt file at out_location.
-record: true
-out_location: ../../out
-
 # Define ports to communicate.
 velocity_port: /velocity
 joints_port_read: /joints/read

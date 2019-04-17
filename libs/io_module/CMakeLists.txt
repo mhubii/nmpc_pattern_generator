@@ -1,6 +1,5 @@
 # Add input ouput module library.
 find_package(YARP REQUIRED)
-find_package(OpenCV REQUIRED)
 find_package(Curses REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
@@ -23,7 +22,6 @@ add_library(io_module SHARED
 
 target_link_libraries(io_module
     ${YARP_LIBRARIES}
-    ${OpenCV_LIBRARIES}
     ${CURSES_LIBRARIES}
     yaml-cpp
 )

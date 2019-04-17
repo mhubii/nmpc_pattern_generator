@@ -47,16 +47,9 @@ add_subdirectory(libs/pattern_generator)
 option(BUILD_WITH_YARP "Build the libraries for the real robot and gazebo." OFF)
 option(BUILD_WITH_LEARNING "Build the deep learning library." OFF)
 
+# Libraries for controlling the robot in real and simulation.
 if (${BUILD_WITH_YARP})
     # Input output module library.
-    option(BUILD_WITH_OPENCV_CONTRIB "Whether to build with contribution modules of OpenCV" OFF)
-
-    if (${BUILD_WITH_OPENCV_CONTRIB})
-
-        add_definitions(-DBUILD_WITH_OPENCV_CONTRIB)
-
-    endif ()
-
     option(IO_MODULE_EXAMPLES "Build input output module examples." ON)
     add_subdirectory(libs/io_module)
 
@@ -92,15 +85,46 @@ if (${BUILD_WITH_YARP})
 endif (${BUILD_WITH_YARP})
 
 # Reinforcement learning library.
-if (${BUILD_LEARNING})
-    option(LEARNING_EXAMPLES "Build reinforcement learning examples." ON)
-    add_subdirectory(libs/learning)
+#if (${BUILD_WITH_LEARNING})
+#    option(LEARNING_EXAMPLES "Build reinforcement learning examples." ON)
+#    add_subdirectory(libs/learning)
 
     # Source.
-    set(SOURCES 
-        learn_nmpc_fc
-        ppo_nmpc
-        predict_nmpc
+#    set(SOURCES 
+#        learn_nmpc_fc
+#        ppo_nmpc
+#        predict_nmpc
+#    )
+
+#    foreach (source ${SOURCES})
+#        add_executable(${source}
+#            src/${source}.cpp
+#        )
+
+#        target_include_directories(${source}
+#            PRIVATE libs/pattern_generator/include/pattern_generator
+#            PRIVATE libs/learning/include/learning
+#        )
+
+#        target_link_libraries(${source}
+#            pattern_generator
+#            learning
+#        )
+#    endforeach(source ${SOURCES})
+#endif(${BUILD_WITH_LEARNING})
+
+# Autonomous navigation sources.
+if (${BUILD_WITH_YARP} AND ${BUILD_WITH_LEARNING})
+    
+    option(BUILD_WITH_OPENCV_CONTRIB "Whether to build with contribution modules of OpenCV" OFF)
+
+    find_package(Torch REQUIRED)
+    find_package(OpenCV REQUIRED)
+
+    # Source.
+    set(SOURCES
+        behavioural_cloning
+        # behavioural_augmentation        
     )
 
     foreach (source ${SOURCES})
@@ -109,16 +133,22 @@ if (${BUILD_LEARNING})
         )
 
         target_include_directories(${source}
+            PRIVATE libs/io_module/include/io_module
+            PRIVATE libs/kinematics/include/kinematics
             PRIVATE libs/pattern_generator/include/pattern_generator
-            PRIVATE libs/learning/include/learning
+            PRIVATE ${TORCH_INCLUDE_DIRS}
+            PRIVATE ${OpenCV_INCLUDE_DIRS}
         )
 
         target_link_libraries(${source}
+            io_module
+            kinematics
             pattern_generator
-            learning
+            ${TORCH_LIBRARIES}
+            ${OpenCV_LIBRARIES}
         )
     endforeach(source ${SOURCES})
-endif(${BUILD_LEARNING})
+endif (${BUILD_WITH_YARP} AND ${BUILD_WITH_LEARNING})
 
 # Uninstall directives.
 add_custom_target (uninstall COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/nmpc_pattern_generator_uninstall.cmake)
