@@ -69,7 +69,7 @@ class BehaviouralAugmentation : public yarp::os::BufferedPort<yarp::sig::Matrix>
         Eigen::VectorXd q_max_;
 
         // User input.
-        Eigen::Vector3d vel_;
+        Eigen::Vector3f vel_;
 
         // State of the robot on preview horizon.
         Eigen::MatrixXd traj_;
@@ -381,8 +381,8 @@ void  BehaviouralAugmentation::onRead(yarp::sig::Matrix& state) {
         d = d.permute({0, 3, 1, 2});
 
         // Normalize images.
-        rgb.div(127.5).sub(1.);
-        d.div(127.5).sub(1.);
+        rgb = rgb.div(127.5).sub(1.);
+        d = d.div(127.5).sub(1.);
 
         torch::Tensor rgbd = torch::cat({rgb, d}, 1);
 
@@ -395,9 +395,10 @@ void  BehaviouralAugmentation::onRead(yarp::sig::Matrix& state) {
 
         // Transform tensor to eigen vector.
 	    std::memcpy(vel_.data(), t_vel_.data_ptr(), sizeof(float)*t_vel_.numel());
+        Eigen::Vector3d vel = vel_.cast<double>();
 
         // Set desired velocity.
-        pg_.SetVelocityReference(vel_);
+        pg_.SetVelocityReference(vel);
 
         // Solve QP.
         pg_.Solve();

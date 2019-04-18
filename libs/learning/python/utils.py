@@ -100,7 +100,7 @@ def load_data(data_dir):
     data_df = data_df.iloc[np.random.permutation(len(data_df))]
 
     image_paths = data_df[['left', 'wls_disp']].values
-    velocities = data_df[['vel0', 'vel1', 'vel2']].values
+    velocities = data_df[['vel0', 'vel1']].values#, 'vel2']].values
 
     return image_paths, velocities
 

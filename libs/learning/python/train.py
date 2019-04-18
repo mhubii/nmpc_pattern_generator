@@ -29,7 +29,7 @@ def train(args):
     data_loader = DataLoader(data_set, batch_size=args.batch_size, drop_last=True)
 
     # Build model.
-    model = RGBDCNN(utils.INPUT_SHAPE, 3, args.batch_size).cuda()
+    model = RGBDCNN(utils.INPUT_SHAPE, 2, args.batch_size).cuda()
 
     # Loss and optimizer.
     criterion = nn.MSELoss().cuda()
@@ -87,7 +87,7 @@ if __name__ == '__main__':
 	np.savetxt("history.csv", hist)
 
 	# Use torch.jit.trace to generate a torch.jit.ScriptModule via tracing.
-	trained_model = RGBDCNN(utils.INPUT_SHAPE, 3, 1)
+	trained_model = RGBDCNN(utils.INPUT_SHAPE, 2, 1)
 	
 	trained_model.load_state_dict(torch.load('trained.pt'))
 
