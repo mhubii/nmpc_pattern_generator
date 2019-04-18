@@ -326,8 +326,8 @@ AppReader::AppReader()
 
     // Open ports.
     port_vel_app_.open("/vel/read_from_app");
-    port_vel_.open("/vel/command");
-    port_status_.open("/status/command");
+    port_vel_.open("/reader/vel");
+    port_status_.open("/reader/robot_status");
 
     // Set velocity to zero.
     vel_.zero();
@@ -754,9 +754,9 @@ KeyReader::KeyReader(std::string mode)
       vel_(3) {
 
     // Open port.
-    port_.open("/key_reader/vel");
-    port_status_.open("/key_reader/robot_status");
-    port_epoch_.open("/key_reader/epoch");
+    port_.open("/reader/vel");
+    port_status_.open("/reader/robot_status");
+    port_epoch_.open("/reader/epoch");
 
     epoch_ = 0;
 

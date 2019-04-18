@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
     KeyReader kr(mode);
 
     // Open port for communication.
-    kr.open("/keyboard_user_interface/robot_status");
+    kr.open("/user_interface/robot_status");
 
     // Start reading incomming commands.
     kr.ReadCommands(); // program caught in while loop until q is pressed

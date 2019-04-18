@@ -31,7 +31,8 @@ class RGBDCNN(nn.Module):
             nn.ReLU(),
             nn.Linear(16, 8),
             nn.ReLU(),
-            nn.Linear(8, dof)
+            nn.Linear(8, dof),
+            nn.Tanh()
         )
 
     def _get_conv_output(self, net, shape):

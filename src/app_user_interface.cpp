@@ -17,7 +17,7 @@ int main() {
     AppReader ar;
 
     // Open port for communication.
-    ar.open("/reader/commands");
+    ar.open("/user_interface/robot_status");
 
     // Start reading incomming commands.
     ar.ReadCommands();

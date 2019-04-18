@@ -199,7 +199,7 @@ int main(int argc, char *argv[]) {
     ba_port.open("/behavioural_augmentation/nmpc_pattern_generator");
 
     // Connect reader to external commands (possibly ai thread).
-    yarp::os::Network::connect("/key_reader/robot_status", "/behavioural_augmentation/robot_status"); // send robot status from keyreader to this main
+    yarp::os::Network::connect("/reader/robot_status", "/behavioural_augmentation/robot_status"); // send robot status from keyreader to this main
 
     // Ports to read images and the current epoch.
     for (const auto& part : rc.GetParts()) {
@@ -212,8 +212,8 @@ int main(int argc, char *argv[]) {
     // Put reader, processor, and writer together.
     yarp::os::Network::connect(rj.GetPortName(), "/behavioural_augmentation/nmpc_pattern_generator");    // connect reader to BehaviouralAugmentation -> onRead gets called
     yarp::os::Network::connect("/behavioural_augmentation/joint_angles", wj.GetPortName()); // connect to port_q of BehaviouralAugmentation
-    yarp::os::Network::connect("/behavioural_augmentation/robot_status", "/keyboard_user_interface/robot_status"); // send robot status from keyreader to this main
-    yarp::os::Network::connect("/write_joints/robot_status", "/keyboard_user_interface/robot_status"); // send commands from writer.cpp to terminal
+    yarp::os::Network::connect("/behavioural_augmentation/robot_status", "/user_interface/robot_status"); // send robot status from keyreader to this main
+    yarp::os::Network::connect("/write_joints/robot_status", "/user_interface/robot_status"); // send commands from writer.cpp to terminal
     yarp::os::Network::connect("/write_joints/robot_status", "/behavioural_augmentation/robot_status"); // send commands from writer.cpp to this main
 
     // Start the read and write threads.
@@ -339,7 +339,7 @@ BehaviouralAugmentation::~BehaviouralAugmentation() {
 void  BehaviouralAugmentation::onRead(yarp::sig::Matrix& state) {
 
     // Stop pattern generation on emergency stop.
-    if (!yarp::os::Network::isConnected(port_status_.getName(), "/keyboard_user_interface/robot_status")) {
+    if (!yarp::os::Network::isConnected(port_status_.getName(), "/user_interface/robot_status")) {
         std::cout << "Quitting pattern generation on emergency stop." << std::endl;
         this->interrupt();
         interrupted = true;
