@@ -3,52 +3,40 @@
 #include <torch/torch.h>
 #include <math.h>
 
-// Network model for Proximal Policy Optimization with Nonlinear Model Predictive Control.
+// Network model for Proximal Policy Optimization.
 struct ActorCriticImpl : public torch::nn::Module 
 {
     // Actor.
-    torch::nn::Linear a_lin1_, a_lin2_, a_lin3_, a_lin4_, a_lin5_;
+    torch::nn::Linear a_lin1_, a_lin2_, a_lin3_;
     torch::Tensor mu_;
     torch::Tensor log_std_;
-    double mu_max_;
-    double std_max_;
 
     // Critic.
-    torch::nn::Linear c_lin1_, c_lin2_, c_lin3_, c_lin4_, c_lin5_, c_val_;
+    torch::nn::Linear c_lin1_, c_lin2_, c_lin3_, c_val_;
 
-    ActorCriticImpl(int64_t n_in, int64_t n_out, double mu_max, double std_max)
+    ActorCriticImpl(int64_t n_in, int64_t n_out, double std)
         : // Actor.
           a_lin1_(torch::nn::Linear(n_in, 16)),
           a_lin2_(torch::nn::Linear(16, 32)),
-          a_lin3_(torch::nn::Linear(32, 64)),
-          a_lin4_(torch::nn::Linear(64, 32)),
-          a_lin5_(torch::nn::Linear(32, n_out)),
+          a_lin3_(torch::nn::Linear(32, n_out)),
           mu_(torch::full(n_out, 0.)),
-          log_std_(torch::full(n_out, log(std_max), torch::kFloat64)),
-          mu_max_(mu_max),
-          std_max_(std_max),
+          log_std_(torch::full(n_out, std)),
           
           // Critic
           c_lin1_(torch::nn::Linear(n_in, 16)),
           c_lin2_(torch::nn::Linear(16, 32)),
-          c_lin3_(torch::nn::Linear(32, 64)),
-          c_lin4_(torch::nn::Linear(64, 32)),
-          c_lin5_(torch::nn::Linear(32, n_out)),
+          c_lin3_(torch::nn::Linear(32, n_out)),
           c_val_(torch::nn::Linear(n_out, 1)) 
     {
         // Register the modules.
         register_module("a_lin1", a_lin1_);
         register_module("a_lin2", a_lin2_);
         register_module("a_lin3", a_lin3_);
-        register_module("a_lin4", a_lin4_);
-        register_module("a_lin5", a_lin5_);
         register_parameter("log_std", log_std_);
 
         register_module("c_lin1", c_lin1_);
         register_module("c_lin2", c_lin2_);
         register_module("c_lin3", c_lin3_);
-        register_module("c_lin4", c_lin4_);
-        register_module("c_lin5", c_lin5_);
         register_module("c_val", c_val_);
     }
 
@@ -59,16 +47,138 @@ struct ActorCriticImpl : public torch::nn::Module
         // Actor.
         mu_ = torch::relu(a_lin1_->forward(x));
         mu_ = torch::relu(a_lin2_->forward(mu_));
-        mu_ = torch::relu(a_lin3_->forward(mu_));
-        mu_ = torch::relu(a_lin4_->forward(mu_));
-        mu_ = torch::tanh(a_lin5_->forward(mu_)).mul(mu_max_);
+        mu_ = torch::tanh(a_lin3_->forward(mu_));
 
         // Critic.
         torch::Tensor val = torch::relu(c_lin1_->forward(x));
         val = torch::relu(c_lin2_->forward(val));
-        val = torch::relu(c_lin3_->forward(val));
-        val = torch::relu(c_lin4_->forward(val));
-        val = torch::tanh(c_lin5_->forward(val)).mul(mu_max_);
+        val = torch::tanh(c_lin3_->forward(val));
+        val = c_val_->forward(val);
+
+        if (this->is_training()) 
+        {
+            torch::NoGradGuard no_grad;
+
+            torch::Tensor action = torch::normal(mu_, log_std_.exp().expand_as(mu_));
+            return std::make_tuple(action, val);  
+        }
+        else 
+        {
+            return std::make_tuple(mu_, val);  
+        }
+    }
+
+    // Initialize network.
+    void normal(double mu, double std) 
+    {
+        torch::NoGradGuard no_grad;
+
+        for (auto& p: this->parameters()) 
+        {
+            p.normal_(mu,std);
+        }         
+    }
+
+    auto entropy() -> torch::Tensor
+    {
+        // Differential entropy of normal distribution. For reference https://pytorch.org/docs/stable/_modules/torch/distributions/normal.html#Normal
+        return 0.5 + 0.5*log(2*M_PI) + log_std_;
+    }
+
+    auto log_prob(torch::Tensor action) -> torch::Tensor
+    {
+        // Logarithmic probability of taken action, given the current distribution.
+        torch::Tensor var = (log_std_+log_std_).exp();
+
+        return -((action - mu_)*(action - mu_))/(2*var) - log_std_ - log(sqrt(2*M_PI));
+    }
+};
+
+TORCH_MODULE(ActorCritic);
+
+// Network model for Proximal Policy Optimization with Nonlinear Model Predictive Control.
+struct ActorCriticNMPCImpl : public torch::nn::Module 
+{
+    // Actor.
+    torch::nn::Linear a_lin1_, a_lin2_, a_lin3_;
+    torch::nn::Conv2d a_conv1_, a_conv2_;
+    torch::Tensor mu_;
+    torch::Tensor log_std_;
+    double mu_max_;
+    double std_max_;
+
+    // Critic.
+    torch::nn::Linear c_lin1_, c_lin2_, c_lin3_, c_val_;
+    torch::nn::Conv2d c_conv1_, c_conv2_;
+
+    ActorCriticNMPCImpl(int64_t n_in, int64_t height, int64_t width, int64_t n_out, double mu_max, double std_max)
+        : // Actor.
+          a_lin1_(torch::nn::Linear(n_in, 16)),
+          a_lin2_(torch::nn::Linear(16, 16)),
+          a_conv1_(torch::nn::Conv2dOptions(1, 32, 5)),
+          a_conv2_(torch::nn::Conv2dOptions(32, 32, 5)),
+          a_lin3_(torch::nn::Linear(GetConvOutput(height, width)+16, n_out)),
+          mu_(torch::full(n_out, 0.)),
+          log_std_(torch::full(n_out, log(std_max), torch::kFloat64)),
+          mu_max_(mu_max),
+          std_max_(std_max),
+          
+          // Critic
+          c_lin1_(torch::nn::Linear(n_in, 16)),
+          c_lin2_(torch::nn::Linear(16, 16)),
+          c_conv1_(torch::nn::Conv2dOptions(1, 32, 5)),
+          c_conv2_(torch::nn::Conv2dOptions(32, 32, 5)),
+          c_lin3_(torch::nn::Linear(GetConvOutput(height, width)+16, n_out)),
+          c_val_(torch::nn::Linear(n_out, 1)) 
+    {
+        // Register the modules.
+        register_module("a_lin1", a_lin1_);
+        register_module("a_lin2", a_lin2_);
+        register_module("a_lin3", a_lin3_);
+        register_module("a_conv1", a_conv1_);
+        register_module("a_conv2", a_conv2_);
+        register_parameter("log_std", log_std_);
+
+        register_module("c_lin1", c_lin1_);
+        register_module("c_lin2", c_lin2_);
+        register_module("c_lin3", c_lin3_);
+        register_module("c_conv1", c_conv1_);
+        register_module("c_conv2", c_conv2_);
+        register_module("c_val", c_val_);
+    }
+
+    // Forward pass.
+    auto forward(torch::Tensor pos, torch::Tensor map) -> std::tuple<torch::Tensor, torch::Tensor> 
+    {
+
+        // Actor.
+        torch::Tensor a_fc_out = torch::relu(a_lin1_->forward(pos));
+        a_fc_out = torch::relu(a_lin2_->forward(a_fc_out));
+
+        torch::Tensor a_conv_out = torch::relu(a_conv1_->forward(map));
+        a_conv_out = torch::relu(a_conv2_->forward(a_conv_out));
+        
+        // Flatten the output.
+        a_conv_out = a_conv_out.view({a_conv_out.sizes()[0], -1});  
+
+        // Concatenate the output.
+        mu_ = torch::cat({a_fc_out, a_conv_out}, 0);
+        
+        mu_ = torch::tanh(a_lin3_->forward(mu_)).mul(mu_max_);
+
+        // Critic.
+        torch::Tensor c_fc_out = torch::relu(c_lin1_->forward(pos));
+        c_fc_out = torch::relu(c_lin2_->forward(c_fc_out));
+
+        torch::Tensor c_conv_out = torch::relu(c_conv1_->forward(map));
+        c_conv_out = torch::relu(c_conv2_->forward(c_conv_out));
+        
+        // Flatten the output.
+        c_conv_out = c_conv_out.view({c_conv_out.sizes()[0], -1});  
+
+
+        torch::Tensor val = torch::cat({c_fc_out, c_conv_out}, 0);
+        val = torch::tanh(c_lin3_->forward(val)).mul(mu_max_);
         val = c_val_->forward(val);
 
         // Reparametrization trick.
@@ -83,6 +193,16 @@ struct ActorCriticImpl : public torch::nn::Module
         {
             return std::make_tuple(mu_, val);  
         }
+    }
+
+    // Get number of elements of output.
+    int64_t GetConvOutput(int64_t height, int64_t width) {
+
+        torch::Tensor in = torch::zeros({height, width}, torch::kF64).unsqueeze(0);
+        torch::Tensor out = a_conv1_->forward(in);
+        out = a_conv2_->forward(out);
+
+        return out.numel();
     }
 
     // Initialize network.
@@ -121,7 +241,7 @@ struct ActorCriticImpl : public torch::nn::Module
     }
 };
 
-TORCH_MODULE(ActorCritic);
+TORCH_MODULE(ActorCriticNMPC);
 
 
 // Model for learning the preview horizon of nonlinear model predictive control.

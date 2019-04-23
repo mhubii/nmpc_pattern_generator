@@ -19,6 +19,15 @@ class PPO
 {
 public:
     static auto returns(VT& rewards, VT& dones, VT& vals, double gamma, double lambda) -> VT; // Generalized advantage estimate, https://arxiv.org/abs/1506.02438
+    static auto update(ActorCriticNMPC& ac,
+                       torch::Tensor& states_pos,
+                       torch::Tensor& states_map,
+                       torch::Tensor& actions,
+                       torch::Tensor& log_probs,
+                       torch::Tensor& returns,
+                       torch::Tensor& advantages, 
+                       OPT& opt, 
+                       uint steps, uint epochs, uint mini_batch_size, double beta, double clip_param=.2) -> void;
     static auto update(ActorCritic& ac,
                        torch::Tensor& states,
                        torch::Tensor& actions,
