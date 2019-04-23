@@ -85,9 +85,9 @@ if (${BUILD_WITH_YARP})
 endif (${BUILD_WITH_YARP})
 
 # Reinforcement learning library.
-#if (${BUILD_WITH_LEARNING})
-#    option(LEARNING_EXAMPLES "Build reinforcement learning examples." ON)
-#    add_subdirectory(libs/learning)
+if (${BUILD_WITH_LEARNING})
+    option(LEARNING_EXAMPLES "Build reinforcement learning examples." ON)
+    add_subdirectory(libs/learning)
 
     # Source.
 #    set(SOURCES 
@@ -111,20 +111,21 @@ endif (${BUILD_WITH_YARP})
 #            learning
 #        )
 #    endforeach(source ${SOURCES})
-#endif(${BUILD_WITH_LEARNING})
+endif(${BUILD_WITH_LEARNING})
 
 # Autonomous navigation sources.
 if (${BUILD_WITH_YARP} AND ${BUILD_WITH_LEARNING})
     
     option(BUILD_WITH_OPENCV_CONTRIB "Whether to build with contribution modules of OpenCV" OFF)
 
-    find_package(Torch REQUIRED)
+    #find_package(Torch REQUIRED)
     find_package(OpenCV REQUIRED)
 
     # Source.
     set(SOURCES
         behavioural_cloning
-        behavioural_augmentation        
+        behavioural_augmentation
+        ppo_nmpc        
     )
 
     foreach (source ${SOURCES})
@@ -136,7 +137,8 @@ if (${BUILD_WITH_YARP} AND ${BUILD_WITH_LEARNING})
             PRIVATE libs/io_module/include/io_module
             PRIVATE libs/kinematics/include/kinematics
             PRIVATE libs/pattern_generator/include/pattern_generator
-            PRIVATE ${TORCH_INCLUDE_DIRS}
+            PRIVATE libs/learning/include/learning
+            #PRIVATE ${TORCH_INCLUDE_DIRS}
             PRIVATE ${OpenCV_INCLUDE_DIRS}
         )
 
@@ -144,7 +146,8 @@ if (${BUILD_WITH_YARP} AND ${BUILD_WITH_LEARNING})
             io_module
             kinematics
             pattern_generator
-            ${TORCH_LIBRARIES}
+            learning
+            #${TORCH_LIBRARIES}
             ${OpenCV_LIBRARIES}
         )
     endforeach(source ${SOURCES})

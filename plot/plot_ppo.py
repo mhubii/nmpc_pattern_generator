@@ -9,7 +9,7 @@ data = np.genfromtxt("../build/bin/example_ppo.csv", delimiter=",")
 def animate():
 
     # plot everything
-    #epochs = np.array([1,5,10,15,20])
+    #epochs = np.array([1,5,10])
     epochs = np.array([1])
 
     for e in epochs:
@@ -49,7 +49,7 @@ def animate():
         def animate(i):
             agent.set_data(epoch_data[i,1], epoch_data[i,2])
             global tail
-            if (epoch_data[i,8] == 4): # STATUS enum in main.cpp, 4 = RESETTING
+            if (epoch_data[i,8] == 5): # STATUS enum in main.cpp, 5 = RESETTING
                 tail = 0
             agent_line.set_data(epoch_data[i-tail:i,1], epoch_data[i-tail:i,2])
             if (tail <= 50):
@@ -61,9 +61,9 @@ def animate():
             #title.set_text('Epoch {:1.0f}'.format(epoch_data[i,0]))
             return agent, agent_line, obstacle, goal, won_circle, lost_circle
 
-        ani = animation.FuncAnimation(fig, animate, blit=True, interval=5, frames=2000)#epoch_data.shape[0])
-        #plt.show()
-        ani.save('img/epoch_{}.gif'.format(e), writer='imagemagick', fps=100)
+        ani = animation.FuncAnimation(fig, animate, blit=True, interval=5, frames=epoch_data.shape[0])
+        plt.show()
+        #ani.save('img/epoch_{}.gif'.format(e), writer='imagemagick', fps=100)
 
 def plot():
 
@@ -101,8 +101,8 @@ def plot():
         title = ax.text(0.15,0.85, "", bbox={'facecolor':'w', 'alpha':0.5, 'pad':5},
                         transform=ax.transAxes, ha="center")
 
-        #plt.show()
-        plt.savefig('img/epoch_{}.pdf'.format(e))
+        plt.show()
+        #plt.savefig('img/epoch_{}.pdf'.format(e))
 
 
 if __name__ == "__main__":

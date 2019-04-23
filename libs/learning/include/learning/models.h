@@ -100,23 +100,24 @@ TORCH_MODULE(ActorCritic);
 struct ActorCriticNMPCImpl : public torch::nn::Module 
 {
     // Actor.
-    torch::nn::Linear a_lin1_, a_lin2_, a_lin3_;
     torch::nn::Conv2d a_conv1_, a_conv2_;
+    torch::nn::Linear a_lin1_, a_lin2_, a_lin3_;
     torch::Tensor mu_;
     torch::Tensor log_std_;
     double mu_max_;
     double std_max_;
 
     // Critic.
-    torch::nn::Linear c_lin1_, c_lin2_, c_lin3_, c_val_;
     torch::nn::Conv2d c_conv1_, c_conv2_;
+    torch::nn::Linear c_lin1_, c_lin2_, c_lin3_, c_val_;
 
     ActorCriticNMPCImpl(int64_t n_in, int64_t height, int64_t width, int64_t n_out, double mu_max, double std_max)
         : // Actor.
+          a_conv1_(torch::nn::Conv2dOptions(1, 16, 5)),
+          a_conv2_(torch::nn::Conv2dOptions(16, 16, 5)),
+
           a_lin1_(torch::nn::Linear(n_in, 16)),
           a_lin2_(torch::nn::Linear(16, 16)),
-          a_conv1_(torch::nn::Conv2dOptions(1, 32, 5)),
-          a_conv2_(torch::nn::Conv2dOptions(32, 32, 5)),
           a_lin3_(torch::nn::Linear(GetConvOutput(height, width)+16, n_out)),
           mu_(torch::full(n_out, 0.)),
           log_std_(torch::full(n_out, log(std_max), torch::kFloat64)),
@@ -124,10 +125,11 @@ struct ActorCriticNMPCImpl : public torch::nn::Module
           std_max_(std_max),
           
           // Critic
+          c_conv1_(torch::nn::Conv2dOptions(1, 16, 5)),
+          c_conv2_(torch::nn::Conv2dOptions(16, 16, 5)),
+
           c_lin1_(torch::nn::Linear(n_in, 16)),
           c_lin2_(torch::nn::Linear(16, 16)),
-          c_conv1_(torch::nn::Conv2dOptions(1, 32, 5)),
-          c_conv2_(torch::nn::Conv2dOptions(32, 32, 5)),
           c_lin3_(torch::nn::Linear(GetConvOutput(height, width)+16, n_out)),
           c_val_(torch::nn::Linear(n_out, 1)) 
     {
@@ -162,7 +164,7 @@ struct ActorCriticNMPCImpl : public torch::nn::Module
         a_conv_out = a_conv_out.view({a_conv_out.sizes()[0], -1});  
 
         // Concatenate the output.
-        mu_ = torch::cat({a_fc_out, a_conv_out}, 0);
+        mu_ = torch::cat({a_fc_out, a_conv_out}, 1);
         
         mu_ = torch::tanh(a_lin3_->forward(mu_)).mul(mu_max_);
 
@@ -177,7 +179,7 @@ struct ActorCriticNMPCImpl : public torch::nn::Module
         c_conv_out = c_conv_out.view({c_conv_out.sizes()[0], -1});  
 
 
-        torch::Tensor val = torch::cat({c_fc_out, c_conv_out}, 0);
+        torch::Tensor val = torch::cat({c_fc_out, c_conv_out}, 1);
         val = torch::tanh(c_lin3_->forward(val)).mul(mu_max_);
         val = c_val_->forward(val);
 
@@ -198,7 +200,7 @@ struct ActorCriticNMPCImpl : public torch::nn::Module
     // Get number of elements of output.
     int64_t GetConvOutput(int64_t height, int64_t width) {
 
-        torch::Tensor in = torch::zeros({height, width}, torch::kF64).unsqueeze(0);
+        torch::Tensor in = torch::zeros({1, 1, height, width});
         torch::Tensor out = a_conv1_->forward(in);
         out = a_conv2_->forward(out);
 

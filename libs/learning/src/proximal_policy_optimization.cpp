@@ -32,7 +32,7 @@ auto PPO::update(ActorCriticNMPC& ac,
     {
         // Generate random indices.
         torch::Tensor cpy_pos = torch::zeros({mini_batch_size, states_pos.size(1)}, states_pos.type());
-        torch::Tensor cpy_map = torch::zeros({mini_batch_size, states_map.size(1)}, states_map.type());
+        torch::Tensor cpy_map = torch::zeros({mini_batch_size, states_map.size(1), states_map.size(2), states_map.size(3)}, states_map.type());
         torch::Tensor cpy_act = torch::zeros({mini_batch_size, actions.size(1)}, actions.type());
         torch::Tensor cpy_log = torch::zeros({mini_batch_size, log_probs.size(1)}, log_probs.type());
         torch::Tensor cpy_ret = torch::zeros({mini_batch_size, returns.size(1)}, returns.type());
