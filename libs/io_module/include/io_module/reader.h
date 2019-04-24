@@ -190,7 +190,7 @@ class KeyReader : public yarp::os::BufferedPort<yarp::os::Bottle>
 {
     public:
 
-        KeyReader(std::string mode);
+        KeyReader(bool simulation, std::string mode);
 
         ~KeyReader();
 
@@ -220,6 +220,9 @@ class KeyReader : public yarp::os::BufferedPort<yarp::os::Bottle>
 
         // Send stop signal.
         void StopSignal();
+
+        // Run in simulation or on the real robot.
+        bool simulation_;
 
         // Mode in which we run the keyboard interface.
         std::string mode_;

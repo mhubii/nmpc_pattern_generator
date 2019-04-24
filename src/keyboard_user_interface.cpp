@@ -5,7 +5,8 @@
 int main(int argc, char** argv) {
 
     // Read in the mode.
-    std::string mode = argv[1];
+    bool simulation = (!strcmp(argv[1], "y") || !strcmp(argv[1], "Y")) ? true : false;
+    std::string mode = argv[2];
 
     if (!(!strcmp(mode.c_str(), "uc") || 
           !strcmp(mode.c_str(), "bc") || 
@@ -22,7 +23,7 @@ int main(int argc, char** argv) {
     yarp::os::Network yarp;
 
     // Create a keyboard user interface.
-    KeyReader kr(mode);
+    KeyReader kr(simulation, mode);
 
     // Open port for communication.
     kr.open("/user_interface/robot_status");

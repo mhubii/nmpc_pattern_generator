@@ -738,8 +738,9 @@ void AppReader::WriteToPort() {
 }
 
 
-KeyReader::KeyReader(std::string mode) 
-    : mode_(mode),
+KeyReader::KeyReader(bool simulation, std::string mode) 
+    : simulation_(simulation),
+      mode_(mode),
       robot_status_(NOT_CONNECTED),
       errors_(NO_ERRORS),
       warnings_(NO_WARNINGS),
@@ -1118,27 +1119,29 @@ void KeyReader::ReadCommands() {
             // Set current epoch.
             epoch_++;
 
+            // Check wether or not to run in simulation.
+            std::string sim = "";
+            if (simulation_) {
+                sim = " y";
+            }
+
             // Run user controlled walking.
+            std::string cmd = "";
+
             if (!strcmp(mode_.c_str(), "uc")) {
-                if (std::system("gnome-terminal -x bash ../../sh/run_user_controlled_walking.sh") != 0)
-                {
-                    std::cout << "Could not run the pattern generator." << std::endl;
-                    std::exit(1);
-                }
+                cmd = "gnome-terminal -x bash ../../sh/run_user_controlled_walking.sh" + sim;
             }
             else if (!strcmp(mode_.c_str(), "bc")) {
-                if (std::system("gnome-terminal -x bash ../../sh/run_behavioural_cloning.sh") != 0)
-                {
-                    std::cout << "Could not run the pattern generator." << std::endl;
-                    std::exit(1);
-                }
+                cmd = "gnome-terminal -x bash ../../sh/run_behavioural_cloning.sh" + sim;
             }
             else if (!strcmp(mode_.c_str(), "ba")) {
-                if (std::system("gnome-terminal -x bash ../../sh/run_behavioural_augmentation.sh") != 0)
-                {
-                    std::cout << "Could not run the pattern generator." << std::endl;
-                    std::exit(1);
-                }
+                cmd = "gnome-terminal -x bash ../../sh/run_behavioural_augmentation.sh" + sim;
+            }
+
+            if (std::system(cmd.c_str()) != 0)
+            {
+                std::cout << "Could not run the pattern generator." << std::endl;
+                std::exit(1);
             }
         }
 
