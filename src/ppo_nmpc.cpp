@@ -470,7 +470,7 @@ int main(int argc, char** argv)
             Eigen::Vector3d vel(*(actions[c].cpu().data<double>())*vx_max, *(actions[c].cpu().data<double>()+1)*vy_max, 0.);// *(actions[c].cpu().data<double>()+1), *(actions[c].cpu().data<double>()+2));
             auto sd = env.Act(vel);
 
-            if (std::get<2>(sd) == ERROR)
+            if (std::get<2>(sd) == STATUS::ERROR)
             {
                 error = true;
 

@@ -124,7 +124,8 @@ if (${BUILD_WITH_YARP} AND ${BUILD_WITH_LEARNING})
     # Source.
     set(SOURCES
         behavioural_cloning
-        behavioural_augmentation
+        behavioural_augmentation_simulation
+        behavioural_augmentation_real_robot
         ppo_nmpc        
     )
 
