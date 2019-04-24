@@ -185,7 +185,7 @@ struct NMPCEnvironment
 
         // If hit wall -> end
 
-        if ((goal_ - pos_).norm() < 3e-1) {
+        if ((goal_ - pos_).norm() < 4e-1) {
             status = REACHEDGOAL;
             done[0][0] = 1.;
         }
@@ -215,7 +215,7 @@ struct NMPCEnvironment
 
     auto Reward(int status) -> torch::Tensor
     {
-        double goal_factor = 1e3;
+        double goal_factor = 1e2;
         torch::Tensor reward = torch::full({1, 1}, goal_factor*(old_preview_dist_ - PreviewDist()), torch::kF64);
 
         switch (status)
@@ -231,11 +231,11 @@ struct NMPCEnvironment
                     printf("missed goal, reward: %f\n", *(reward.cpu().data<double>()));
                     break;
                 case HITOBSTACLE:
-                    reward[0][0] -= 1e1;
+                    reward[0][0] -= 1e2;
                     printf("hit obstacle, reward: %f\n", *(reward.cpu().data<double>()));
                     break;
                 case HITWALL:
-                    reward[0][0] -= 1e1;
+                    reward[0][0] -= 1e2;
                     printf("hit wall, reward: %f\n", *(reward.cpu().data<double>()));
                     break;
             }
@@ -328,7 +328,7 @@ struct NMPCEnvironment
             obs_(1) = (roi_y_pos - y_off_)*dy_;
         }
 
-        r_obs_ = roi_y_size/20.*dx_; // same size as sigmax  //double(roi_y_size)/4.*dx_; // roughly size of the roi/4
+        r_obs_ = roi_y_size/8.*dx_; // same size as sigmax  //double(roi_y_size)/4.*dx_; // roughly size of the roi/4
         double r_margin = nmpc_.RMargin();
 
         Circle c{obs_(0), obs_(1), r_obs_, r_margin};
@@ -405,15 +405,15 @@ int main(int argc, char** argv)
     ac->to(torch::kF64);
     ac->normal(0., 1e-2);
     ac->to(device);
-    torch::optim::Adam opt(ac->parameters(), 1e-3);
+    torch::optim::Adam opt(ac->parameters(), 1e-4);
 
     // Training loop.
     uint n_iter = 4000;
-    uint n_steps = 400;
-    uint n_epochs = 1;
+    uint n_steps = 600;
+    uint n_epochs = 100;
     uint mini_batch_size = 100;
-    uint ppo_epochs = 4;
-    double beta = 1e-3;
+    uint ppo_epochs = 6;
+    double beta = 1e-4;
 
     VT states_pos;
     VT states_map;
@@ -515,7 +515,7 @@ int main(int argc, char** argv)
                 // Update.
                 if (c%n_steps == 0)
                 {
-                    printf("Updating network.\n");
+                    // printf("Updating network.\n");
                     values.push_back(std::get<1>(ac->forward(states_pos[c-1], states_map[c-1])));
 
                     returns = PPO::returns(rewards, dones, values, .99, .95);
