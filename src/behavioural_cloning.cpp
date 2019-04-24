@@ -197,8 +197,8 @@ int main(int argc, char *argv[]) {
     bc_port.open("/behavioural_cloning/nmpc_pattern_generator");
 
     // Connect reader to external commands (possibly ai thread).
-    yarp::os::Network::connect("/key_reader/vel", "/behavioural_cloning/vel"); // send commands from terminal (reader.cpp) to this main
-    yarp::os::Network::connect("/key_reader/robot_status", "/behavioural_cloning/robot_status"); // send robot status from keyreader to this main
+    yarp::os::Network::connect("/reader/vel", "/behavioural_cloning/vel"); // send commands from terminal (reader.cpp) to this main
+    yarp::os::Network::connect("/reader/robot_status", "/behavioural_cloning/robot_status"); // send robot status from keyreader to this main
 
     // Ports to read images and the current epoch.
     for (const auto& part : rc.GetParts()) {
@@ -207,13 +207,13 @@ int main(int argc, char *argv[]) {
             yarp::os::Network::connect("/read_cameras/" + camera, "/behavioural_cloning/" + camera);
         }
     }
-    yarp::os::Network::connect("/key_reader/epoch", "/behavioural_cloning/epoch");
+    yarp::os::Network::connect("/reader/epoch", "/behavioural_cloning/epoch");
 
     // Put reader, processor, and writer together.
     yarp::os::Network::connect(rj.GetPortName(), "/behavioural_cloning/nmpc_pattern_generator");    // connect reader to BehaviouralCloning -> onRead gets called
     yarp::os::Network::connect("/behavioural_cloning/joint_angles", wj.GetPortName()); // connect to port_q of BehaviouralCloning
-    yarp::os::Network::connect("/behavioural_cloning/robot_status", "/keyboard_user_interface/robot_status"); // send robot status from keyreader to this main
-    yarp::os::Network::connect("/write_joints/robot_status", "/keyboard_user_interface/robot_status"); // send commands from writer.cpp to terminal
+    yarp::os::Network::connect("/behavioural_cloning/robot_status", "/user_interface/robot_status"); // send robot status from keyreader to this main
+    yarp::os::Network::connect("/write_joints/robot_status", "/user_interface/robot_status"); // send commands from writer.cpp to terminal
     yarp::os::Network::connect("/write_joints/robot_status", "/behavioural_cloning/robot_status"); // send commands from writer.cpp to this main
 
     // Start the read and write threads.
@@ -346,7 +346,7 @@ BehaviouralCloning::~BehaviouralCloning() {
 void  BehaviouralCloning::onRead(yarp::sig::Matrix& state) {
 
     // Stop pattern generation on emergency stop.
-    if (!yarp::os::Network::isConnected(port_status_.getName(), "/keyboard_user_interface/robot_status")) {
+    if (!yarp::os::Network::isConnected(port_status_.getName(), "/user_interface/robot_status")) {
         std::cout << "Quitting pattern generation on emergency stop." << std::endl;
         this->interrupt();
         interrupted = true;
