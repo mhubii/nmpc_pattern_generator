@@ -21,15 +21,14 @@ def train(args):
     # Load, pre-process and augment data.
     data_set = utils.DataSetGenerator(data_dir=args.data_dir,
                                       transform=transforms.Compose([
-                                          utils.PreProcessData(),
-                                          utils.ToTensor()
+                                          utils.PreProcessRGBDData()
                                       ]))
 
     # Data loader for batch generation.
     data_loader = DataLoader(data_set, batch_size=args.batch_size, drop_last=True)
 
     # Build model.
-    model = RGBDCNN(utils.INPUT_SHAPE, 2, args.batch_size).cuda()
+    model = RGBDCNN(utils.RGBD_INPUT_SHAPE, 2, args.batch_size).cuda()
 
     # Loss and optimizer.
     criterion = nn.MSELoss().cuda()
@@ -41,7 +40,7 @@ def train(args):
 
     for epoch in range(args.epochs):
         for idx, sample in enumerate(data_loader):
-            img_rgbd = Variable(sample['img_rgbd']).cuda()
+            img_rgbd = Variable(sample['img']).cuda()
             vel = Variable(sample['vel']).cuda()
             optimizer.zero_grad()
             vel_out = model(img_rgbd)
@@ -52,7 +51,7 @@ def train(args):
             # Save weights.
             if loss.data.item() < best_loss:
                 best_loss = loss.data.item()
-                torch.save(model.state_dict(), 'trained.pt')
+                torch.save(model.state_dict(), 'trained_rgbd.pt')
 
             if idx % 10 == 0:
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
@@ -87,11 +86,11 @@ if __name__ == '__main__':
 	np.savetxt("history.csv", hist)
 
 	# Use torch.jit.trace to generate a torch.jit.ScriptModule via tracing.
-	trained_model = RGBDCNN(utils.INPUT_SHAPE, 2, 1)
+	trained_model = RGBDCNN(utils.RGBD_INPUT_SHAPE, 2, 1)
 	
-	trained_model.load_state_dict(torch.load('trained.pt'))
+	trained_model.load_state_dict(torch.load('trained_rgbd.pt'))
 
 	example = torch.rand(1, utils.IMAGE_CHANNELS, utils.CROPPED_IMAGE_HEIGHT, utils.CROPPED_IMAGE_WIDTH)
 
 	traced_script_module = torch.jit.trace(trained_model, example)
-	traced_script_module.save('trained_script_module.pt')
+	traced_script_module.save('trained_script_module_rgbd.pt')

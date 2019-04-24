@@ -9,7 +9,8 @@ import os
 # INPUT_SHAPE as input for CNN (cropped shapes).
 IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS = 60, 80, 4 # 4 = RGBD
 CROPPED_IMAGE_HEIGHT, CROPPED_IMAGE_WIDTH = 38, 73
-INPUT_SHAPE = (IMAGE_CHANNELS, CROPPED_IMAGE_HEIGHT, CROPPED_IMAGE_WIDTH)
+RGBD_INPUT_SHAPE = (IMAGE_CHANNELS, CROPPED_IMAGE_HEIGHT, CROPPED_IMAGE_WIDTH)
+GD_INPUT_SHAPE = (2, IMAGE_HEIGHT, IMAGE_WIDTH)
 
 
 class DataSetGenerator(Dataset):
@@ -44,7 +45,7 @@ class DataSetGenerator(Dataset):
         return self.velocities.shape[0]
 
 
-class PreProcessData(object):
+class PreProcessRGBDData(object):
     """
         Pre-process the data.
     """
@@ -65,18 +66,34 @@ class PreProcessData(object):
         img_wls_disp = np.expand_dims(img_wls_disp, 0)
         img_rgbd = np.concatenate([img_left, img_wls_disp], axis=0)
         
+        return {'img': torch.from_numpy(img_rgbd).float(),
+                'vel': torch.from_numpy(vel).float()}
 
-        return {'img_rgbd': img_rgbd, 'vel': vel}
 
-
-class ToTensor(object):
+class PreProcessGDData(object):
     """
-        Convert data to tensor.
+        Pre-process gray depth data.
     """
     def __call__(self, sample):
-        img_rgbd, vel = sample['img_rgbd'], sample['vel']
+        img_left, img_wls_disp, vel = sample['img_left'], sample['img_wls_disp'], sample['vel']
 
-        return {'img_rgbd': torch.from_numpy(img_rgbd).float(),
+        # Filter the red channel.
+        img_left = filter(img_left)
+
+        # Normalize.
+        img_left = normalize(img_left)
+        img_wls_disp = normalize(img_wls_disp)
+
+        # Change HxWxC to CxHxW.
+        #img_left = np.transpose(img_left, (2, 0, 1))
+        #img_wls_dips = np.transpose(img_wls_disp, (2, 0, 1)) TODO
+
+        # Concatenate rgb, d to rgbd image.    
+        img_left = np.expand_dims(img_left, 0)
+        img_wls_disp = np.expand_dims(img_wls_disp, 0)
+        img_gd = np.concatenate([img_left, img_wls_disp], axis=0)
+        
+        return {'img': torch.from_numpy(img_gd).float(),
                 'vel': torch.from_numpy(vel).float()}
 
 
@@ -132,6 +149,18 @@ def crop(image):
     """
     image = image[20:-2, 5:-2]
     
+    return image
+
+def filter(image):
+    """
+        Filter a specific color channel (here red).
+    """
+    # Convert input image to HSV
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+
+    # Threshold the HSV image, keep only the red pixels
+    image = cv2.inRange(image, np.array([0, 100, 100]), np.array([10, 255, 255]))
+
     return image
     
 
