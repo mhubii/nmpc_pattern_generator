@@ -7,9 +7,9 @@ n_init: 10
 # Parameters for the inverse kinematics.
 step_tol: 1e-12
 lambda: 1e-2
-num_steps: 100
+num_steps: 1000
 
 # Body points.
-com_body_point: [0.0, -0.2, 0.0]
-lf_body_point: [0.01, 0.0, 0.0]
-rf_body_point: [0.01, 0.0, 0.0]
+com_body_point: [-0.2, 0.0, 0.0]
+lf_body_point: [0.0, 0.0, -0.01]
+rf_body_point: [0.0, 0.0, -0.01]
