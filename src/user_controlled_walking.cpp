@@ -224,6 +224,10 @@ WalkingProcessor::WalkingProcessor(Eigen::VectorXd q_min, Eigen::VectorXd q_max)
 
     pg_.SetInitialValues(pg_state_);
 
+    q_.setZero();
+    dq_.setZero();
+    ddq_.setZero();
+
     // Use callback to call onRead() method.
     useCallback();
     setCallbackLock(&mutex_);
@@ -307,6 +311,9 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
 
         // Use forward kinematics to obtain the com feedback.
         q_ << ki_.GetQTraj().topRows(6).col(0), yarp::eigen::toEigen(state.getCol(0)).bottomRows(15);
+
+        ki_.Forward(q_, dq_, ddq_);
+        com_pos_ = ki_.GetComPos();
 
         // Generate pattern with com feedback.
         pg_state_.com_x(0) = com_pos_(0);//, com_vel_(0), com_acc_(0);
