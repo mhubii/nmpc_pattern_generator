@@ -14,7 +14,7 @@
 
 std::random_device rdev;  //Will be used to obtain a seed for the random number engine
 std::mt19937 gen(rdev()); //Standard mersenne_twister_engine seeded with rd()
-std::uniform_int_distribution<> random_bool(0, 1); // generate a random boolean
+std::uniform_real_distribution<> random_real(0., 1.); // generate a random boolean
 
 enum STATUS {
     PLAYING,
@@ -132,7 +132,7 @@ struct NMPCEnvironment
 	    map_ = cv::Mat(cv::Size(nx_, ny_), CV_8U, cv::Scalar(255));
 
         // Initialize the map.
-        InitializeMap(true); // with obstacle initially being at the left
+        InitializeMap(); // with obstacle initially being at the left
     };
 
     auto State() -> std::tuple<torch::Tensor, torch::Tensor>
@@ -197,7 +197,7 @@ struct NMPCEnvironment
             status = HITOBSTACLE;
             done[0][0] = 1.;
         }
-        else if (float(map_.at<uchar>(y_off_ + pos_[1]/dy_, x_off_ + pos_[0]/dx_)) != 0.) { 
+        else if ((40 < pos_[0]/dx_ || pos_[0]/dx_ < nx_-40) || (40 < pos_[1]/dy_ || pos_[1]/dy_ < ny_-40)) { 
             status = HITWALL;
             done[0][0] = 1.;
         }
@@ -218,12 +218,15 @@ struct NMPCEnvironment
         double goal_factor = 1e2;
         torch::Tensor reward = torch::full({1, 1}, goal_factor*(old_preview_dist_ - PreviewDist()), torch::kF64);
 
+        // Negative reward for touching obstacles and walls.
+        reward[0][0] -= double(map_.at<uchar>(y_off_ + pos_[1]/dy_, x_off_ + pos_[0]/dx_));
+
         switch (status)
             {
                 case PLAYING:
                     break;
                 case REACHEDGOAL:
-                    reward[0][0] += 1e2;
+                    reward[0][0] += 1e3;
                     printf("reached goal, reward: %f\n", *(reward.cpu().data<double>()));
                     break;
                 case MISSEDGOAL:
@@ -234,10 +237,10 @@ struct NMPCEnvironment
                     reward[0][0] -= 1e2;
                     printf("hit obstacle, reward: %f\n", *(reward.cpu().data<double>()));
                     break;
-                case HITWALL:
-                    reward[0][0] -= 1e2;
-                    printf("hit wall, reward: %f\n", *(reward.cpu().data<double>()));
-                    break;
+                // case HITWALL:
+                //     reward[0][0] -= 1e2;
+                //     printf("hit wall, reward: %f\n", *(reward.cpu().data<double>()));
+                //     break;
             }
 
         return reward;
@@ -286,12 +289,9 @@ struct NMPCEnvironment
         vel_ << nmpc_.LocalVelRef();
         state_ << pos_, goal_;
 
-        // Reset the map with a random obstacle.
-        bool left = random_bool(gen);
-
-        SetGoal();           // Set the goal at the end of the roi, in the nmpc frame
-        SetObstacle(left);   // Set obstacle for the nmpc
-        InitializeMap(left); // Initialize the map
+        SetGoal();       // Set the goal at the end of the roi, in the nmpc frame
+        SetObstacle();   // Set obstacle for the nmpc
+        InitializeMap(); // Initialize the map
     };
 
     auto SetGoal() -> void
@@ -305,30 +305,21 @@ struct NMPCEnvironment
         state_ << pos_, goal_;
     };
 
-    auto SetObstacle(bool left) -> void
+    auto SetObstacle() -> void
     {
 	    // Create central path.
         int roi_x_size = int(nx_*2./3.);
-	    int roi_y_size = int(ny_/6.);
+	    int roi_y_size = int(ny_/2.);
         int roi_x_pos = (nx_ - roi_x_size)/2.;
         int roi_y_pos = (ny_ - roi_y_size)/2.;
 
-        if (left) {
-            roi_x_pos += int(roi_x_size/2. - roi_y_size/4.); // compute the center of the gaussian distribution in image coordinates
-            roi_y_pos += int(roi_y_size/4.);
+        roi_x_pos += int(roi_x_size/2.); // compute the center of the gaussian distribution in image coordinates
+        roi_y_pos += int(roi_y_size/2.);
 
-            obs_(0) = (roi_x_pos - x_off_)*dx_;
-            obs_(1) = (roi_y_pos - y_off_)*dy_;
-        }
-        else {
-            roi_x_pos += int(roi_x_size/2. - roi_y_size/4.); // compute the center of the gaussian distribution in image coordinates
-            roi_y_pos += int(roi_y_size/4.*3.);
+        obs_(0) = (roi_x_pos - x_off_)*dx_;
+        obs_(1) = (roi_y_pos - y_off_)*dy_;
 
-            obs_(0) = (roi_x_pos - x_off_)*dx_;
-            obs_(1) = (roi_y_pos - y_off_)*dy_;
-        }
-
-        r_obs_ = roi_y_size/8.*dx_; // same size as sigmax  //double(roi_y_size)/4.*dx_; // roughly size of the roi/4
+        r_obs_ = roi_y_size/8.*dx_; // same size as sigmax (maybe a little smaller)  //double(roi_y_size)/4.*dx_; // roughly size of the roi/4
         double r_margin = nmpc_.RMargin();
 
         Circle c{obs_(0), obs_(1), r_obs_, r_margin};
@@ -339,28 +330,18 @@ struct NMPCEnvironment
         state_ << pos_, goal_;
     };
 
-    auto InitializeMap(bool left) -> void
+    auto InitializeMap() -> void
     {
 	    // Create central path.
         int roi_x = int(nx_*2./3.);
-	    int roi_y = int(ny_/6.);
+	    int roi_y = int(ny_/2.);
 
         cv::Mat roi = map_(cv::Rect((nx_ - roi_x)/2., (ny_ - roi_y)/2., roi_x, roi_y));
         roi.setTo(0);
 
         // Set gaussian at obstacle.
-        cv::Mat roi_g;
-
-        if (left) {
-            // Set obstacle to the left.
-            roi_g = roi(cv::Rect(roi.cols/2. - roi.rows/2., 0., roi.rows/2., roi.rows/2.));
-        }
-        else {
-            // Set obstacle to the right.
-            roi_g = roi(cv::Rect(roi.cols/2. - roi.rows/2., roi.rows/2., roi.rows/2., roi.rows/2.));
-        }
-
-        cv::Mat gaussian = getGaussianKernel(roi.rows/2., roi.rows/2., roi.rows/20., roi.rows/20.);
+        cv::Mat roi_g = roi(cv::Rect(roi.cols/2. - roi.rows/3., roi.rows/2. - roi.rows/3., roi.rows*2./3., roi.rows*2./3.));
+        cv::Mat gaussian = getGaussianKernel(roi.rows*2./3., roi.rows*2./3., roi.rows/8., roi.rows/8.);
         gaussian.copyTo(roi_g);
     };
 };
@@ -427,7 +408,7 @@ int main(int argc, char** argv)
 
     // Output.
     std::ofstream out;
-    out.open("example_ppo.csv");
+    out.open("../../out/ppo_nmpc/example_ppo.csv");
 
     // episode, agent_x, agent_y, goal_x, goal_y, STATUS=(PLAYING, REACHEDGOAL, MISSEDGOAL, HITOBSTACLE, HITWALL, RESETTING)
     out << 1 << ", " << env.pos_(0) << ", " << env.pos_(1) << ", " << env.obs_(0) << ", " << env.obs_(1) << ", " << env.r_obs_ << ", " << env.goal_(0) << ", " << env.goal_(1) << ", " << RESETTING << "\n";
@@ -554,7 +535,7 @@ int main(int argc, char** argv)
 
                 best_avg_reward = avg_reward;
                 printf("Best average reward: %f\n", best_avg_reward);
-                torch::save(ac, "ppo_nmpc_best_model.pt");
+                torch::save(ac, "../../out/ppo_nmpc/ppo_nmpc_best_model.pt");
             }
 
             printf("Average reward: %f at entropy %f\n", avg_reward, avg_entropy);
