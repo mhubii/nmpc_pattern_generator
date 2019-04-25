@@ -84,9 +84,9 @@ void Kinematics::Inverse(Eigen::MatrixXd& com_traj,
             cs_.target_positions[rf_id_]  = rf_ori_init_*rf_traj.block(0, i, 3, 1);
 
             // Set orientation constraints.
-            com_eul_ << com_eul_init_(0), com_eul_init_(1), com_eul_init_(2) + com_traj(3, i);
-            lf_eul_ << lf_eul_init_(0), lf_eul_init_(1), lf_eul_init_(2) + lf_traj(3, i);
-            rf_eul_ << rf_eul_init_(0), rf_eul_init_(1), rf_eul_init_(2) + rf_traj(3, i);
+            com_eul_ << com_eul_init_(0), com_eul_init_(1), com_eul_init_(2) - com_traj(3, i);
+            lf_eul_ << lf_eul_init_(0), lf_eul_init_(1), lf_eul_init_(2) - lf_traj(3, i);
+            rf_eul_ << rf_eul_init_(0), rf_eul_init_(1), rf_eul_init_(2) - rf_traj(3, i);
 
             com_ori_ =  Eigen::AngleAxisd(com_eul_(0), Eigen::Vector3d::UnitX())
                        *Eigen::AngleAxisd(com_eul_(1), Eigen::Vector3d::UnitY())

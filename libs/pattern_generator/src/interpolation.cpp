@@ -153,6 +153,9 @@ Eigen::Map<const Eigen::MatrixXd> Interpolation::Interpolate() {
     InterpolateLIPM();
     InterpolateFeet();
 
+    // Average the orientation of the com.
+    com_q_buffer_.col(current_interval_) = rf_q_buffer_.col(current_interval_).cwiseMax(lf_q_buffer_.col(current_interval_));
+
     current_interval_ += 1;
 
     // Update for a smooth transition.
@@ -185,6 +188,9 @@ Eigen::Map<const Eigen::MatrixXd> Interpolation::InterpolateStep() {
     // Interpolate.
     InterpolateLIPMStep();
     InterpolateFeetStep();
+
+    // Average the orientation of the com.
+    com_q_buffer_ = rf_q_buffer_.cwiseMax(lf_q_buffer_);
 
     // Append by buffered trajectories.
     if (store_trajectories_) {
