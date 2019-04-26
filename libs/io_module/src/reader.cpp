@@ -667,7 +667,7 @@ void AppReader::ReadCommands() {
             running_ = true;
 
             // Run user controlled walking.
-            if (std::system("gnome-terminal -x bash ../../sh/run_user_controlled_walking.sh") != 0)
+            if (std::system("gnome-terminal -x bash ../../sh/run_user_controlled_walking.sh y") != 0) // y for running in simulation (currently only supported mode for app)
             {
                 std::cout << "Could not run the pattern generator." << std::endl;
                 std::exit(1);
@@ -683,9 +683,9 @@ void AppReader::ReadCommands() {
                 vel->get(0).asList()->write(vel_);
 
                 // Weight inputs.
-                vel_(0) *=  0.6;
-                vel_(1) *= -0.6;
-                vel_(2) *=  0.1;
+                vel_(0) *=  0.2;
+                vel_(1) *= -0.02;
+                vel_(2) *= -0.2;
 
                 WriteToPort();
             }
@@ -747,10 +747,10 @@ KeyReader::KeyReader(bool simulation, std::string mode)
       running_(false),
       t_iter_(yarp::os::Time::now()), 
       acc_w_( 1., 0., 0. ),
-      acc_a_( 0. , 0., 0.1),
+      acc_a_( 0. , 0., 1.),
       acc_shift_a_(0., 0.1, 0.),
       acc_s_(-1., 0., 0.),
-      acc_d_( 0. , 0., -0.1),
+      acc_d_( 0. , 0., -1.),
       acc_shift_d_(0., -0.1, 0.),
       vel_(3) {
 
@@ -1169,6 +1169,26 @@ void KeyReader::SetVelocity(Eigen::Vector3d& acc, double t) {
     // and the acceleration.
     Eigen::Map<Eigen::VectorXd> vel = yarp::eigen::toEigen(vel_);
     vel += acc*t;
+
+    // Check for maximally allowed velocities.
+    if (vel(0) > 0.2) {
+        vel(0) = 0.2;
+    }
+    else if (vel(0) < -0.2) {
+        vel(0) = -0.2;
+    }
+    if (vel(1) > 0.02) {
+        vel(1) = 0.02;
+    }       
+    else if (vel(1) < -0.02) {
+        vel(1) = -0.02;
+    }
+    if (vel(2) > 0.2) {
+        vel(2) = 0.2;
+    }
+    else if (vel(2) < -0.2) {
+        vel(2) = -0.2;
+    }
 }
 
 void KeyReader::WriteToPort() {
