@@ -59,8 +59,8 @@ void Kinematics::Forward(Eigen::VectorXd&   q,
 
 
 void Kinematics::Inverse(Eigen::MatrixXd& com_traj,
-                            Eigen::MatrixXd& lf_traj,
-                            Eigen::MatrixXd& rf_traj) {
+                         Eigen::MatrixXd& lf_traj,
+                         Eigen::MatrixXd& rf_traj) {
 
     // Resize q_traj if needed.
     if (q_traj_.rows() !=  model_->dof_count || q_traj_.cols() != com_traj.cols()) {
