@@ -2,6 +2,8 @@
 
 #include "nmpc_generator.h"
 #include "interpolation.h"
+#include "utils.h"
+#include "timer.h"
 
 int main() {
     // Initialize pattern generator.
@@ -26,24 +28,25 @@ int main() {
     nmpc.SetInitialValues(pg_state);
     Interpolation interpol_nmpc(nmpc);
     interpol_nmpc.StoreTrajectories(true);
-    Eigen::Vector3d velocity_reference(0., 0., 0.1);
+    Eigen::Vector3d velocity_reference(0.1, 0., 0.1);
 
+    Timer(START);
 
     // Pattern generator event loop.
-    for (int i = 0; i < 400; i++) {
+    for (int i = 0; i < 200; i++) {
         std::cout << "Iteration: " << i << std::endl;
 
-
         // Change reference velocities.
-        if (50 <= i && i < 100) {
-            velocity_reference << 0.1, 0., 0.1;
+        if (25 <= i && i < 50) {
+        velocity_reference << 0.1, 0., 0.1;
         }
-        else if (100 <= i && i < 300) {
-            velocity_reference << 0.1, 0., -0.1;
+        else if (50 <= i && i < 150) {
+        velocity_reference << 0.1, 0.1, 0.1;
         }
-        else if (300 <= i && i < 400) {
-            velocity_reference << 0., 0., 0.;
+        else if (150 <= i && i < 200) {
+        velocity_reference << 0., 0., 0.;
         }
+
 
 
         // Set reference velocities.
@@ -61,6 +64,8 @@ int main() {
         nmpc.SetInitialValues(pg_state);
     }
 
+    double elapsed_time = Timer(STOP);
+    std::cout << "Elapsed time: " << elapsed_time << " ms" << std::endl;
 
     // Save interpolated results.
     Eigen::MatrixXd trajectories = interpol_nmpc.GetTrajectories().transpose();

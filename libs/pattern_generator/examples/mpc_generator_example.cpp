@@ -3,6 +3,7 @@
 #include "mpc_generator.h"
 #include "interpolation.h"
 #include "utils.h"
+#include "timer.h"
 
 int main() {
     // Instantiate pattern generator.
@@ -29,6 +30,7 @@ int main() {
     interpol_mpc.StoreTrajectories(true);
     Eigen::Vector3d velocity_reference(0.1, 0., 0.1);
 
+    Timer(START);
 
     // Pattern generator event loop.
     for (int i = 0; i < 200; i++) {
@@ -61,6 +63,8 @@ int main() {
         mpc.SetInitialValues(pg_state);
     }
 
+    double elapsed_time = Timer(STOP);
+    std::cout << "Elapsed time: " << elapsed_time << " ms" << std::endl;
 
     // Save interpolated results.
     Eigen::MatrixXd trajectories = interpol_mpc.GetTrajectories().transpose();
