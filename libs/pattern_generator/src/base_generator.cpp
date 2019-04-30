@@ -207,11 +207,11 @@ BaseGenerator::BaseGenerator(const std::string config_file_loc)
       r_margin_(0.2 + std::max(foot_width_, foot_height_)),
       co_({x_obs_, y_obs_, r_obs_ + r_margin_ , r_margin_}),
 
-      h_obs_(nf_, 2*(n_ + nf_), 2*(n_ + nf_)), // TODO: change for multiple objects!!
-      a_obs_(nf_, 2*(n_ + nf_)),
-      b_obs_(nf_),
-      lb_obs_(nf_),
-      ub_obs_(nf_),
+      h_obs_(nc_obs_, 2*(n_ + nf_), 2*(n_ + nf_)), // TODO: change for multiple objects!!
+      a_obs_(nc_obs_, 2*(n_ + nf_)),
+      b_obs_(nc_obs_),
+      lb_obs_(nc_obs_),
+      ub_obs_(nc_obs_),
 
       v_kp1_0_(n_),
       v_kp1_(n_, nf_) {
@@ -1161,13 +1161,15 @@ void BaseGenerator::BuildObstacleConstraint() {
   // Constraints coming from obstacles.
   
   // inf > X Hobs X + Aobs X > Bobs
-  for (int i = 0; i < nf_; i++) {
-    h_obs_(i, n_ + i, n_ + i)                 = 1.;
-    h_obs_(i, 2*n_ + nf_ + i, 2*n_ + nf_ + i) = 1.;
-    a_obs_(i, n_ + i)                         = -2*co_.x0;
-    a_obs_(i, 2*n_ + nf_ + i)                 = -2*co_.y0;
-    b_obs_(i)                                 = co_.x0*co_.x0 + co_.y0*co_.y0 - co_.r*co_.r;
-    lb_obs_(i)                                = -b_obs_(i);
+  for (int i = 0; i < nc_obs_; i++) {
+    for (int j = 0; j < nf_; j++) {
+      h_obs_(i, n_ + j, n_ + j)                 = 1.;
+      h_obs_(i, 2*n_ + nf_ + j, 2*n_ + nf_ + j) = 1.;
+      a_obs_(i, n_ + j)                         = -2*co_.x0;
+      a_obs_(i, 2*n_ + nf_ + j)                 = -2*co_.y0;
+      b_obs_(i)                                 = co_.x0*co_.x0 + co_.y0*co_.y0 - co_.r*co_.r;
+      lb_obs_(i)                                = -b_obs_(i);
+    }
   }
 }
 
