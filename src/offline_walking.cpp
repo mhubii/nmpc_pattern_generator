@@ -175,7 +175,7 @@ int main(int argc, char *argv[]) {
     // Get the status of the initialzation.
     yarp::os::BufferedPort<yarp::os::Bottle> port_status;
     port_status.open("/walking_processor/commands");
-    yarp::os::Network::connect("/client_write/robot_status", "/walking_processor/commands"); // /client_write/robot_status is written to by writer
+    yarp::os::Network::connect("/write_joints/robot_status", "/walking_processor/commands"); // /client_write/robot_status is written to by writer
 
     RobotStatus robot_status = INITIALIZING;
 
