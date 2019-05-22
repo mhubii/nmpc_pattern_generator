@@ -109,7 +109,7 @@ void Kinematics::Inverse(Eigen::MatrixXd& com_traj,
             ik_status_ = RigidBodyDynamics::InverseKinematics(*model_, q_init_, cs_, q_res_);
 
             if (!ik_status_) {
-                std::cout << "Inverse kinematics did not converge with desired precision." << std::endl;
+                //std::cout << "Inverse kinematics did not converge with desired precision." << std::endl;
             }
 
             q_init_ = q_res_;
