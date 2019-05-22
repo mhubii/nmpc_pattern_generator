@@ -60,6 +60,7 @@ if (${BUILD_WITH_YARP})
     # Source.
     set(SOURCES
         app_user_interface
+        joint_angles_for_meshup
         keyboard_user_interface
         offline_walking
         user_controlled_walking
