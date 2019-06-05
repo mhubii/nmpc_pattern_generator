@@ -14,8 +14,12 @@ initial_vel: 0.1
 sensors:
   - part: left_leg
     joints: [0,1,2,3,4,5]
+  - part: left_foot
+    force_torque: [0]
   - part: right_leg
     joints: [0,1,2,3,4,5]
+  - part: right_foot
+    force_torque: [0]
   - part: torso
     joints: [0,1,2]
   - part: chest
