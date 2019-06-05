@@ -110,8 +110,7 @@ void ReadJoints::SetConfigs() {
 
             parts_.push_back(Part{(*part)["part"].as<std::string>(),
                                   (*part)["joints"].as<std::vector<int>>(),
-                                  std::vector<std::string>(),
-                                  std::vector<int>()});
+                                  std::vector<std::string>()});
         }
     }
 
@@ -273,8 +272,7 @@ void ReadCameras::SetConfigs() {
         if ((*part)["cameras"]) {
             parts_.push_back(Part{(*part)["part"].as<std::string>(),
                                   std::vector<int>(),
-                                  (*part)["cameras"].as<std::vector<std::string>>(),
-                                  std::vector<int>()});
+                                  (*part)["cameras"].as<std::vector<std::string>>()});
         }
     }
 }
@@ -314,120 +312,6 @@ void ReadCameras::SetDrivers() {
                 std::cout << "Problems acquiring interfaces" << std::endl;
                 std::exit(1);
             }
-        }
-    }
-}
-
-
-ReadForceTorqueSensors::ReadForceTorqueSensors(int period, const std::string config_file_loc, 
-                                               const std::string robot_name) 
-  : RateThread(period),
-    robot_name_(robot_name),
-    configs_(YAML::LoadFile(config_file_loc)) {
-
-    // Set configurations and drivers.
-    SetConfigs();
-    SetDrivers();
-
-    // Open ports for every force torque sensor.
-    for (const auto& part : parts_) {
-
-        ft_[part.name].resize(6);
-        ports_[part.name].open("/read_ft_sensors/" + part.name);
-    }
-}
-
-
-ReadForceTorqueSensors::~ReadForceTorqueSensors() {
-
-    // Close ports for every sensor.
-    for (const auto& part : parts_) {
-
-        ports_[part.name].close();
-    }
-
-    // Unset drivers.
-    UnsetDrivers();
-}
-
-void ReadForceTorqueSensors::run() {
-
-    // Read the camera every period_ ms.
-    for (const auto& part : parts_) {
-
-        double timestamp;
-        fts_[part.name]->getSixAxisForceTorqueSensorMeasure(0, ft_[part.name], timestamp);
-
-        // Write image to port.
-        yarp::sig::Vector& ft = ports_[part.name].prepare();
-        ft = ft_[part.name];
-        ft.push_back(timestamp);
-        ports_[part.name].write();
-    } 
-}
-
-void ReadForceTorqueSensors::UnsetDrivers() {
-    
-    // Close driver.
-    for (const auto& part : parts_) {
-
-        dd_[part.name]->close();
-    }
-
-    // Delete driver.
-    for (const auto& part : parts_) {
-
-        delete dd_[part.name];
-    }
-}
-
-void ReadForceTorqueSensors::SetConfigs() {
-
-    // Check for sensors i.e. parts and their cameras.
-    for (YAML::const_iterator part = configs_["sensors"].begin();
-            part != configs_["sensors"].end();
-            part++) {
-        
-        if ((*part)["force_torque"]) {
-            parts_.push_back(Part{(*part)["part"].as<std::string>(),
-                                  std::vector<int>(),
-                                  std::vector<std::string>(),
-                                  (*part)["force_torque"].as<std::vector<int>>()});
-        }
-    }
-}
-
-void ReadForceTorqueSensors::SetDrivers() {
-
-    // Set a driver for each part.
-    for (const auto& part : parts_) {
-
-        std::string local_port = "/client/force_torque/" + part.name;
-        std::string remote_port = "/" + robot_name_ + "/" + part.name + "/analog:o";
-
-        yarp::os::Property options;
-        options.put("device", "multipleanalogsensorsclient");
-        options.put("local", local_port);
-        options.put("remote", remote_port);
-
-        // Every part is set to position encoder.
-        dd_[part.name] = new yarp::dev::PolyDriver(options);
-        
-        if (!dd_[part.name]->isValid()) {
-            std::cerr << "Device or ports not available." << std::endl;
-            std::exit(1);
-        }
-
-        // Create ISixAxisForceTorqueSensors interfaces for the sensors.
-        bool ok = true;
-
-        yarp::dev::ISixAxisForceTorqueSensors* ft;
-        ok = ok && dd_[part.name]->view(ft);
-        fts_[part.name] = ft;
-
-        if (!ok) {
-            std::cout << "Problems acquiring interfaces." << std::endl;
-            std::exit(1);
         }
     }
 }
