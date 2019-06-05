@@ -31,6 +31,8 @@ class Kinematics
         inline const RigidBodyDynamics::Math::Vector3d& GetComPos() const { return com_pos_;   };
         inline const RigidBodyDynamics::Math::Vector3d& GetComVel() const { return com_vel_;   };
         inline const RigidBodyDynamics::Math::Vector3d& GetComAcc() const { return com_acc_;   };
+        inline const RigidBodyDynamics::Math::Vector3d& GetLFPos()  const { return lf_pos_;    };
+        inline const RigidBodyDynamics::Math::Vector3d& GetRFPos()  const { return rf_pos_;    };
         inline const Eigen::MatrixXd&                   GetQTraj()  const { return q_traj_;    };
 
         // Setters.
@@ -62,6 +64,10 @@ class Kinematics
         RigidBodyDynamics::Math::Vector3d com_vel_;
         RigidBodyDynamics::Math::Vector3d com_acc_;
         double mass_;
+
+        // Feet.
+        RigidBodyDynamics::Math::Vector3d lf_pos_;
+        RigidBodyDynamics::Math::Vector3d rf_pos_;
 
         // Body id's.
         uint com_id_;
