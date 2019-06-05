@@ -127,6 +127,53 @@ class ReadCameras : public yarp::os::RateThread
 };
 
 
+// ReadForceTorqueSensors implements a simple reader that
+// reads forces and torques from a YARP interface.
+//
+// Implemented by Martin Huber.
+class ReadForceTorqueSensors : public yarp::os::RateThread
+{
+    public:
+        
+        ReadForceTorqueSensors(int period, const std::string config_file_loc = "../libs/io_module/configs.yaml", 
+                               const std::string robot_name = "icubGazeboSim");
+
+        ~ReadForceTorqueSensors();
+
+    private:
+
+        // Methods to be implemented for RateThread.
+        virtual void run();
+
+        // Configurations.
+        void UnsetDrivers();
+
+        void SetConfigs();
+
+        void SetDrivers();
+
+        // Robot.
+        const std::string robot_name_;
+
+        // Configurations.
+        YAML::Node configs_;
+
+        // Parts.
+        std::vector<Part> parts_;
+
+        // Drivers.
+        std::map<std::string, yarp::dev::PolyDriver*> dd_;
+        std::map<std::string, yarp::dev::ISixAxisForceTorqueSensors*> fts_;
+
+        // Output.
+        std::map<std::string, yarp::sig::Vector> ft_;
+
+        // Port to forces and torques to.
+        std::string port_name_;
+        std::map<std::string, yarp::os::BufferedPort<yarp::sig::Vector>> ports_;
+};
+
+
 // AppReader implements a simple user interface that
 // allows the user to connect to an app from which
 // it reads commands. The commands are redirected to
