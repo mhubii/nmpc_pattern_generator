@@ -128,6 +128,8 @@ if (${BUILD_WITH_YARP} AND ${BUILD_WITH_LEARNING})
         behavioural_augmentation_simulation
         behavioural_augmentation_real_robot
         ppo_nmpc        
+        tune_disp_map
+        generate_calib_imgs
     )
 
     foreach (source ${SOURCES})
