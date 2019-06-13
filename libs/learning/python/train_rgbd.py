@@ -28,7 +28,7 @@ def train(args):
     data_loader = DataLoader(data_set, batch_size=args.batch_size, drop_last=True)
 
     # Build model.
-    model = RGBDCNN(utils.RGBD_INPUT_SHAPE, 2, args.batch_size).cuda()
+    model = RGBDCNN(utils.RGBD_INPUT_SHAPE, 3, args.batch_size).cuda()
 
     # Loss and optimizer.
     criterion = nn.MSELoss().cuda()
@@ -69,7 +69,7 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Behavioral Cloning Training Program')
 	parser.add_argument('-d', type=str,   help='data directory',   default='data', dest='data_dir')
 	parser.add_argument('-l', type=float, help='learning rate',    default=0.001,  dest='learning_rate')
-	parser.add_argument('-b', type=int,   help='batch size',       default=4096,  dest='batch_size')
+	parser.add_argument('-b', type=int,   help='batch size',       default=256,  dest='batch_size')
 	parser.add_argument('-e', type=int,   help='number of epochs', default=10,     dest='epochs')
 
 	args = parser.parse_args()
@@ -86,7 +86,7 @@ if __name__ == '__main__':
 	np.savetxt("history.csv", hist)
 
 	# Use torch.jit.trace to generate a torch.jit.ScriptModule via tracing.
-	trained_model = RGBDCNN(utils.RGBD_INPUT_SHAPE, 2, 1)
+	trained_model = RGBDCNN(utils.RGBD_INPUT_SHAPE, 3, 1)
 	
 	trained_model.load_state_dict(torch.load('trained_rgbd.pt'))
 

@@ -7,10 +7,16 @@ from torch.utils.data import Dataset
 import os
 
 # INPUT_SHAPE as input for CNN (cropped shapes).
-IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS = 60, 80, 4 # 4 = RGBD
-CROPPED_IMAGE_HEIGHT, CROPPED_IMAGE_WIDTH = 38, 73
+IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS = 240, 320, 4 # 4 = RGBD
+CROPPED_IMAGE_HEIGHT, CROPPED_IMAGE_WIDTH = 185, 276
 RGBD_INPUT_SHAPE = (IMAGE_CHANNELS, CROPPED_IMAGE_HEIGHT, CROPPED_IMAGE_WIDTH)
 GD_INPUT_SHAPE = (2, IMAGE_HEIGHT, IMAGE_WIDTH)
+
+# sizes as chosen for depth map computation
+num_disparities = 32
+block_size = 13
+l_offs = int(num_disparities) + int(block_size/2.)
+r_offs = t_offs = b_offs = int(block_size/2.)
 
 
 class DataSetGenerator(Dataset):
@@ -110,14 +116,15 @@ def load_data(data_dir):
     data_df = pd.read_csv(os.path.join(
                           data_dir, 'log.txt'),
                           delimiter=', ',
-                          names=['left', 'right', 'l_disp', 'wls_disp', 'vel0', 'vel1', 'vel2'],
+                          #names=['left', 'right', 'l_disp', 'wls_disp', 'vel0', 'vel1', 'vel2'], 
+                          names=['left', 'wls_disp', 'vel0', 'vel1', 'vel2'], # changed for behavioural cloning external data
                           engine='python')
 
     # Randomly shuffle data to remove correlations.
     data_df = data_df.iloc[np.random.permutation(len(data_df))]
 
     image_paths = data_df[['left', 'wls_disp']].values
-    velocities = data_df[['vel0', 'vel1']].values#, 'vel2']].values
+    velocities = data_df[['vel0', 'vel1', 'vel2']].values
 
     return image_paths, velocities
 
@@ -147,7 +154,8 @@ def crop(image):
         useful information for the training. Also
         remove the border because of the depth images. 
     """
-    image = image[20:-2, 5:-2]
+    # 191 is a magic number caused by the rectification of the camera image
+    image = image[t_offs:191,l_offs:image.shape[1]-r_offs]
     
     return image
 
@@ -162,7 +170,7 @@ def filter(image):
     image = cv2.inRange(image, np.array([0, 100, 100]), np.array([10, 255, 255]))
 
     return image
-    
+
 
 import matplotlib.pyplot as plt
 

@@ -315,8 +315,8 @@ BehaviouralAugmentation::BehaviouralAugmentation(Eigen::VectorXd q_min, Eigen::V
     r_matcher_ = cv::ximgproc::createRightMatcher(l_matcher_);
     wls_ = cv::ximgproc::createDisparityWLSFilter(l_matcher_);
 
-    wls_->setLambda(1e3);
-    wls_->setSigmaColor(1.5);
+    wls_->setLambda(1.e4);
+    wls_->setSigmaColor(1.);
 }
 
 
@@ -366,34 +366,48 @@ void  BehaviouralAugmentation::onRead(yarp::sig::Matrix& state) {
         // Read current images, compute depth image, and save them with corresponding velocity and time stamp.
         ProcessImages();
 
-        // Convert input image to HSV
-        cv::Mat hsv_image;
-        cv::cvtColor(imgs_cv_rgb_["left"], hsv_image, cv::COLOR_BGR2HSV);
+        // Crop images.
+        cv::Mat c_img_rgb = Crop(imgs_cv_rgb_["left"]);
+        cv::Mat c_img_d = Crop(wls_disp_);
 
-        // Threshold the HSV image, keep only the red pixels
-        cv::Mat lower_red_hue_range;
-        cv::inRange(hsv_image, cv::Scalar(0, 100, 100), cv::Scalar(10, 255, 255), lower_red_hue_range); 
+        // // Convert input image to HSV
+        // cv::Mat hsv_image;
+        // cv::cvtColor(imgs_cv_rgb_["left"], hsv_image, cv::COLOR_BGR2HSV);
 
-        // Convert to tensor.
-        torch::Tensor gray = torch::from_blob(lower_red_hue_range.data, {1, lower_red_hue_range.rows, lower_red_hue_range.cols, 1}, torch::kByte); // different order cv hxwxc -> torch cxhxw
-	    torch::Tensor d = torch::from_blob(wls_disp_.data, {1, wls_disp_.rows, wls_disp_.cols, 1}, torch::kByte);
+        // // Threshold the HSV image, keep only the red pixels
+        // cv::Mat lower_red_hue_range;
+        // cv::inRange(hsv_image, cv::Scalar(0, 100, 100), cv::Scalar(10, 255, 255), lower_red_hue_range); 
 
-        gray = gray.to(torch::kF32); // of course convert to float
+        // // Convert to tensor.
+        // torch::Tensor gray = torch::from_blob(lower_red_hue_range.data, {1, lower_red_hue_range.rows, lower_red_hue_range.cols, 1}, torch::kByte); // different order cv hxwxc -> torch cxhxw
+	    // torch::Tensor d = torch::from_blob(wls_disp_.data, {1, wls_disp_.rows, wls_disp_.cols, 1}, torch::kByte);
+        torch::Tensor rgb = torch::from_blob(c_img_rgb.data, {1, c_img_rgb.rows, c_img_rgb.cols, 3}, torch::kByte); // different order cv hxwxc -> torch cxhxw
+	    torch::Tensor d = torch::from_blob(c_img_d.data, {1, c_img_d.rows, c_img_d.cols, 1}, torch::kByte);
+
+        // gray = gray.to(torch::kF32); // of course convert to float
+        // d = d.to(torch::kF32);
+        rgb = rgb.to(torch::kF32); // of course convert to float
         d = d.to(torch::kF32);
 
-        // Concatenate and normalize images.
-        gray = gray.permute({0, 3, 1, 2}); // hxwxc -> cxhxw
+        // // Concatenate and normalize images.
+        // gray = gray.permute({0, 3, 1, 2}); // hxwxc -> cxhxw
+        // d = d.permute({0, 3, 1, 2});
+        rgb = rgb.permute({0, 3, 1, 2}); // hxwxc -> cxhxw
         d = d.permute({0, 3, 1, 2});
 
-        // Normalize images.
-        gray = gray.div(127.5).sub(1.);
+        // // Normalize images.
+        // gray = gray.div(127.5).sub(1.);
+        // d = d.div(127.5).sub(1.);
+        rgb = rgb.div(127.5).sub(1.);
         d = d.div(127.5).sub(1.);
 
-        torch::Tensor gd = torch::cat({gray, d}, 1);
+        // torch::Tensor gd = torch::cat({gray, d}, 1);
+        torch::Tensor rgbd = torch::cat({rgb, d}, 1);
 
         // Create a vector of input.
         std::vector<torch::jit::IValue> input;
-        input.push_back(gd);
+        // input.push_back(gd);
+        input.push_back(rgbd);
 
         // Execute the model and turn its output into a tensor.
         t_vel_ = module_->forward(input).toTensor();
@@ -569,5 +583,5 @@ cv::Mat BehaviouralAugmentation::Crop(cv::Mat& img) {
     // The sizes are a little hacky right now.
     // It crops the sky, as well as borders where the wls disparity map
     // has no values.
-    return cv::Mat(img, cv::Rect(5, 20, img.cols-7, img.rows-22)).clone(); // rect is only a rapper on the memory, need to clone
+    return cv::Mat(img, cv::Rect(38, 6, img.cols-44, 185)).clone(); // rect is only a rapper on the memory, need to clone
 }

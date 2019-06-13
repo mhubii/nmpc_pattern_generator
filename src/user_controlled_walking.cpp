@@ -19,6 +19,9 @@ std::string ki_config;
 // Forward declare name of the robot.
 std::string robot;
 
+// Forward declare simulation.
+bool simulation;
+
 // Forward declare WalkingProcessor. This is actually the heart
 // of the application. Within it, the pattern is generated,
 // and the  inverse kinematics is computed.
@@ -26,7 +29,7 @@ class WalkingProcessor : public yarp::os::BufferedPort<yarp::sig::Matrix>
 {
     public:
 
-        WalkingProcessor(Eigen::VectorXd q_min, Eigen::VectorXd q_max);
+        WalkingProcessor(Eigen::VectorXd q_min, Eigen::VectorXd q_max, bool sim);
 
         ~WalkingProcessor();
 
@@ -73,6 +76,8 @@ class WalkingProcessor : public yarp::os::BufferedPort<yarp::sig::Matrix>
         // External velocity input and joint angle port.
         yarp::os::BufferedPort<yarp::sig::Vector> port_vel_;
         yarp::os::BufferedPort<yarp::sig::Vector> port_q_;
+        yarp::os::BufferedPort<yarp::sig::Vector> port_lft_;
+        yarp::os::BufferedPort<yarp::sig::Vector> port_rft_;
 
         // Mutex.
         yarp::os::Mutex mutex_;
@@ -84,9 +89,9 @@ class WalkingProcessor : public yarp::os::BufferedPort<yarp::sig::Matrix>
         // Port to communicate the status.
         yarp::os::BufferedPort<yarp::os::Bottle> port_status_;
 
-        // TEST: COM feedback.
-        Eigen::MatrixXd com_;
-        // TEST END
+        // Force torque.
+        bool simulation_;
+        Eigen::MatrixXd ft_;
 };
 
 
@@ -130,6 +135,14 @@ int main(int argc, char *argv[]) {
         std::cerr << "--robot (e.g. icubGazeboSim)" << std::endl;
         std::exit(1);
     }
+    if (params.check("simulation")) {
+        simulation = params.find("simulation").asBool();
+    }
+    else {
+        std::cerr << "Please specify whether or not to run in simulation" << std::endl;
+        std::cerr << "--simulation (e.g. true)" << std::endl;
+        std::exit(1);
+    }
 
     // Set up the yarp network.
     yarp::os::Network yarp;
@@ -146,7 +159,7 @@ int main(int argc, char *argv[]) {
     Eigen::VectorXd max = rj.GetMaxAngles();
 
     // Process data, read from joints.
-    WalkingProcessor pg_port(min, max); 
+    WalkingProcessor pg_port(min, max, simulation); 
     pg_port.open("/user_controlled_walking/nmpc_pattern_generator");
 
     // Connect reader to external commands (possibly ai thread).
@@ -159,6 +172,13 @@ int main(int argc, char *argv[]) {
     yarp::os::Network::connect("/user_controlled_walking/robot_status", "/user_interface/robot_status"); // send robot status from keyreader to this main
     yarp::os::Network::connect("/write_joints/robot_status", "/user_interface/robot_status"); // send commands from writer.cpp to terminal
     yarp::os::Network::connect("/write_joints/robot_status", "/user_controlled_walking/robot_status"); // send commands from writer.cpp to this main
+
+    // Read force torque.
+    if (!simulation) {
+    
+        yarp::os::Network::connect("/wholeBodyDynamics/left_leg/cartesianEndEffectorWrench:o", "/user_controlled_walking/lft"); // read force torques from yarp to user_controlled_walking.cpp
+        yarp::os::Network::connect("/wholeBodyDynamics/right_leg/cartesianEndEffectorWrench:o", "/user_controlled_walking/rft"); // read force torques from yarp to user_controlled_walking.cpp
+    }
 
     // Start the read and write threads.
     rj.start();
@@ -173,6 +193,11 @@ int main(int argc, char *argv[]) {
 
     // Save trajectories.
     WriteCsv("user_controlled_walking_trajectories.csv", pg_port.ip_.GetTrajectories().transpose());
+    
+    if (!simulation) {
+
+        WriteCsv("force_torque.csv", pg_port.ft_.transpose());
+    }
 
     // Stop reader and writer (on command later).
     pg_port.close();
@@ -184,7 +209,7 @@ int main(int argc, char *argv[]) {
 
 
 // Implement WalkingProcessor.
-WalkingProcessor::WalkingProcessor(Eigen::VectorXd q_min, Eigen::VectorXd q_max)
+WalkingProcessor::WalkingProcessor(Eigen::VectorXd q_min, Eigen::VectorXd q_max, bool sim)
   : interrupted(false),
 
     pg_(pg_config),
@@ -206,7 +231,10 @@ WalkingProcessor::WalkingProcessor(Eigen::VectorXd q_min, Eigen::VectorXd q_max)
     
     // Position initialized.
     robot_status_(NOT_INITIALIZED),
-    initialized_(false) {
+    initialized_(false),
+    
+    simulation_(sim),
+    ft_(12, 0) {
 
     // Pattern generator preparation.
     pg_.SetSecurityMargin(pg_.SecurityMarginX(), 
@@ -238,6 +266,8 @@ WalkingProcessor::WalkingProcessor(Eigen::VectorXd q_min, Eigen::VectorXd q_max)
     // Open port for velocity input.
     port_vel_.open("/user_controlled_walking/vel"); // open /user_controlled_walking/vel port to read velocity commands from terminal via reader.cpp
     port_q_.open("/user_controlled_walking/joint_angles"); // open /user_controlled_walking/joint_angles port to read joint angles from writer.cpp
+    port_lft_.open("/user_controlled_walking/lft"); // open /user_controlled_walking/lft to read in force torque from yarp
+    port_rft_.open("/user_controlled_walking/rft"); // open /user_controlled_walking/rft to read in force torque from yarp
     port_status_.open("/user_controlled_walking/robot_status"); // open /user_controlled_walking/robot_status to write status information to the terminal via reader.cpp
 
     ip_.StoreTrajectories(true);
@@ -249,6 +279,8 @@ WalkingProcessor::~WalkingProcessor() {
     // Close ports.
     port_vel_.close();
     port_q_.close();
+    port_lft_.close();
+    port_rft_.close();
     port_status_.close();
 }
 
@@ -352,11 +384,30 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
             std::exit(1);
         }
 
+        if (!simulation_) 
+        {
+        
+            ft_.conservativeResize(ft_.rows(), ft_.cols() + ip_.GetTrajectoriesBuffer().cols());
+        }
+
         for (int i = 0; i < traj_.cols(); i++)
         {
             com_traj_ << traj_(0, i),  traj_(3, i),  traj_(6, i),  traj_(7, i);
             lf_traj_ << traj_(13, i), traj_(14, i), traj_(15, i), traj_(16, i);
             rf_traj_ << traj_(17, i), traj_(18, i), traj_(19, i), traj_(20, i);  
+
+            if (!simulation_) 
+            {
+            
+                yarp::sig::Vector* lft = port_lft_.read();
+                yarp::sig::Vector* rft = port_rft_.read();
+
+                for (int j = 0; j < (*lft).size(); j++) {
+                    
+                    ft_(j, ft_.cols() - ip_.GetTrajectoriesBuffer().cols() + i) = (*lft)[j];
+                    ft_(j + (*lft).size(), ft_.cols() - ip_.GetTrajectoriesBuffer().cols() + i) = (*rft)[j];
+                }
+            }
 
             ki_.Inverse(com_traj_, lf_traj_, rf_traj_);
             q_traj_ = ki_.GetQTraj().bottomRows(15);
