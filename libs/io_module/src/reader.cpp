@@ -1171,11 +1171,11 @@ void KeyReader::SetVelocity(Eigen::Vector3d& acc, double t) {
     vel += acc*t;
 
     // Check for maximally allowed velocities.
-    if (vel(0) > 0.2) {
-        vel(0) = 0.2;
+    if (vel(0) > 0.15) {
+        vel(0) = 0.15;
     }
-    else if (vel(0) < -0.2) {
-        vel(0) = -0.2;
+    else if (vel(0) < -0.15) {
+        vel(0) = -0.15;
     }
     if (vel(1) > 0.02) {
         vel(1) = 0.02;
