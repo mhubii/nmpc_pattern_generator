@@ -9,8 +9,9 @@ import os
 # INPUT_SHAPE as input for CNN (cropped shapes).
 IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS = 240, 320, 4 # 4 = RGBD
 CROPPED_IMAGE_HEIGHT, CROPPED_IMAGE_WIDTH = 185, 276
-RGBD_INPUT_SHAPE = (IMAGE_CHANNELS, CROPPED_IMAGE_HEIGHT, CROPPED_IMAGE_WIDTH)
-GD_INPUT_SHAPE = (2, IMAGE_HEIGHT, IMAGE_WIDTH)
+RESIZED_IMAGE_HEIGHT, RESIZED_IMAGE_WIDTH = 120, 160
+RGBD_INPUT_SHAPE = (IMAGE_CHANNELS, RESIZED_IMAGE_HEIGHT, RESIZED_IMAGE_WIDTH)
+GD_INPUT_SHAPE = (2, CROPPED_IMAGE_HEIGHT, CROPPED_IMAGE_WIDTH)
 
 # sizes as chosen for depth map computation
 num_disparities = 32
@@ -61,6 +62,10 @@ class PreProcessRGBDData(object):
         img_left = crop(img_left)
         img_wls_disp = crop(img_wls_disp)
 
+        # Resize.
+        img_left = resize(img_left)
+        img_wls_disp = resize(img_wls_disp)
+
         img_left = normalize(img_left)
         img_wls_disp = normalize(img_wls_disp)
 
@@ -83,6 +88,10 @@ class PreProcessGDData(object):
     def __call__(self, sample):
         img_left, img_wls_disp, vel = sample['img_left'], sample['img_wls_disp'], sample['vel']
 
+        # Crop.
+        img_left = crop(img_left)
+        img_wls_disp = crop(img_wls_disp)
+
         # Filter the red channel.
         img_left = filter(img_left)
 
@@ -94,7 +103,7 @@ class PreProcessGDData(object):
         #img_left = np.transpose(img_left, (2, 0, 1))
         #img_wls_dips = np.transpose(img_wls_disp, (2, 0, 1)) TODO
 
-        # Concatenate rgb, d to rgbd image.    
+        # Concatenate gray, d to gd image.    
         img_left = np.expand_dims(img_left, 0)
         img_wls_disp = np.expand_dims(img_wls_disp, 0)
         img_gd = np.concatenate([img_left, img_wls_disp], axis=0)
@@ -124,7 +133,32 @@ def load_data(data_dir):
     data_df = data_df.iloc[np.random.permutation(len(data_df))]
 
     image_paths = data_df[['left', 'wls_disp']].values
-    velocities = data_df[['vel0', 'vel1', 'vel2']].values
+    #velocities = data_df[['vel0', 'vel1', 'vel2']].values
+    velocities = data_df[['vel0', 'vel2']].values
+
+    return image_paths, velocities
+
+
+def load_unshuffeled_data(data_dir):
+    """
+        Loads the input data and separates it into image_paths
+        and velocities.
+    :return:
+        image_paths: np.ndarray
+                     Location of recorded images.
+        labels: float
+                Velocities.
+    """
+    data_df = pd.read_csv(os.path.join(
+                          data_dir, 'log.txt'),
+                          delimiter=', ',
+                          #names=['left', 'right', 'l_disp', 'wls_disp', 'vel0', 'vel1', 'vel2'], 
+                          names=['left', 'wls_disp', 'vel0', 'vel1', 'vel2'], # changed for behavioural cloning external data
+                          engine='python')
+
+    image_paths = data_df[['left', 'wls_disp']].values
+    #velocities = data_df[['vel0', 'vel1', 'vel2']].values
+    velocities = data_df[['vel0', 'vel2']].values
 
     return image_paths, velocities
 
@@ -159,6 +193,14 @@ def crop(image):
     
     return image
 
+def resize(image):
+    """
+        Resize an image.
+    """
+    image = cv2.resize(image, (RESIZED_IMAGE_WIDTH, RESIZED_IMAGE_HEIGHT))
+
+    return image
+
 def filter(image):
     """
         Filter a specific color channel (here red).
@@ -177,8 +219,8 @@ import matplotlib.pyplot as plt
 if __name__ == '__main__':
     
     data_dir = "/home/martin/Downloads/nmpc_pattern_generator/out"
-    file_rgb = "data/left_epoch_1_00000145.png"
-    file_d = "data/wls_disp_epoch_1_00000145.png"
+    file_rgb = "data/img/left_epoch_3_00239503.jpg"
+    file_d = "data/img/wls_disp_epoch_3_00239503.jpg"
 
     rgb, d = load_rgbd(data_dir, file_rgb, file_d)
 
@@ -186,12 +228,11 @@ if __name__ == '__main__':
     d = normalize(d)
 
     d = crop(d)
-
-    plt.imshow(d)
-    plt.show()
-
     rgb = crop(rgb)
 
+    plt.subplot(121)
+    plt.imshow(d)
+    plt.subplot(122)
     plt.imshow(rgb)
     plt.show()
 

@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 from torch.autograd import Variable
 
 from model import GDCNN
+from unet_model import GDUNet
 import utils
 
 mpl.rcParams['text.usetex'] = True
@@ -28,7 +29,8 @@ def train(args):
     data_loader = DataLoader(data_set, batch_size=args.batch_size, drop_last=True)
 
     # Build model.
-    model = GDCNN(utils.GD_INPUT_SHAPE, 2, args.batch_size).cuda()
+    #model = GDCNN(utils.GD_INPUT_SHAPE, 3, args.batch_size).cuda()
+    model = GDUNet(utils.GD_INPUT_SHAPE, 3, args.batch_size).cuda()
 
     # Loss and optimizer.
     criterion = nn.MSELoss().cuda()
@@ -86,11 +88,12 @@ if __name__ == '__main__':
 	np.savetxt("history.csv", hist)
 
 	# Use torch.jit.trace to generate a torch.jit.ScriptModule via tracing.
-	trained_model = GDCNN(utils.GD_INPUT_SHAPE, 2, 1)
+	#trained_model = GDCNN(utils.GD_INPUT_SHAPE, 3, 1)
+	trained_model = GDUNet(utils.GD_INPUT_SHAPE, 3, args.batch_size).cuda()
 	
 	trained_model.load_state_dict(torch.load('trained_gd.pt'))
 
-	example = torch.rand(1, 2, utils.IMAGE_HEIGHT, utils.IMAGE_WIDTH)
+	example = torch.rand(1, 2, utils.CROPPED_IMAGE_HEIGHT, utils.CROPPED_IMAGE_WIDTH)
 
 	traced_script_module = torch.jit.trace(trained_model, example)
 	traced_script_module.save('trained_script_module_gd.pt')

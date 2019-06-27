@@ -16,24 +16,26 @@ class RGBDCNN(nn.Module):
 
         self.batch_size = batch_size
         self.cnn = nn.Sequential(
-            nn.Conv2d(4, 8, 5, 2),
-            nn.ReLU(),
-            nn.Conv2d(8, 16, 5, 2),
-            nn.ReLU(),
-            nn.Conv2d(16, 32, 3, 2),
-            nn.ReLU(),
+            nn.Conv2d(4, 16, 5, 2),
+            nn.Tanh(),
+            nn.Conv2d(16, 32, 5, 2),
+            nn.Tanh(),
+            nn.Conv2d(32, 64, 3, 1),
+            nn.Tanh(),
         )
 
         n = self._get_conv_output(self.cnn, input_shape)
 
         self.classification = nn.Sequential(
             nn.Linear(n, 16),
-            nn.ReLU(),
+            nn.Tanh(),
             nn.Linear(16, 8),
-            nn.ReLU(),
+            nn.Tanh(),
             nn.Linear(8, dof),
             nn.Tanh()
         )
+
+        self.apply(self.weights_init_uniform)
 
     def _get_conv_output(self, net, shape):
         """
@@ -62,6 +64,14 @@ class RGBDCNN(nn.Module):
         out = self.classification(out)
 
         return out
+
+    def weights_init_uniform(self, m):
+        classname = m.__class__.__name__
+        # for every Linear layer in a model..
+        if classname.find('Linear') != -1:
+            # apply a uniform distribution to the weights and a bias=0
+            m.weight.data.uniform_(0.0, 0.1)
+            m.bias.data.fill_(0)
 
 
 class GDCNN(nn.Module):
