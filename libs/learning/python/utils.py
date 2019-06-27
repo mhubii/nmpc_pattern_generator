@@ -52,6 +52,60 @@ class DataSetGenerator(Dataset):
         return self.velocities.shape[0]
 
 
+class SequenceDataSetGenerator(Dataset):
+    def __init__(self, sequence_length, data_dir, transform=None):
+        """
+            Load all image paths and velocities
+            from the .txt file. Always load sequence_length number of
+            images that are correlated in time.
+        """
+        self.sequence_length = sequence_length
+        self.data_dir = data_dir
+        self.image_paths, self.velocities = load_unshuffeled_epoch_data(data_dir) # shuffled by the sequence sampler
+        self.transform = transform
+
+    def __getitem__(self, index):
+
+        sample = {'img_left': [], 'img_wls_disp': [], 'vel': []}        
+
+        for i in range(-sequence_length+1,1): # for the correct ordering in temporal dimension
+            img_left, img_wls_disp = load_rgbd(self.data_dir, self.image_paths[index+i][0], self.image_paths[index+i][1])
+
+            vel = self.velocities[index+i]
+
+            sample['img_left'].append(img_left)
+            sample['img_wls_disp'].append(img_wls_disp)
+            sample['vel'].append(vel)
+
+        if self.transform is not None:
+            sample = self.transform(sample)
+
+        return sample
+
+
+class SequenceSampler(torch.utils.data.Sampler):
+    def __init__(self, data_dir, sequence_length):
+        """
+            Creates a list of indices from which we can sample a sequence
+            images without hitting lower boundaries.
+        """
+        epoch_idx = load_epoch_indices(data_dir)
+        indices = []
+
+        for idx, e in enumerate(epoch_idx):
+            if e >= sequence_length - 1:
+            indices.append(idx)
+        
+        self.indices = indices
+
+    def __iter__(self):
+        indices = self.indices[torch.randperm(len(self.indices))]
+        return iter(indices.tolist())
+
+    def __len__(self):
+        return len(self.indices)) 
+
+
 class PreProcessRGBDData(object):
     """
         Pre-process the data.
@@ -79,6 +133,43 @@ class PreProcessRGBDData(object):
         
         return {'img': torch.from_numpy(img_rgbd).float(),
                 'vel': torch.from_numpy(vel).float()}
+
+
+class PreProcessSequenceRGBDData(object):
+    """
+        Pre-process the data.
+    """
+    def __call__(self, sample):
+        imgs_left = np.array(sample['img_left'], axis=0)
+        imgs_wls_disp = np.array(sample['img_wls_disp'], axis=0)
+        vels = np.array(sample['vel'], axis=0)
+
+        for i in range(sequence_length):
+
+            sample['img_left'][i] = crop(sample['img_left'][i])
+            sample['img_wls_disp'][i] = crop(sample['img_wls_disp'][i])
+
+            # Resize.
+            sample['img_left'][i] = resize(sample['img_left'][i])
+            sample['img_wls_disp'][i]	 = resize(sample['img_wls_disp'][i])
+
+            sample['img_left'][i] = normalize(sample['img_left'][i])
+            sample['img_wls_disp'][i] = normalize(sample['img_wls_disp'][i])
+
+            # Change HxWxC to CxHxW.
+            sample['img_left'][i] = np.transpose(sample['img_left'][i], (2, 0, 1))
+            #img_wls_dips = np.transpose(img_wls_disp, (2, 0, 1)) TODO
+
+            # Concatenate rgb, d to rgbd image.    
+            sample['img_wls_disp'][i]  = np.expand_dims(sample['img_wls_disp'][i], 0)
+            sample['img_left'][i] = np.concatenate([sample['img_left'][i], sample['img_wls_disp'][i]], axis=0)
+
+        imgs_rgbd = np.array(sample['img_left'])
+        vels = np.array(sample['vel'])
+        
+        # Returns TxCxHxW sequence images.
+        return {'imgs': torch.from_numpy(img_rgbd).float(),
+                'vels': torch.from_numpy(vel).float()}
 
 
 class PreProcessGDData(object):
@@ -161,6 +252,48 @@ def load_unshuffeled_data(data_dir):
     velocities = data_df[['vel0', 'vel2']].values
 
     return image_paths, velocities
+
+
+def load_unshuffeled_epoch_data(data_dir):
+    """
+        Loads the input data and separates it into image_paths
+        and velocities.
+    :return:
+        image_paths: np.ndarray
+                     Location of recorded images.
+        labels: float
+                Velocities.
+    """
+    data_df = pd.read_csv(os.path.join(
+                          data_dir, 'epoch_log.txt'),
+                          delimiter=',',
+                          #names=['left', 'right', 'l_disp', 'wls_disp', 'vel0', 'vel1', 'vel2'], 
+                          names=['epoch', 'epoch_idx', 'left', 'wls_disp', 'vel0', 'vel1', 'vel2'], # changed for behavioural cloning external data
+                          engine='python')
+
+    image_paths = data_df[['left', 'wls_disp']].values
+    #velocities = data_df[['vel0', 'vel1', 'vel2']].values
+    velocities = data_df[['vel0', 'vel2']].values
+
+    return image_paths, velocities
+
+
+def load_epoch_indices(data_dir):
+    """
+        Loads the indices of the current epoch.
+    :return:
+        epoch_idx: np.ndarray
+                     
+    """
+    data_df = pd.read_csv(os.path.join(
+                          data_dir, 'epoch_log.txt'),
+                          delimiter=', ',
+                          names=['epoch', 'epoch_idx', 'left', 'wls_disp', 'vel0', 'vel1', 'vel2'], # changed for behavioural cloning external data
+                          engine='python')
+
+    epoch_idx = data_df['epoch_idx'].values()
+
+    return epoch_idx
 
 
 def load_rgbd(data_dir, image_file_rgb, image_file_d):
