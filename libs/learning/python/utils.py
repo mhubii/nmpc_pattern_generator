@@ -9,7 +9,8 @@ import os
 # INPUT_SHAPE as input for CNN (cropped shapes).
 IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS = 240, 320, 4 # 4 = RGBD
 CROPPED_IMAGE_HEIGHT, CROPPED_IMAGE_WIDTH = 185, 276
-RESIZED_IMAGE_HEIGHT, RESIZED_IMAGE_WIDTH = 120, 160
+#RESIZED_IMAGE_HEIGHT, RESIZED_IMAGE_WIDTH = 60, 80
+RESIZED_IMAGE_HEIGHT, RESIZED_IMAGE_WIDTH = 32, 32
 RGBD_INPUT_SHAPE = (IMAGE_CHANNELS, RESIZED_IMAGE_HEIGHT, RESIZED_IMAGE_WIDTH)
 GD_INPUT_SHAPE = (2, CROPPED_IMAGE_HEIGHT, CROPPED_IMAGE_WIDTH)
 
@@ -68,7 +69,7 @@ class SequenceDataSetGenerator(Dataset):
 
         sample = {'img_left': [], 'img_wls_disp': [], 'vel': []}        
 
-        for i in range(-sequence_length+1,1): # for the correct ordering in temporal dimension
+        for i in range(-self.sequence_length+1,1): # for the correct ordering in temporal dimension
             img_left, img_wls_disp = load_rgbd(self.data_dir, self.image_paths[index+i][0], self.image_paths[index+i][1])
 
             vel = self.velocities[index+i]
@@ -82,28 +83,34 @@ class SequenceDataSetGenerator(Dataset):
 
         return sample
 
+    def __len__(self):
+        """
+            Return the length of the whole data set.
+        """
+        return self.velocities.shape[0]
+
 
 class SequenceSampler(torch.utils.data.Sampler):
-    def __init__(self, data_dir, sequence_length):
+    def __init__(self, sequence_length, data_dir, split_indices):
         """
             Creates a list of indices from which we can sample a sequence
             images without hitting lower boundaries.
         """
-        epoch_idx = load_epoch_indices(data_dir)
+        epoch_idx = load_epoch_indices(data_dir)[split_indices] # split indices since we split in train and validation set
         indices = []
 
         for idx, e in enumerate(epoch_idx):
             if e >= sequence_length - 1:
-            indices.append(idx)
+                indices.append(idx)
         
-        self.indices = indices
+        self.indices = np.array(indices)
 
     def __iter__(self):
-        indices = self.indices[torch.randperm(len(self.indices))]
-        return iter(indices.tolist())
+        indices = self.indices[np.random.permutation(len(self.indices))]
+        return iter(indices)
 
     def __len__(self):
-        return len(self.indices)) 
+        return len(self.indices)
 
 
 class PreProcessRGBDData(object):
@@ -140,9 +147,9 @@ class PreProcessSequenceRGBDData(object):
         Pre-process the data.
     """
     def __call__(self, sample):
-        imgs_left = np.array(sample['img_left'], axis=0)
-        imgs_wls_disp = np.array(sample['img_wls_disp'], axis=0)
-        vels = np.array(sample['vel'], axis=0)
+        vels = np.array(sample['vel'])
+
+        sequence_length = np.array(sample['img_left']).shape[0]
 
         for i in range(sequence_length):
 
@@ -168,8 +175,8 @@ class PreProcessSequenceRGBDData(object):
         vels = np.array(sample['vel'])
         
         # Returns TxCxHxW sequence images.
-        return {'imgs': torch.from_numpy(img_rgbd).float(),
-                'vels': torch.from_numpy(vel).float()}
+        return {'imgs': torch.from_numpy(imgs_rgbd).float(),
+                'vels': torch.from_numpy(vels).float()}
 
 
 class PreProcessGDData(object):
@@ -287,11 +294,11 @@ def load_epoch_indices(data_dir):
     """
     data_df = pd.read_csv(os.path.join(
                           data_dir, 'epoch_log.txt'),
-                          delimiter=', ',
+                          delimiter=',',
                           names=['epoch', 'epoch_idx', 'left', 'wls_disp', 'vel0', 'vel1', 'vel2'], # changed for behavioural cloning external data
                           engine='python')
 
-    epoch_idx = data_df['epoch_idx'].values()
+    epoch_idx = data_df['epoch_idx']
 
     return epoch_idx
 
