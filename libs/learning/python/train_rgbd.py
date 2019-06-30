@@ -11,6 +11,7 @@ from tqdm import tqdm
 import torch.optim.lr_scheduler as lr_scheduler
 
 from model import RGBDCNN
+from model import RGBDCNNLSTM
 import utils
 from unet_model import UNet
 
@@ -41,11 +42,12 @@ def train(args):
     valid_loader = DataLoader(valid_set, 1, sampler=valid_sampler, drop_last=True)
 
     # Save validation indices.
-    np.savetxt('validation_indices.csv', valid_set.indices.numpy())
+    np.savetxt('validation_indices_rgbd_cnn_lstm.csv', valid_set.indices.numpy())
 
     # Build model.
     #model = RGBDCNN(utils.RGBD_INPUT_SHAPE, 3, args.batch_size).cuda()
-    model = UNet(utils.RGBD_INPUT_SHAPE, 2, args.batch_size).cuda()
+    model = RGBDCNNLSTM(utils.RGBD_INPUT_SHAPE, 2).cuda()
+    # model = UNet(utils.RGBD_INPUT_SHAPE, 2, args.batch_size).cuda()
 
     # Loss and optimizer.
     criterion = nn.MSELoss().cuda()
@@ -77,11 +79,6 @@ def train(args):
             loss.backward()
             optimizer.step()
 
-            # Save weights.
-            if loss.data.item() < best_loss:
-                best_loss = loss.data.item()
-                torch.save(model.state_dict(), 'trained_rgbd.pt')
-
             if idx % 1000 == 0:
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                       epoch+1, idx * len(img_rgbd), len(train_loader.dataset),
@@ -108,7 +105,7 @@ def train(args):
         # Save weights.
         if avg_loss < best_loss:
             best_loss = avg_loss
-            torch.save(model.state_dict(), 'trained_attn.pt')
+            torch.save(model.state_dict(), 'trained_rgbd_cnn_lstm.pt')
 
     return history
 

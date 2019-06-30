@@ -18,7 +18,10 @@ class UNet(nn.Module):
         n = self._get_conv_output(input_shape)
         self.fc1 = nn.Linear(n, 64)
         self.fc2 = nn.Linear(64, 32)
-        self.fc3 = nn.Linear(32, dof)
+
+        # Rnn.
+        self.rnn = nn.LSTM(32, 10, 1, batch_first=True)
+        self.fc3 = nn.Linear(10, dof)
 
     def _get_conv_output(self, shape):
         """
@@ -42,14 +45,20 @@ class UNet(nn.Module):
         return torch.tanh(x)
 
     def forward(self, x):
+        b, t, c, h, w = x.size()
+        x = x.view(b*t, c, h, w)
         x = self.forward_skip(x)
 
         # Flatten.
-        x = x.view(self.batch_size, int(x.numel()/self.batch_size))
+        #x = x.view(b*t, int(x.numel()/(b*t)))
+        x = x.view(b*t, -1)
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
-        x = torch.tanh(self.fc3(x))
 
+        x = x.view(b, t, -1)
+        x, (h_c, h_c) = self.rnn(x)
+        x = torch.tanh(self.fc3(x[:, -1, :]))
+        
         return x
 
 
@@ -95,7 +104,8 @@ class GDUNet(nn.Module):
         x = self.forward_skip(x)
 
         # Flatten.
-        x = x.view(self.batch_size, int(x.numel()/self.batch_size))
+        # x = x.view(self.batch_size, x.numel()/self.batch_size)
+        x = x.view(self.batch_size, -1)
         x = self.fc1(x)
         x = self.fc2(x)
         x = self.fc3(x)
@@ -151,16 +161,16 @@ class up(nn.Module):
 
         #  would be a nice idea if the upsampling could be learned too,
         #  but my machine do not have enough memory to handle all those weights
-        if bilinear:
-            # self.up = nn.functional.interpolate(scale_factor=2, mode='bilinear', align_corners=True)
-            self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
-        else:
-            self.up = nn.ConvTranspose2d(in_ch//2, in_ch//2, 2, stride=2)
+        #if bilinear:
+        #    self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+        #else:
+        #    self.up = nn.ConvTranspose2d(in_ch//2, in_ch//2, 2, stride=2)
 
         self.conv = double_conv(in_ch, out_ch)
 
     def forward(self, x1, x2):
-        x1 = self.up(x1)
+        #x1 = self.up(x1)
+        x1 = nn.functional.interpolate(x1, scale_factor=2, mode='bilinear', align_corners=True)
         
         # input is CHW
         diffY = x2.size()[2] - x1.size()[2]

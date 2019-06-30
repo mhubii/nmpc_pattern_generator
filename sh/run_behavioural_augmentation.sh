@@ -8,7 +8,7 @@ if ["$1" != "${1#[Yy]}"]; then
   robot="icub"
 
   cd $DIR/../build/bin
-  ./behavioural_augmentation_real_robot --io_config ../../libs/io_module/configs.yaml --pg_config ../../libs/pattern_generator/configs.yaml --ki_config ../../libs/kinematics/configs.yaml --robot $robot --net_loc ../../libs/learning/python/trained_script_module_gd.pt
+  ./behavioural_augmentation_real_robot_external_data --io_config ../../libs/io_module/configs.yaml --pg_config ../../libs/pattern_generator/configs.yaml --ki_config ../../libs/kinematics/configs.yaml --robot $robot --net_loc ../../libs/learning/python/trained_script_module_rgbd.pt --out_loc ../../out
 else
   export YARP_CLOCK=/clock
   robot="icubGazeboSim"

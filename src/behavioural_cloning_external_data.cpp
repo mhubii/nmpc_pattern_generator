@@ -202,7 +202,7 @@ int main(int argc, char *argv[]) {
     }
     else {
         std::cerr << "Please specify the location of the calibration file" << std::endl;
-        std::cerr << "--calib_file (e.g. ../libs/kinematics/configs.yaml)" << std::endl;
+        std::cerr << "--calib_file (e.g. ../libs/io_module/cam_stereo.yaml)" << std::endl;
         std::exit(1);
     }
     if (params.check("robot")) {
@@ -371,8 +371,8 @@ BehaviouralCloning::BehaviouralCloning(Eigen::VectorXd q_min, Eigen::VectorXd q_
     // Open port for velocity input.
     port_vel_.open("/behavioural_cloning/vel"); // open /behavioural_cloning/vel port to read velocity commands from terminal via reader.cpp
     port_q_.open("/behavioural_cloning/joint_angles"); // open /behavioural_cloning/joint_angles port to read joint angles from writer.cpp
-    port_lft_.open("/behavioural_cloning/lft"); // open /user_controlled_walking/lft to read in force torque from yarp
-    port_rft_.open("/behavioural_cloning/rft"); // open /user_controlled_walking/rft to read in force torque from yarp
+    port_lft_.open("/behavioural_cloning/lft"); // open /behavioural_cloning/lft to read in force torque from yarp
+    port_rft_.open("/behavioural_cloning/rft"); // open /behavioural_cloning/rft to read in force torque from yarp
     port_status_.open("/behavioural_cloning/robot_status"); // open /behavioural_cloning/robot_status to write status information to the terminal via reader.cpp
 
     ip_.StoreTrajectories(true);
