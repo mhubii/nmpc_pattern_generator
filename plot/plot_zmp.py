@@ -12,15 +12,30 @@ def load_csv(loc):
     return data
 
 
+def average(series, block_size):
+    N = int(series.shape[0]/block_size)
+    block_mean = []
+
+    for i in range(N):
+        mean = 0.
+        for j in range(block_size):
+            mean += series[i*block_size+j]/float(block_size)
+        block_mean.append(mean)
+
+    return np.array(block_mean)
+
+
 def plot_zmp(data, loc):
     a = 0
     z = data.shape[0]
-    com_x = data[a:z, 0]
-    com_y = data[a:z, 3]
-    com_z = data[a:z, 6]
-    zmp_x = data[a:z, 10]
-    zmp_y = data[a:z, 11]
-    zmp_z = data[a:z, 12]
+    block_size = 10
+
+    com_x = average(data[a:z, 0], block_size)
+    com_y = average(data[a:z, 3], block_size)
+    com_z = average(data[a:z, 6], block_size)
+    zmp_x = average(data[a:z, 10], block_size)
+    zmp_y = average(data[a:z, 11], block_size)
+    zmp_z = average(data[a:z, 12], block_size)
 
     #plt.plot(com_x, com_y, label='com')
     plt.plot(zmp_x, zmp_y, label='zmp')
@@ -35,11 +50,12 @@ def plot_zmp(data, loc):
 def ft_to_zmp(ft_data, pos_data):
     # distance sole ankle (force torque sensor)
     d = 0.02986
+    block_size = 10
 
-    force_left   = ft_data[:, 0:3]
-    torque_left    = ft_data[:, 3:6]
-    force_right  = ft_data[:, 6:9]
-    torque_right   = ft_data[:, 9:12]
+    force_left   = average(ft_data[:, 0:3], block_size)
+    torque_left    = average(ft_data[:, 3:6], block_size)
+    force_right  = average(ft_data[:, 6:9], block_size)
+    torque_right   = average(ft_data[:, 9:12], block_size)
 
     # zmp in feet frames
     p_lx = (-torque_left[:,1] - force_left[:,0]*d)/force_left[:,2]
@@ -48,10 +64,10 @@ def ft_to_zmp(ft_data, pos_data):
     p_ry = ( torque_right[:,0] - force_right[:,1]*d)/force_right[:,2] 
 
     # transform to world frame
-    lfx = pos_data[:, 13]
-    lfy = pos_data[:, 14]
-    rfx = pos_data[:, 17]
-    rfy = pos_data[:, 18]
+    lfx = average(pos_data[:, 13], block_size)
+    lfy = average(pos_data[:, 14], block_size)
+    rfx = average(pos_data[:, 17], block_size)
+    rfy = average(pos_data[:, 18], block_size)
 
     p_lx += lfx
     p_ly += lfy
@@ -67,8 +83,10 @@ def ft_to_zmp(ft_data, pos_data):
 
 if __name__ == '__main__':
     #loc_in = '../build/bin/example_nmpc_generator_interpolated_results.csv'
-    loc_in = '../out/data/trajectories_epoch_9.csv'
-    loc_ft = '../out/data/force_torque_epoch_9.csv'
+    #loc_in = '../out/data/trajectories_epoch_9.csv'
+    #loc_ft = '../out/data/force_torque_epoch_9.csv'
+    loc_in = '../out/behavioural_augmentation_data/trajectories.csv'
+    loc_ft = '../out/behavioural_augmentation_data/force_torque.csv'
     loc_out = '../img/generated_nmpc_pattern.png'
     data = load_csv(loc_in)
     plot_zmp(data, loc_out)
