@@ -87,14 +87,18 @@ class RGBDCNNLSTM(nn.Module):
 
         super(RGBDCNNLSTM, self).__init__()
 
-        self.conv1 = nn.Conv2d(4, 32, 5, 2)
-        self.bn1 = nn.BatchNorm2d(32)
-        self.conv2 = nn.Conv2d(32, 64, 5, 2)
+        self.conv1 = nn.Conv2d(4, 64, 5, 2)
+        self.bn1 = nn.BatchNorm2d(64)
+        self.conv2 = nn.Conv2d(64, 64, 3, 1)
         self.bn2 = nn.BatchNorm2d(64)
         self.conv3 = nn.Conv2d(64, 128, 3, 1)
         self.bn3 = nn.BatchNorm2d(128)
         self.conv4 = nn.Conv2d(128, 128, 3, 1)
         self.bn4 = nn.BatchNorm2d(128)
+        self.conv5 = nn.Conv2d(128, 256, 3, 1)
+        self.bn5 = nn.BatchNorm2d(256)
+        self.conv6 = nn.Conv2d(256, 256, 3, 1)
+        self.bn6 = nn.BatchNorm2d(256)
 
         n = self._get_conv_output(input_shape)
 
@@ -116,6 +120,8 @@ class RGBDCNNLSTM(nn.Module):
         x = self.conv2(x)
         x = self.conv3(x)
         x = self.conv4(x)
+        x = self.conv5(x)
+        x = self.conv6(x)
         n = x.numel()
         return n
 
@@ -132,6 +138,8 @@ class RGBDCNNLSTM(nn.Module):
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.bn3(self.conv3(x)))
         x = F.relu(self.bn4(self.conv4(x)))
+        x = F.relu(self.bn5(self.conv5(x)))
+        x = F.relu(self.bn6(self.conv6(x)))
 
         # Flatten.
         x = x.view(b*t, -1)
@@ -141,7 +149,7 @@ class RGBDCNNLSTM(nn.Module):
         x = F.relu(self.fc2(x))
         x = x.view(b, t, -1)
         x, _ = self.rnn(x)
-        x = self.fc3(x)
+        x = torch.tanh(self.fc3(x[:, -1, :])) # return last time step
 
         return x
 
