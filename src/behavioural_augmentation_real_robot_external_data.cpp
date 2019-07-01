@@ -564,7 +564,7 @@ GenerateVelocityCommands::GenerateVelocityCommands(int period, std::vector<Part>
 
       // Que that holds images for lstm.
       que_(5/*sequence_length*/, torch::zeros({1, 4, 60, 80})),
-      vel_(2),
+      vel_(3),
 
       // Position initialized.
       robot_status_(NOT_INITIALIZED),
@@ -654,7 +654,8 @@ void GenerateVelocityCommands::run() {
 
     // // Write velocity command to port.
 	vel_(0) = double(*(t_vel_.data<float>()))*0.15;
-	vel_(1) = double(*(t_vel_.data<float>()+1))*0.2; // maximum velocity
+    vel_(1) = 0.;
+	vel_(2) = double(*(t_vel_.data<float>()+1))*0.2; // maximum velocity
     port_vel_.prepare() = vel_;
     port_vel_.write();
 }
@@ -679,6 +680,8 @@ GenerateVelocityCommands::~GenerateVelocityCommands() {
 void GenerateVelocityCommands::ProcessImages() {
 
     // Read the camera images.
+    bool null = true;
+
     for (const auto& part : parts_) {
         for (const auto& camera : part.cameras) {
 
@@ -688,33 +691,55 @@ void GenerateVelocityCommands::ProcessImages() {
                 // Convert the images to a format that OpenCV uses.
                 imgs_cv_rgb_[camera] = cv::cvarrToMat(img->getIplImage());
 
+                if (calib_initialized_) {
+
+                    if (camera == "left") {
+
+                        cv::remap(imgs_cv_rgb_[camera], imgs_cv_rgb_[camera], lmapx_, lmapy_, cv::INTER_LINEAR);
+                    }
+                    else {
+
+                        cv::remap(imgs_cv_rgb_[camera], imgs_cv_rgb_[camera], rmapx_, rmapy_, cv::INTER_LINEAR);
+                    }
+                }
+
                 // Convert to gray image.
                 cv::cvtColor(imgs_cv_rgb_[camera], imgs_cv_gra_[camera], cv::COLOR_BGR2GRAY);
+
+                null = false;
             }
         }
     }
+    if (!null && calib_initialized_) {
+        // Determine disparity.
+        l_matcher_->compute(imgs_cv_gra_[parts_[0].cameras[0]], imgs_cv_gra_[parts_[0].cameras[1]], l_disp_);
 
-    // Determine disparity.
-    l_matcher_->compute(imgs_cv_gra_[parts_[0].cameras[0]], imgs_cv_gra_[parts_[0].cameras[1]], l_disp_);
+        r_matcher_->compute(imgs_cv_gra_[parts_[0].cameras[1]], imgs_cv_gra_[parts_[0].cameras[0]], r_disp_);
 
-    r_matcher_->compute(imgs_cv_gra_[parts_[0].cameras[1]], imgs_cv_gra_[parts_[0].cameras[0]], r_disp_);
+        // Perform weighted least squares filtering.
+        wls_->filter(l_disp_, imgs_cv_gra_[parts_[0].cameras[0]], wls_disp_, r_disp_);
 
-    // Perform weighted least squares filtering.
-    wls_->filter(l_disp_, imgs_cv_gra_[parts_[0].cameras[0]], wls_disp_, r_disp_);
+        cv::ximgproc::getDisparityVis(wls_disp_, wls_disp_, 1);
+        cv::normalize(wls_disp_, wls_disp_, 0, 255, CV_MINMAX, CV_8U);
 
-    cv::ximgproc::getDisparityVis(wls_disp_, wls_disp_, 1);
-    cv::normalize(wls_disp_, wls_disp_, 0, 255, CV_MINMAX, CV_8U);
+        // Resize images.
+        for (const auto& part : parts_) {
+            for (const auto& camera : part.cameras) {
 
-    // Resize images.
-    for (const auto& part : parts_) {
-        for (const auto& camera : part.cameras) {
-
-            cv::resize(imgs_cv_rgb_[camera], imgs_cv_rgb_[camera], cv::Size(64, 64));
+                cv::resize(imgs_cv_rgb_[camera], imgs_cv_rgb_[camera], cv::Size(80, 60));
+            }
         }
-    }
 
-    cv::resize(l_disp_, l_disp_, cv::Size(64, 64));
-    cv::resize(wls_disp_, wls_disp_, cv::Size(64, 64));
+        cv::resize(l_disp_, l_disp_, cv::Size(80/*width*/, 60/*height*/));
+        cv::resize(wls_disp_, wls_disp_, cv::Size(80, 60));
+    }
+    else {
+
+        cv::initUndistortRectifyMap(K1_, D1_, R1_, P1_, imgs_cv_rgb_["left"].size(), CV_32F, lmapx_, lmapy_);
+        cv::initUndistortRectifyMap(K2_, D2_, R2_, P2_, imgs_cv_rgb_["right"].size(), CV_32F, rmapx_, rmapy_);
+
+        calib_initialized_ = true;
+    }
 }
 
 cv::Mat BehaviouralAugmentation::Crop(cv::Mat& img) {
