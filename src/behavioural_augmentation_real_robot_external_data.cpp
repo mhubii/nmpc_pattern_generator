@@ -162,6 +162,7 @@ class GenerateVelocityCommands : public yarp::os::RateThread
 
         // Calibration.
         bool calib_initialized_;
+        bool wls_initialized_;
 
         cv::Mat R1_, R2_, P1_, P2_, Q_;
         cv::Mat K1_, K2_, R_;
@@ -284,6 +285,10 @@ int main(int argc, char *argv[]) {
     yarp::os::Network::connect("/write_joints/robot_status", "/user_interface/robot_status"); // send commands from writer.cpp to terminal
     yarp::os::Network::connect("/write_joints/robot_status", "/behavioural_augmentation/robot_status"); // send commands from writer.cpp to this main
 
+    // Read force torque.
+    yarp::os::Network::connect("/wholeBodyDynamics/left_leg/cartesianEndEffectorWrench:o", "/behavioural_augmentation/lft"); // read force torques from yarp to behavioural_cloning
+    yarp::os::Network::connect("/wholeBodyDynamics/right_leg/cartesianEndEffectorWrench:o", "/behavioural_augmentation/rft"); // read force torques from yarp to behavioural_cloning
+
     // Start the read and write threads.
     rj.start();
     wj.start();
@@ -300,8 +305,8 @@ int main(int argc, char *argv[]) {
     }
 
     // Save trajectories.
-    WriteCsv(out_loc + "/behavioural_augmentation_data/trajectories.csv", ba_port.ip_.GetTrajectories().transpose());
-    WriteCsv(out_loc + "/behavioural_augmentation_data/force_torque.csv", ba_port.ft_.transpose());
+    WriteCsv(out_loc + "/behavioural_augmentation_measurements/trajectories.csv", ba_port.ip_.GetTrajectories().transpose());
+    WriteCsv(out_loc + "/behavioural_augmentation_measurements/force_torque.csv", ba_port.ft_.transpose());
 
     // Stop reader and writer (on command later).
     ba_port.close();
@@ -563,7 +568,7 @@ GenerateVelocityCommands::GenerateVelocityCommands(int period, std::vector<Part>
       parts_(parts),
 
       // Que that holds images for lstm.
-      que_(5/*sequence_length*/, torch::zeros({1, 4, 60, 80})),
+      que_(5/*sequence_length*/, torch::zeros({1, 1, 4, 60, 80})),
       vel_(3),
 
       // Position initialized.
@@ -595,6 +600,7 @@ GenerateVelocityCommands::GenerateVelocityCommands(int period, std::vector<Part>
 
     // Calibration.
     calib_initialized_ = false;
+    wls_initialized_ = false;
 
     cv::FileStorage fs1(calib_file, cv::FileStorage::READ);
     fs1["K1"] >> K1_;
@@ -624,40 +630,54 @@ void GenerateVelocityCommands::run() {
     // Read current images, compute depth image.
     ProcessImages();
 
-    // Convert them to tensor.  SIZES NEEDS TO BE CHANGES HERE
-    torch::Tensor rgb = torch::from_blob(imgs_cv_rgb_["left"].data, {1, 1, imgs_cv_rgb_["left"].rows, imgs_cv_rgb_["left"].cols, 3}, torch::kByte); // different order cv hxwxc -> torch cxhxw
-    torch::Tensor d = torch::from_blob(wls_disp_.data, {1, 1, wls_disp_.rows, wls_disp_.cols, 1}, torch::kByte);
+    if (calib_initialized_ && wls_initialized_) {
+        
+        // Convert them to tensor.  SIZES NEEDS TO BE CHANGES HERE
+        torch::Tensor rgb = torch::from_blob(imgs_cv_rgb_["left"].data, {1, 1, imgs_cv_rgb_["left"].rows, imgs_cv_rgb_["left"].cols, 3}, torch::kByte); // different order cv hxwxc -> torch cxhxw
+        torch::Tensor d = torch::from_blob(wls_disp_.data, {1, 1, wls_disp_.rows, wls_disp_.cols, 1}, torch::kByte);
 
-    rgb = rgb.to(torch::kF32); // of course convert to float
-    d = d.to(torch::kF32);
+        rgb = rgb.to(torch::kF32); // of course convert to float
+        d = d.to(torch::kF32);
 
-    // Concatenate and normalize images. PERMUTE TO BE CHANGED FOR ADDITIONAL DIMENSION
-    rgb = rgb.permute({0, 1, 4, 2, 3}); // hxwxc -> cxhxw
-    d = d.permute({0, 1, 4, 2, 3});
+        // Concatenate and normalize images. PERMUTE TO BE CHANGED FOR ADDITIONAL DIMENSION
+        rgb = rgb.permute({0, 1, 4, 2, 3}); // hxwxc -> cxhxw
+        d = d.permute({0, 1, 4, 2, 3});
 
-    rgb = rgb.div(127.5).sub(1.); // normalize on tensors
-    d = d.div(127.5).sub(1.);
+        rgb = rgb.div(127.5).sub(1.); // normalize on tensors
+        d = d.div(127.5).sub(1.);
 
-    // Fill que.
-    for (int j = 0; j < que_.size() - 1; j++) {
-        que_[j] = que_[j+1];
+        // Fill que.
+        for (int j = 0; j < que_.size() - 1; j++) {
+            que_[j] = que_[j+1];
+        }
+        que_[que_.size() - 1] = torch::cat({rgb, d}, 2/*dim*/); // CONCATENATION CHANGED FOR ADDITIONAL DIMENSION
+
+        // Predict action
+        std::vector<torch::jit::IValue> input;
+        torch::Tensor rgbd = torch::cat(que_, 1 /*dim*/).cuda(); // ADD TIME DIMENSION HERE
+        input.push_back(rgbd);
+
+        // Execute the model and turn its output into a tensor.
+        t_vel_ = module_->forward(input).toTensor().cpu();
+
+        // // Write velocity command to port.
+        vel_(0) = double(*(t_vel_.data<float>()))*0.15;
+        vel_(1) = 0.;
+        vel_(2) = double(*(t_vel_.data<float>()+1))*0.2; // maximum velocity
+        port_vel_.prepare() = vel_;
+        port_vel_.write();
+        std::cout << "velocity command: (" << vel_(0) << ", " << vel_(1) << ", " << vel_(2) << ")" << std::endl;
+
+        // Track velocities as predicted by the net.
+        std::ofstream txt(out_location_ + "/behavioural_augmentation_measurements/vel_log.txt", std::ios_base::app);
+
+        int i = 0;
+        while (i < vel_.size()-1) {
+            txt << vel_(i) << ", ";
+            i++;
+        }
+        txt << vel_(vel_.size()-1) << "\n";
     }
-    que_[que_.size() - 1] = torch::cat({rgb, d}, 2/*dim*/); // CONCATENATION CHANGED FOR ADDITIONAL DIMENSION
-
-    // Predict action
-    std::vector<torch::jit::IValue> input;
-	torch::Tensor rgbd = torch::cat(que_, 1 /*dim*/).cuda(); // ADD TIME DIMENSION HERE
-	input.push_back(rgbd);
-
-	// Execute the model and turn its output into a tensor.
-	t_vel_ = module_->forward(input).toTensor().cpu();
-
-    // // Write velocity command to port.
-	vel_(0) = double(*(t_vel_.data<float>()))*0.15;
-    vel_(1) = 0.;
-	vel_(2) = double(*(t_vel_.data<float>()+1))*0.2; // maximum velocity
-    port_vel_.prepare() = vel_;
-    port_vel_.write();
 }
 
 
@@ -710,35 +730,44 @@ void GenerateVelocityCommands::ProcessImages() {
             }
         }
     }
-    if (!null && calib_initialized_) {
-        // Determine disparity.
-        l_matcher_->compute(imgs_cv_gra_[parts_[0].cameras[0]], imgs_cv_gra_[parts_[0].cameras[1]], l_disp_);
+    if (!null) {
+        if (calib_initialized_) {
+            
+            // Determine disparity.
+            l_matcher_->compute(imgs_cv_gra_[parts_[0].cameras[0]], imgs_cv_gra_[parts_[0].cameras[1]], l_disp_);
 
-        r_matcher_->compute(imgs_cv_gra_[parts_[0].cameras[1]], imgs_cv_gra_[parts_[0].cameras[0]], r_disp_);
+            r_matcher_->compute(imgs_cv_gra_[parts_[0].cameras[1]], imgs_cv_gra_[parts_[0].cameras[0]], r_disp_);
 
-        // Perform weighted least squares filtering.
-        wls_->filter(l_disp_, imgs_cv_gra_[parts_[0].cameras[0]], wls_disp_, r_disp_);
+            // Perform weighted least squares filtering.
+            wls_->filter(l_disp_, imgs_cv_gra_[parts_[0].cameras[0]], wls_disp_, r_disp_);
 
-        cv::ximgproc::getDisparityVis(wls_disp_, wls_disp_, 1);
-        cv::normalize(wls_disp_, wls_disp_, 0, 255, CV_MINMAX, CV_8U);
+            cv::ximgproc::getDisparityVis(wls_disp_, wls_disp_, 1);
+            cv::normalize(wls_disp_, wls_disp_, 0, 255, CV_MINMAX, CV_8U);
 
-        // Resize images.
-        for (const auto& part : parts_) {
-            for (const auto& camera : part.cameras) {
+            // Crop and resize images.
+            for (const auto& part : parts_) {
+                for (const auto& camera : part.cameras) {
 
-                cv::resize(imgs_cv_rgb_[camera], imgs_cv_rgb_[camera], cv::Size(80, 60));
+                    imgs_cv_rgb_[camera] = Crop(imgs_cv_rgb_[camera]);
+                    cv::resize(imgs_cv_rgb_[camera], imgs_cv_rgb_[camera], cv::Size(80, 60));
+                }
             }
+
+            // Crop and resize the disparity map.
+            l_disp_ = Crop(l_disp_);
+            wls_disp_ = Crop(wls_disp_);
+
+            cv::resize(l_disp_, l_disp_, cv::Size(80/*width*/, 60/*height*/));
+            cv::resize(wls_disp_, wls_disp_, cv::Size(80, 60));
+            wls_initialized_ = true;
         }
+        else {
 
-        cv::resize(l_disp_, l_disp_, cv::Size(80/*width*/, 60/*height*/));
-        cv::resize(wls_disp_, wls_disp_, cv::Size(80, 60));
-    }
-    else {
+            cv::initUndistortRectifyMap(K1_, D1_, R1_, P1_, imgs_cv_rgb_["left"].size(), CV_32F, lmapx_, lmapy_);
+            cv::initUndistortRectifyMap(K2_, D2_, R2_, P2_, imgs_cv_rgb_["right"].size(), CV_32F, rmapx_, rmapy_);
 
-        cv::initUndistortRectifyMap(K1_, D1_, R1_, P1_, imgs_cv_rgb_["left"].size(), CV_32F, lmapx_, lmapy_);
-        cv::initUndistortRectifyMap(K2_, D2_, R2_, P2_, imgs_cv_rgb_["right"].size(), CV_32F, rmapx_, rmapy_);
-
-        calib_initialized_ = true;
+            calib_initialized_ = true;
+        }
     }
 }
 
