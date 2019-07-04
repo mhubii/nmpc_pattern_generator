@@ -339,6 +339,7 @@ public:
 
     // Matrices containing constraints representing a 
     // strictly convex obstacle in space.
+    bool obstacle_;
     const int nc_obs_;
     const double x_obs_;
     const double y_obs_;

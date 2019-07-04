@@ -17,14 +17,14 @@ foot_distance: 0.14
 
 # Interpolation.
 command_period: 0.01
-n_still: 10
+n_still: 0
 t_ds: 1.6
 step_height: 0.03
 
 # Initial values.
 com_x: [0.0 , 0.0, 0.0]
 com_y: [0.05, 0.0, 0.0]
-com_z: 0.46
+com_z: 0.45
 com_q: [0.0 , 0.0, 0.0]
 support_foot: left
 foot_x: 0.0
@@ -35,13 +35,14 @@ foot_q: 0.0
 gravity: 9.81
 
 # Obstacle.
-x_pos: 10
-y_pos: 10
-radius: 0
+obstacle: false
+x_pos:  10
+y_pos:  10
+radius: 0.5
 
 # Optimization.
 n: 16
-t: 0.4	
+t: 0.4
 alpha: 1
 beta: 1e2
 gamma: 1e-2
