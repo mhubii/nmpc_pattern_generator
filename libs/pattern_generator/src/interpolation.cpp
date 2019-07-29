@@ -11,6 +11,7 @@ Interpolation::Interpolation(BaseGenerator& base_generator)
 
       // Preview control period t_, and command period tc_.
       t_(base_generator.T()),
+      cpu_time_(base_generator.configs_["cpu_time"].as<double>()),
       tc_(base_generator.configs_["command_period"].as<double>()),
 
       // Double support time.
@@ -21,7 +22,8 @@ Interpolation::Interpolation(BaseGenerator& base_generator)
       h_com_(base_generator_.Hcom()),
   
       // Number of interpolation intervals.
-      intervals_(int(t_/tc_)),
+      intervals_(int(cpu_time_/tc_)),
+      preview_intervals_(int(t_/tc_)),
       current_interval_(0),
       
       // Number of intervals that the robot stays still in the beginning.
@@ -31,54 +33,54 @@ Interpolation::Interpolation(BaseGenerator& base_generator)
       step_height_(base_generator_.configs_["step_height"].as<double>()),
 
       // Interpolated trajectories.
-      trajectories_(21, n_still_*intervals_),
-      trajectories_buffer_(21, intervals_ + 1),
+      trajectories_(21, n_still_*preview_intervals_),
+      trajectories_buffer_(21, preview_intervals_ + 1),
 
       // Don't store trajectories by default.
       store_trajectories_(false),
 
       // Center of mass.
-      com_x_buffer_(trajectories_buffer_.block(0, 0, 3, intervals_ + 1)),
-      com_y_buffer_(trajectories_buffer_.block(3, 0, 3, intervals_ + 1)),
-      com_z_buffer_(trajectories_buffer_.block(6, 0, 1, intervals_ + 1)),
-      com_q_buffer_(trajectories_buffer_.block(7, 0, 3, intervals_ + 1)),
+      com_x_buffer_(trajectories_buffer_.block(0, 0, 3, preview_intervals_ + 1)),
+      com_y_buffer_(trajectories_buffer_.block(3, 0, 3, preview_intervals_ + 1)),
+      com_z_buffer_(trajectories_buffer_.block(6, 0, 1, preview_intervals_ + 1)),
+      com_q_buffer_(trajectories_buffer_.block(7, 0, 3, preview_intervals_ + 1)),
   
       // Zero moment point.
-      zmp_x_buffer_(trajectories_buffer_.block(10, 0, 1, intervals_ + 1)),
-      zmp_y_buffer_(trajectories_buffer_.block(11, 0, 1, intervals_ + 1)),
-      zmp_z_buffer_(trajectories_buffer_.block(12, 0, 1, intervals_ + 1)),
+      zmp_x_buffer_(trajectories_buffer_.block(10, 0, 1, preview_intervals_ + 1)),
+      zmp_y_buffer_(trajectories_buffer_.block(11, 0, 1, preview_intervals_ + 1)),
+      zmp_z_buffer_(trajectories_buffer_.block(12, 0, 1, preview_intervals_ + 1)),
   
       // Left foot.
-      lf_x_buffer_(trajectories_buffer_.block(13, 0, 1, intervals_ + 1)),
-      lf_y_buffer_(trajectories_buffer_.block(14, 0, 1, intervals_ + 1)),
-      lf_z_buffer_(trajectories_buffer_.block(15, 0, 1, intervals_ + 1)),
-      lf_q_buffer_(trajectories_buffer_.block(16, 0, 1, intervals_ + 1)),
+      lf_x_buffer_(trajectories_buffer_.block(13, 0, 1, preview_intervals_ + 1)),
+      lf_y_buffer_(trajectories_buffer_.block(14, 0, 1, preview_intervals_ + 1)),
+      lf_z_buffer_(trajectories_buffer_.block(15, 0, 1, preview_intervals_ + 1)),
+      lf_q_buffer_(trajectories_buffer_.block(16, 0, 1, preview_intervals_ + 1)),
       
-      lf_dx_buffer_(1, intervals_ + 1),
-      lf_dy_buffer_(1, intervals_ + 1),
-      lf_dz_buffer_(1, intervals_ + 1),
-      lf_dq_buffer_(1, intervals_ + 1),
+      lf_dx_buffer_(1, preview_intervals_ + 1),
+      lf_dy_buffer_(1, preview_intervals_ + 1),
+      lf_dz_buffer_(1, preview_intervals_ + 1),
+      lf_dq_buffer_(1, preview_intervals_ + 1),
     
-      lf_ddx_buffer_(1, intervals_ + 1),
-      lf_ddy_buffer_(1, intervals_ + 1),
-      lf_ddz_buffer_(1, intervals_ + 1),
-      lf_ddq_buffer_(1, intervals_ + 1),
+      lf_ddx_buffer_(1, preview_intervals_ + 1),
+      lf_ddy_buffer_(1, preview_intervals_ + 1),
+      lf_ddz_buffer_(1, preview_intervals_ + 1),
+      lf_ddq_buffer_(1, preview_intervals_ + 1),
     
       // Right foot.
-      rf_x_buffer_(trajectories_buffer_.block(17, 0, 1, intervals_ + 1)),
-      rf_y_buffer_(trajectories_buffer_.block(18, 0, 1, intervals_ + 1)),
-      rf_z_buffer_(trajectories_buffer_.block(19, 0, 1, intervals_ + 1)),
-      rf_q_buffer_(trajectories_buffer_.block(20, 0, 1, intervals_ + 1)),
+      rf_x_buffer_(trajectories_buffer_.block(17, 0, 1, preview_intervals_ + 1)),
+      rf_y_buffer_(trajectories_buffer_.block(18, 0, 1, preview_intervals_ + 1)),
+      rf_z_buffer_(trajectories_buffer_.block(19, 0, 1, preview_intervals_ + 1)),
+      rf_q_buffer_(trajectories_buffer_.block(20, 0, 1, preview_intervals_ + 1)),
       
-      rf_dx_buffer_(1, intervals_ + 1),
-      rf_dy_buffer_(1, intervals_ + 1),
-      rf_dz_buffer_(1, intervals_ + 1),
-      rf_dq_buffer_(1, intervals_ + 1),
+      rf_dx_buffer_(1, preview_intervals_ + 1),
+      rf_dy_buffer_(1, preview_intervals_ + 1),
+      rf_dz_buffer_(1, preview_intervals_ + 1),
+      rf_dq_buffer_(1, preview_intervals_ + 1),
     
-      rf_ddx_buffer_(1, intervals_ + 1),
-      rf_ddy_buffer_(1, intervals_ + 1),
-      rf_ddz_buffer_(1, intervals_ + 1),
-      rf_ddq_buffer_(1, intervals_ + 1),
+      rf_ddx_buffer_(1, preview_intervals_ + 1),
+      rf_ddy_buffer_(1, preview_intervals_ + 1),
+      rf_ddz_buffer_(1, preview_intervals_ + 1),
+      rf_ddq_buffer_(1, preview_intervals_ + 1),
 
       // Foot interpolation coefficients.
       f_coef_x_(6),
@@ -149,17 +151,22 @@ Interpolation::Interpolation(BaseGenerator& base_generator)
 
 Eigen::Map<const Eigen::MatrixXd> Interpolation::Interpolate() {
 
-    // Interpolate.
-    InterpolateLIPM();
-    InterpolateFeet();
+    for (int i = 0; i < intervals_; i++) {
+        // Interpolate.
+        InterpolateLIPM();
+        InterpolateFeet();
+
+        // Average the orientation of the com.
+        com_q_buffer_(0, current_interval_) = rf_q_buffer_.col(current_interval_).cwiseMax(lf_q_buffer_.col(current_interval_))(0);
+
+        current_interval_ += 1;
+    }
 
     // Average the orientation of the com.
-    com_q_buffer_.col(current_interval_) = rf_q_buffer_.col(current_interval_).cwiseMax(lf_q_buffer_.col(current_interval_));
-
-    current_interval_ += 1;
+    com_q_buffer_(0, current_interval_) = rf_q_buffer_.col(current_interval_).cwiseMax(lf_q_buffer_.col(current_interval_))(0);
 
     // Update for a smooth transition.
-    if (current_interval_ == intervals_) {
+    if (current_interval_ == preview_intervals_) {
 
         // Interpolate for a smooth transition.
         InterpolateLIPM();
@@ -170,33 +177,33 @@ Eigen::Map<const Eigen::MatrixXd> Interpolation::Interpolate() {
         // Append by buffered trajectories.
         if (store_trajectories_) {
 
-            trajectories_.conservativeResize(trajectories_.rows(), trajectories_.cols() + intervals_);
-            trajectories_.rightCols(intervals_) = trajectories_buffer_.leftCols(intervals_);
+            trajectories_.conservativeResize(trajectories_.rows(), trajectories_.cols() + preview_intervals_);
+            trajectories_.rightCols(preview_intervals_) = trajectories_buffer_.leftCols(preview_intervals_);
         }
 
-        return Eigen::Map<const Eigen::MatrixXd>(trajectories_buffer_.col(intervals_ - 1).data(), trajectories_buffer_.rows(), 1);
+        return Eigen::Map<const Eigen::MatrixXd>(trajectories_buffer_.rightCols(intervals_).data(), trajectories_buffer_.rows(), intervals_);
     }
 
     else {
 
-        return Eigen::Map<const Eigen::MatrixXd>(trajectories_buffer_.col(current_interval_ - 1).data(), trajectories_buffer_.rows(), 1);
+        return Eigen::Map<const Eigen::MatrixXd>(trajectories_buffer_.middleCols(current_interval_ - intervals_, intervals_).data(), trajectories_buffer_.rows(), intervals_);
     }
 }
 
 Eigen::Map<const Eigen::MatrixXd> Interpolation::InterpolateStep() {
     
-    // Interpolate.
+    // Interpolate on whole preview horizon.
     InterpolateLIPMStep();
     InterpolateFeetStep();
 
     // Average the orientation of the com.
-    com_q_buffer_ = rf_q_buffer_.cwiseMax(lf_q_buffer_);
+    com_q_buffer_.row(0) = rf_q_buffer_.cwiseMax(lf_q_buffer_);
 
     // Append by buffered trajectories.
     if (store_trajectories_) {
 
-        trajectories_.conservativeResize(trajectories_.rows(), trajectories_.cols() + intervals_);
-        trajectories_.rightCols(intervals_) = trajectories_buffer_.leftCols(intervals_);
+        trajectories_.conservativeResize(trajectories_.rows(), trajectories_.cols() + preview_intervals_);
+        trajectories_.rightCols(preview_intervals_) = trajectories_buffer_.leftCols(preview_intervals_);
     }
 
     return Eigen::Map<const Eigen::MatrixXd>(trajectories_buffer_.data(), trajectories_buffer_.rows(), trajectories_buffer_.cols() - 1);
@@ -265,7 +272,7 @@ void Interpolation::InitializeTrajectories() {
     }
 
     // Unload the buffer.
-    trajectories_ = trajectories_buffer_.leftCols(intervals_).replicate(1, n_still_);
+    trajectories_ = trajectories_buffer_.leftCols(preview_intervals_).replicate(1, n_still_);
 }
 
 void Interpolation::InterpolateFeet() {
@@ -274,15 +281,15 @@ void Interpolation::InterpolateFeet() {
     if (base_generator_.TStep() - base_generator_.Vkp10().sum()*t_ < t_ds_) {
 
         // Double support. Stay still.
-        lf_x_buffer_(0, current_interval_) = lf_x_buffer_(0, intervals_);
-        lf_y_buffer_(0, current_interval_) = lf_y_buffer_(0, intervals_);
-        lf_z_buffer_(0, current_interval_) = lf_z_buffer_(0, intervals_);
-        lf_q_buffer_(0, current_interval_) = lf_q_buffer_(0, intervals_);
+        lf_x_buffer_(0, current_interval_) = lf_x_buffer_(0, preview_intervals_);
+        lf_y_buffer_(0, current_interval_) = lf_y_buffer_(0, preview_intervals_);
+        lf_z_buffer_(0, current_interval_) = lf_z_buffer_(0, preview_intervals_);
+        lf_q_buffer_(0, current_interval_) = lf_q_buffer_(0, preview_intervals_);
 
-        rf_x_buffer_(0, current_interval_) = rf_x_buffer_(0, intervals_);
-        rf_y_buffer_(0, current_interval_) = rf_y_buffer_(0, intervals_);
-        rf_z_buffer_(0, current_interval_) = rf_z_buffer_(0, intervals_);
-        rf_q_buffer_(0, current_interval_) = rf_q_buffer_(0, intervals_);
+        rf_x_buffer_(0, current_interval_) = rf_x_buffer_(0, preview_intervals_);
+        rf_y_buffer_(0, current_interval_) = rf_y_buffer_(0, preview_intervals_);
+        rf_z_buffer_(0, current_interval_) = rf_z_buffer_(0, preview_intervals_);
+        rf_q_buffer_(0, current_interval_) = rf_q_buffer_(0, preview_intervals_);
 
         // Define the polynomial for the regression of the
         // z movement of the feet during the double support phase
@@ -294,8 +301,8 @@ void Interpolation::InterpolateFeet() {
             Set4thOrderCoefficients(f_coef_z_, 
                                     t_ss_,
                                     step_height_, 
-                                    rf_z_buffer_(0, intervals_), 
-                                    rf_dz_buffer_(0, intervals_));
+                                    rf_z_buffer_(0, preview_intervals_), 
+                                    rf_dz_buffer_(0, preview_intervals_));
         }
 
         else {
@@ -304,8 +311,8 @@ void Interpolation::InterpolateFeet() {
             Set4thOrderCoefficients(f_coef_z_, 
                                     t_ss_,
                                     step_height_, 
-                                    lf_z_buffer_(0, intervals_), 
-                                    lf_dz_buffer_(0, intervals_));
+                                    lf_z_buffer_(0, preview_intervals_), 
+                                    lf_dz_buffer_(0, preview_intervals_));
         }
     }
 
@@ -332,23 +339,23 @@ void Interpolation::InterpolateFeet() {
             Set5thOrderCoefficients(f_coef_x_,
                                     t_till_drop_down, 
                                     base_generator_.Fkx()(0), 
-                                    rf_x_buffer_(0, intervals_),
-                                    rf_dx_buffer_(0, intervals_), 
-                                    rf_ddx_buffer_(0, intervals_));
+                                    rf_x_buffer_(0, preview_intervals_),
+                                    rf_dx_buffer_(0, preview_intervals_), 
+                                    rf_ddx_buffer_(0, preview_intervals_));
 
             Set5thOrderCoefficients(f_coef_y_, 
                                     t_till_drop_down,
                                     base_generator_.Fky()(0), 
-                                    rf_y_buffer_(0, intervals_), 
-                                    rf_dy_buffer_(0, intervals_), 
-                                    rf_ddy_buffer_(0, intervals_));
+                                    rf_y_buffer_(0, preview_intervals_), 
+                                    rf_dy_buffer_(0, preview_intervals_), 
+                                    rf_ddy_buffer_(0, preview_intervals_));
 
             Set5thOrderCoefficients(f_coef_q_,
                                     t_till_drop_down,
                                     base_generator_.Fkq()(0), 
-                                    rf_q_buffer_(0, intervals_), 
-                                    rf_dq_buffer_(0, intervals_), 
-                                    rf_ddq_buffer_(0, intervals_));
+                                    rf_q_buffer_(0, preview_intervals_), 
+                                    rf_dq_buffer_(0, preview_intervals_), 
+                                    rf_ddq_buffer_(0, preview_intervals_));
 
             // Calculate first and second order derivatives for the velocities and accelerations.
             Derivative(f_coef_x_, f_coef_dx_);
@@ -380,9 +387,9 @@ void Interpolation::InterpolateFeet() {
             else if (t_current + current_interval_*tc_ <= t_transition) {
 
                 // Dont move in x, y, and q directions during lift off transitions.
-                rf_x_buffer_(0, current_interval_) = rf_x_buffer_(0, intervals_);
-                rf_y_buffer_(0, current_interval_) = rf_y_buffer_(0, intervals_);
-                rf_q_buffer_(0, current_interval_) = rf_q_buffer_(0, intervals_);
+                rf_x_buffer_(0, current_interval_) = rf_x_buffer_(0, preview_intervals_);
+                rf_y_buffer_(0, current_interval_) = rf_y_buffer_(0, preview_intervals_);
+                rf_q_buffer_(0, current_interval_) = rf_q_buffer_(0, preview_intervals_);
 
                 rf_dx_buffer_(0, current_interval_) = 0;
                 rf_dy_buffer_(0, current_interval_) = 0;
@@ -421,23 +428,23 @@ void Interpolation::InterpolateFeet() {
             Set5thOrderCoefficients(f_coef_x_,
                                     t_till_drop_down, 
                                     base_generator_.Fkx()(0), 
-                                    lf_x_buffer_(0, intervals_), 
-                                    lf_dx_buffer_(0, intervals_), 
-                                    lf_ddx_buffer_(0, intervals_));
+                                    lf_x_buffer_(0, preview_intervals_), 
+                                    lf_dx_buffer_(0, preview_intervals_), 
+                                    lf_ddx_buffer_(0, preview_intervals_));
 
             Set5thOrderCoefficients(f_coef_y_, 
                                     t_till_drop_down,
                                     base_generator_.Fky()(0), 
-                                    lf_y_buffer_(0, intervals_), 
-                                    lf_dy_buffer_(0, intervals_), 
-                                    lf_ddy_buffer_(0, intervals_));
+                                    lf_y_buffer_(0, preview_intervals_), 
+                                    lf_dy_buffer_(0, preview_intervals_), 
+                                    lf_ddy_buffer_(0, preview_intervals_));
 
             Set5thOrderCoefficients(f_coef_q_,
                                     t_till_drop_down,
                                     base_generator_.Fkq()(0), 
-                                    lf_q_buffer_(0, intervals_), 
-                                    lf_dq_buffer_(0, intervals_), 
-                                    lf_ddq_buffer_(0, intervals_));
+                                    lf_q_buffer_(0, preview_intervals_), 
+                                    lf_dq_buffer_(0, preview_intervals_), 
+                                    lf_ddq_buffer_(0, preview_intervals_));
 
             // Calculate first and second order derivatives for the velocities and accelerations.
             Derivative(f_coef_x_, f_coef_dx_);
@@ -469,9 +476,9 @@ void Interpolation::InterpolateFeet() {
             else if (t_current + current_interval_*tc_ <= t_transition) {
 
                 // Dont move in x, y, and q directions during transitions.
-                lf_x_buffer_(0, current_interval_) = lf_x_buffer_(0, intervals_);
-                lf_y_buffer_(0, current_interval_) = lf_y_buffer_(0, intervals_);
-                lf_q_buffer_(0, current_interval_) = lf_q_buffer_(0, intervals_);
+                lf_x_buffer_(0, current_interval_) = lf_x_buffer_(0, preview_intervals_);
+                lf_y_buffer_(0, current_interval_) = lf_y_buffer_(0, preview_intervals_);
+                lf_q_buffer_(0, current_interval_) = lf_q_buffer_(0, preview_intervals_);
 
                 lf_dx_buffer_(0, current_interval_) = 0;
                 lf_dy_buffer_(0, current_interval_) = 0;
@@ -505,7 +512,7 @@ void Interpolation::InterpolateFeet() {
         }  
 
         // TODO update buffer to current value.
-        // trajectories_buffer_(intervals_) = trajectories_buffer_(current_interval_);
+        // trajectories_buffer_(preview_intervals_) = trajectories_buffer_(current_interval_);
     }
 }
 
@@ -515,15 +522,15 @@ void Interpolation::InterpolateFeetStep() {
     if (base_generator_.TStep() - base_generator_.Vkp10().sum()*t_ < t_ds_) {
 
         // Double support. Stay still.
-        lf_x_buffer_.setConstant(lf_x_buffer_(0, intervals_));
-        lf_y_buffer_.setConstant(lf_y_buffer_(0, intervals_));
-        lf_z_buffer_.setConstant(lf_z_buffer_(0, intervals_));
-        lf_q_buffer_.setConstant(lf_q_buffer_(0, intervals_));
+        lf_x_buffer_.setConstant(lf_x_buffer_(0, preview_intervals_));
+        lf_y_buffer_.setConstant(lf_y_buffer_(0, preview_intervals_));
+        lf_z_buffer_.setConstant(lf_z_buffer_(0, preview_intervals_));
+        lf_q_buffer_.setConstant(lf_q_buffer_(0, preview_intervals_));
 
-        rf_x_buffer_.setConstant(rf_x_buffer_(0, intervals_));
-        rf_y_buffer_.setConstant(rf_y_buffer_(0, intervals_));
-        rf_z_buffer_.setConstant(rf_z_buffer_(0, intervals_));
-        rf_q_buffer_.setConstant(rf_q_buffer_(0, intervals_));
+        rf_x_buffer_.setConstant(rf_x_buffer_(0, preview_intervals_));
+        rf_y_buffer_.setConstant(rf_y_buffer_(0, preview_intervals_));
+        rf_z_buffer_.setConstant(rf_z_buffer_(0, preview_intervals_));
+        rf_q_buffer_.setConstant(rf_q_buffer_(0, preview_intervals_));
 
         // Define the polynomial for the regression of the
         // z movement of the feet during the double support phase
@@ -535,8 +542,8 @@ void Interpolation::InterpolateFeetStep() {
             Set4thOrderCoefficients(f_coef_z_, 
                                     t_ss_,
                                     step_height_, 
-                                    rf_z_buffer_(0, intervals_), 
-                                    rf_dz_buffer_(0, intervals_));
+                                    rf_z_buffer_(0, preview_intervals_), 
+                                    rf_dz_buffer_(0, preview_intervals_));
         }
 
         else {
@@ -545,8 +552,8 @@ void Interpolation::InterpolateFeetStep() {
             Set4thOrderCoefficients(f_coef_z_, 
                                     t_ss_,
                                     step_height_, 
-                                    lf_z_buffer_(0, intervals_), 
-                                    lf_dz_buffer_(0, intervals_));
+                                    lf_z_buffer_(0, preview_intervals_), 
+                                    lf_dz_buffer_(0, preview_intervals_));
         }
 
     }
@@ -573,23 +580,23 @@ void Interpolation::InterpolateFeetStep() {
             Set5thOrderCoefficients(f_coef_x_,
                                     t_till_drop_down, 
                                     base_generator_.Fkx()(0), 
-                                    rf_x_buffer_(0, intervals_), 
-                                    rf_dx_buffer_(0, intervals_), 
-                                    rf_ddx_buffer_(0, intervals_));
+                                    rf_x_buffer_(0, preview_intervals_), 
+                                    rf_dx_buffer_(0, preview_intervals_), 
+                                    rf_ddx_buffer_(0, preview_intervals_));
 
             Set5thOrderCoefficients(f_coef_y_, 
                                     t_till_drop_down,
                                     base_generator_.Fky()(0), 
-                                    rf_y_buffer_(0, intervals_), 
-                                    rf_dy_buffer_(0, intervals_), 
-                                    rf_ddy_buffer_(0, intervals_));
+                                    rf_y_buffer_(0, preview_intervals_), 
+                                    rf_dy_buffer_(0, preview_intervals_), 
+                                    rf_ddy_buffer_(0, preview_intervals_));
 
             Set5thOrderCoefficients(f_coef_q_,
                                     t_till_drop_down,
                                     base_generator_.Fkq()(0), 
-                                    rf_q_buffer_(0, intervals_), 
-                                    rf_dq_buffer_(0, intervals_), 
-                                    rf_ddq_buffer_(0, intervals_));
+                                    rf_q_buffer_(0, preview_intervals_), 
+                                    rf_dq_buffer_(0, preview_intervals_), 
+                                    rf_ddq_buffer_(0, preview_intervals_));
 
             // Calculate first and second order derivatives for the velocities and accelerations.
             Derivative(f_coef_x_, f_coef_dx_);
@@ -602,7 +609,7 @@ void Interpolation::InterpolateFeetStep() {
             Derivative(f_coef_dz_, f_coef_ddz_);
             Derivative(f_coef_dq_, f_coef_ddq_);
 
-            for (int i = 0; i <= intervals_; i++) {
+            for (int i = 0; i <= preview_intervals_; i++) {
 
                 if (t_current + i*tc_ > t_transition && t_current + i*tc_ < t_ss_ - t_transition) {
 
@@ -622,9 +629,9 @@ void Interpolation::InterpolateFeetStep() {
                 else if (t_current + i*tc_ <= t_transition) {
 
                     // Dont move in x, y, and q directions during lift off transitions.
-                    rf_x_buffer_(0, i) = rf_x_buffer_(0, intervals_);
-                    rf_y_buffer_(0, i) = rf_y_buffer_(0, intervals_);
-                    rf_q_buffer_(0, i) = rf_q_buffer_(0, intervals_);
+                    rf_x_buffer_(0, i) = rf_x_buffer_(0, preview_intervals_);
+                    rf_y_buffer_(0, i) = rf_y_buffer_(0, preview_intervals_);
+                    rf_q_buffer_(0, i) = rf_q_buffer_(0, preview_intervals_);
 
                     rf_dx_buffer_(0, i) = 0;
                     rf_dy_buffer_(0, i) = 0;
@@ -662,23 +669,23 @@ void Interpolation::InterpolateFeetStep() {
             Set5thOrderCoefficients(f_coef_x_,
                                     t_till_drop_down, 
                                     base_generator_.Fkx()(0), 
-                                    lf_x_buffer_(0, intervals_), 
-                                    lf_dx_buffer_(0, intervals_), 
-                                    lf_ddx_buffer_(0, intervals_));
+                                    lf_x_buffer_(0, preview_intervals_), 
+                                    lf_dx_buffer_(0, preview_intervals_), 
+                                    lf_ddx_buffer_(0, preview_intervals_));
 
             Set5thOrderCoefficients(f_coef_y_, 
                                     t_till_drop_down,
                                     base_generator_.Fky()(0), 
-                                    lf_y_buffer_(0, intervals_), 
-                                    lf_dy_buffer_(0, intervals_), 
-                                    lf_ddy_buffer_(0, intervals_));
+                                    lf_y_buffer_(0, preview_intervals_), 
+                                    lf_dy_buffer_(0, preview_intervals_), 
+                                    lf_ddy_buffer_(0, preview_intervals_));
 
             Set5thOrderCoefficients(f_coef_q_,
                                     t_till_drop_down,
                                     base_generator_.Fkq()(0), 
-                                    lf_q_buffer_(0, intervals_), 
-                                    lf_dq_buffer_(0, intervals_), 
-                                    lf_ddq_buffer_(0, intervals_));
+                                    lf_q_buffer_(0, preview_intervals_), 
+                                    lf_dq_buffer_(0, preview_intervals_), 
+                                    lf_ddq_buffer_(0, preview_intervals_));
 
             // Calculate first and second order derivatives for the velocities and accelerations.
             Derivative(f_coef_x_, f_coef_dx_);
@@ -691,7 +698,7 @@ void Interpolation::InterpolateFeetStep() {
             Derivative(f_coef_dz_, f_coef_ddz_);
             Derivative(f_coef_dq_, f_coef_ddq_);
 
-            for (int i = 0; i <= intervals_; i++) {
+            for (int i = 0; i <= preview_intervals_; i++) {
 
                 if (t_current + i*tc_ > t_transition && t_current + i*tc_ < t_ss_ - t_transition) {
 
@@ -711,9 +718,9 @@ void Interpolation::InterpolateFeetStep() {
                 else if (t_current + i*tc_ <= t_transition) {
 
                     // Dont move in x, y, and q directions during transitions.
-                    lf_x_buffer_(0, i) = lf_x_buffer_(0, intervals_);
-                    lf_y_buffer_(0, i) = lf_y_buffer_(0, intervals_);
-                    lf_q_buffer_(0, i) = lf_q_buffer_(0, intervals_);
+                    lf_x_buffer_(0, i) = lf_x_buffer_(0, preview_intervals_);
+                    lf_y_buffer_(0, i) = lf_y_buffer_(0, preview_intervals_);
+                    lf_q_buffer_(0, i) = lf_q_buffer_(0, preview_intervals_);
 
                     lf_dx_buffer_(0, i) = 0;
                     lf_dy_buffer_(0, i) = 0;
@@ -751,8 +758,17 @@ void Interpolation::InterpolateFeetStep() {
 void Interpolation::InterpolateLIPM() {
 
     // Interpolate the COM under the assumption of a LIPM.
-    com_x_buffer_.col(current_interval_) = a_*base_generator_.Ckx0() + b_*base_generator_.Dddckx().row(0);
-    com_y_buffer_.col(current_interval_) = a_*base_generator_.Cky0() + b_*base_generator_.Dddcky().row(0);
+    if (current_interval_ % intervals_ == 0) {
+
+        com_x_buffer_.col(current_interval_) = a_*base_generator_.Ckx0() + b_*base_generator_.Dddckx().row(0);
+        com_y_buffer_.col(current_interval_) = a_*base_generator_.Cky0() + b_*base_generator_.Dddcky().row(0);
+    }
+    else {
+
+        com_x_buffer_.col(current_interval_) = a_*com_x_buffer_.col(current_interval_ - 1) + b_*base_generator_.Dddckx().row(0);
+        com_y_buffer_.col(current_interval_) = a_*com_y_buffer_.col(current_interval_ - 1) + b_*base_generator_.Dddcky().row(0);
+    }
+
     zmp_x_buffer_.col(current_interval_) = c_.transpose()*com_x_buffer_.col(current_interval_);
     zmp_y_buffer_.col(current_interval_) = c_.transpose()*com_y_buffer_.col(current_interval_);
 }
@@ -765,7 +781,7 @@ void Interpolation::InterpolateLIPMStep() {
     zmp_x_buffer_.col(0) = c_.transpose()*base_generator_.Ckx0();
     zmp_y_buffer_.col(0) = c_.transpose()*base_generator_.Cky0();
 
-    for (int i = 1; i < intervals_; i++) {
+    for (int i = 1; i < preview_intervals_; i++) {
 
         // Interpolate the COM under the assumption of a LIPM.
         com_x_buffer_.col(i) = a_*com_x_buffer_.col(i - 1) + b_*base_generator_.Dddckx().row(0);
