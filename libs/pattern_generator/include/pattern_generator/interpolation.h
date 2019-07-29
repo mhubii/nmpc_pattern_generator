@@ -28,7 +28,7 @@ public:
     // Getters.
     inline const Eigen::MatrixXd&                  GetTrajectories()       const { return trajectories_; };
     inline       Eigen::Map<const Eigen::MatrixXd> GetTrajectoriesBuffer() const { return Eigen::Map<const Eigen::MatrixXd>(trajectories_buffer_.data(), trajectories_buffer_.rows(), trajectories_buffer_.cols() - 1); };
-    inline const int&                              GetIntervals()          const { return intervals_; };
+    inline const int&                              GetIntervals()          const { return preview_intervals_; };
     inline const int&                              GetCurrentInterval()    const { return current_interval_; };
     inline const double&                           GetCommandPeriod()      const { return tc_; }
     inline const bool                              IsDoubleSupport()       const { return base_generator_.TStep() - base_generator_.Vkp10().sum()*t_ < t_ds_; };
@@ -71,6 +71,7 @@ public:
 
     // Preview control period t_, and command period tc_.
     const double t_;
+    const double cpu_time_;
     const double tc_;
 
     // Double and single support time.
@@ -82,6 +83,7 @@ public:
 
     // Number of interpolation intervals and current interval.
     const int intervals_;
+    const int preview_intervals_;
     int current_interval_;
 
     // Number of intervals that the robot stays still in the beginning.
