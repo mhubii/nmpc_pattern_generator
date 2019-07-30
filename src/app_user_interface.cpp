@@ -2,7 +2,10 @@
 
 #include "reader.h"
 
-int main() {
+int main(int argc, char** argv) {
+
+    // Read in the mode.
+    bool simulation = (!strcmp(argv[1], "y") || !strcmp(argv[1], "Y")) ? true : false;
 
     // Create yarp network.
     yarp::os::Network yarp;
@@ -14,7 +17,7 @@ int main() {
     }
 
     // Create an app user interface.
-    AppReader ar;
+    AppReader ar(simulation);
 
     // Open port for communication.
     ar.open("/user_interface/robot_status");

@@ -138,7 +138,7 @@ class AppReader : public yarp::os::BufferedPort<yarp::os::Bottle>
 
     public:
 
-        AppReader();
+        AppReader(bool simulation);
 
         ~AppReader();
 
@@ -159,6 +159,9 @@ class AppReader : public yarp::os::BufferedPort<yarp::os::Bottle>
 
         // Write to port.
         void WriteToPort();
+
+        // Run in simulation or on the real robot.
+        bool simulation_;
 
         // Robot status, errors and warnings.
         RobotStatus robot_status_;

@@ -317,8 +317,9 @@ void ReadCameras::SetDrivers() {
 }
 
 
-AppReader::AppReader() 
-    : running_(false),
+AppReader::AppReader(bool simulation) 
+    : simulation_(simulation),
+      running_(false),
       robot_status_(NOT_CONNECTED),
       errors_(NO_ERRORS),
       warnings_(NO_WARNINGS),
@@ -666,8 +667,16 @@ void AppReader::ReadCommands() {
 
             running_ = true;
 
+            // Check wether or not to run in simulation.
+            std::string sim = "";
+            if (simulation_) {
+                sim = " y";
+            }
+
             // Run user controlled walking.
-            if (std::system("gnome-terminal -x bash ../../sh/run_user_controlled_walking.sh y") != 0) // y for running in simulation (currently only supported mode for app)
+            std::string cmd = "gnome-terminal -x bash ../../sh/run_user_controlled_walking.sh" + sim;
+
+            if (std::system(cmd.c_str()) != 0)
             {
                 std::cout << "Could not run the pattern generator." << std::endl;
                 std::exit(1);
@@ -683,7 +692,7 @@ void AppReader::ReadCommands() {
                 vel->get(0).asList()->write(vel_);
 
                 // Weight inputs.
-                vel_(0) *=  0.2;
+                vel_(0) *=  0.15;
                 vel_(1) *= -0.02;
                 vel_(2) *= -0.2;
 
@@ -759,7 +768,7 @@ KeyReader::KeyReader(bool simulation, std::string mode)
     port_status_.open("/reader/robot_status");
     port_epoch_.open("/reader/epoch");
 
-    epoch_ = 0;
+    epoch_ = 58;
 
     // Set velocity to zero.
     vel_.zero();
