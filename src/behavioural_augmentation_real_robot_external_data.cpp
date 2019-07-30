@@ -50,9 +50,6 @@ class BehaviouralAugmentation : public yarp::os::BufferedPort<yarp::sig::Matrix>
 
     public: // TEST.. change to private!
 
-        void ProcessImages();
-        cv::Mat Crop(cv::Mat& img);
-
         // Building blocks of walking generation.
         NMPCGenerator pg_;
         Interpolation ip_;
@@ -117,6 +114,7 @@ class GenerateVelocityCommands : public yarp::os::RateThread
     private:
         void run() override;
         void ProcessImages();
+        cv::Mat Crop(cv::Mat& img);
 
         // Ports to read velocities, images, and the current epoch.
         yarp::os::BufferedPort<yarp::sig::Vector> port_vel_;        
@@ -124,6 +122,9 @@ class GenerateVelocityCommands : public yarp::os::RateThread
 
         // Output images, and corresponding velocities.
         std::string out_location_; // location of txt file and images
+
+        std::chrono::steady_clock::time_point start_time_; // time stamp and epoch for labeling output
+        std::chrono::milliseconds time_stamp_;
 
         // Parts.
         std::vector<Part> parts_;
@@ -426,6 +427,7 @@ void  BehaviouralAugmentation::onRead(yarp::sig::Matrix& state) {
             // Convert to Eigen.
             vel_ = yarp::eigen::toEigen(*vel);
         }
+        std::cout << "received velocity: (" << vel_(0) << ", " << vel_(1) << ", " << vel_(2) << ")" << std::endl;
 
         // Set desired velocity.
         pg_.SetVelocityReference(vel_);
@@ -565,6 +567,8 @@ GenerateVelocityCommands::GenerateVelocityCommands(int period, std::vector<Part>
     
       out_location_(out_location),
 
+      start_time_(std::chrono::steady_clock::now()),
+	  time_stamp_(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time_)),
       parts_(parts),
 
       // Que that holds images for lstm.
@@ -668,15 +672,32 @@ void GenerateVelocityCommands::run() {
         port_vel_.write();
         std::cout << "velocity command: (" << vel_(0) << ", " << vel_(1) << ", " << vel_(2) << ")" << std::endl;
 
-        // Track velocities as predicted by the net.
-        std::ofstream txt(out_location_ + "/behavioural_augmentation_measurements/vel_log.txt", std::ios_base::app);
+        // Set the time stamp.
+        time_stamp_ = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time_);
+
+        // Record images with time stamp.
+        // Fill stringstream with preceeding zeros.
+        std::ostringstream ss;
+        ss << std::setw(8) << std::setfill('0') << std::to_string(time_stamp_.count());
+
+        // Track locations of stored images and corresponding velocity.
+        std::ofstream txt(out_location_ + "/behavioural_augmentation_measurements/log.txt", std::ios_base::app);
+
+        std::string loc = out_location_ + "/behavioural_augmentation_measurements/img/left_" + ss.str() + ".jpg";
+        cv::imwrite(loc, imgs_cv_rgb_["left"]);
+        txt << "behavioural_augmentation_measurements/img/left_" + ss.str() + ".jpg" + ", ";
+
+
+        loc = out_location_ + "/behavioural_augmentation_measurements/img/wls_disp_" + ss.str() + ".jpg";
+        cv::imwrite(loc, wls_disp_);
+        txt << "behavioural_augmentation_measurements/img/wls_disp_" + ss.str() + ".jpg" + ", ";
 
         int i = 0;
         while (i < vel_.size()-1) {
-            txt << vel_(i) << ", ";
+            txt << vel_[i] << ", ";
             i++;
         }
-        txt << vel_(vel_.size()-1) << "\n";
+        txt << vel_[vel_.size()-1] << "\n";
     }
 }
 
@@ -771,7 +792,7 @@ void GenerateVelocityCommands::ProcessImages() {
     }
 }
 
-cv::Mat BehaviouralAugmentation::Crop(cv::Mat& img) {
+cv::Mat GenerateVelocityCommands::Crop(cv::Mat& img) {
 
     // The sizes are a little hacky right now.
     // It crops the sky, as well as borders where the wls disparity map

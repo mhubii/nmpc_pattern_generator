@@ -52,7 +52,7 @@ void Kinematics::Forward(Eigen::VectorXd&   q,
     RigidBodyDynamics::Utils::CalcCenterOfMass(*model_, q, dq, NULL, mass_, com_pos_);//, &com_vel_, &com_acc_);  
 
     lf_pos_ = rf_ori_init_.transpose()*RigidBodyDynamics::CalcBodyToBaseCoordinates(*model_, q, lf_id_, lf_bp_);
-    rf_pos_ = rf_ori_init_.transpose()*RigidBodyDynamics::CalcBodyToBaseCoordinates(*model_, q, rf_id_, lf_bp_);
+    rf_pos_ = rf_ori_init_.transpose()*RigidBodyDynamics::CalcBodyToBaseCoordinates(*model_, q, rf_id_, rf_bp_);
 
     // Correct for rotated model.
     com_pos_ = rf_ori_init_.transpose()*com_pos_;
