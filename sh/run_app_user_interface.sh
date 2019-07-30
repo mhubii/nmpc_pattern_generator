@@ -9,6 +9,5 @@ if ["$simulation" != "${simulation#[Yy]}"]; then
   export YARP_CLOCK=/clock
 fi
 
-export YARP_CLOCK=/clock
 cd $DIR/../build/bin
 ./app_user_interface $simulation
