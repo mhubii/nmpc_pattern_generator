@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 
 #include "nmpc_generator.h"
 #include "interpolation.h"
@@ -28,26 +29,24 @@ int main() {
     nmpc.SetInitialValues(pg_state);
     Interpolation interpol_nmpc(nmpc);
     interpol_nmpc.StoreTrajectories(true);
-    Eigen::Vector3d velocity_reference(0.1, 0., 0.1);
+    Eigen::Vector3d velocity_reference(0.1, 0., 0.);
 
     Timer(START);
 
     // Pattern generator event loop.
-    for (int i = 0; i < 200; i++) {
+    for (int i = 0; i < 10000; i++) {
         std::cout << "Iteration: " << i << std::endl;
 
-        // Change reference velocities.
-        if (25 <= i && i < 50) {
-        velocity_reference << 0.1, 0., 0.1;
-        }
-        else if (50 <= i && i < 150) {
-        velocity_reference << 0.1, 0.1, 0.1;
-        }
-        else if (150 <= i && i < 200) {
-        velocity_reference << 0., 0., 0.;
-        }
-
-
+        // // Change reference velocities.
+        // if (25 <= i && i < 50) {
+        //     velocity_reference << 0.1, 0., 0.05;
+        // }
+        // else if (50 <= i && i < 175) {
+        //     velocity_reference << 0.1, 0., 0.05;
+        // }
+        // else if (175 <= i && i < 200) {
+        //     velocity_reference << 0., 0., 0.;
+        // }
 
         // Set reference velocities.
         nmpc.SetVelocityReference(velocity_reference);
@@ -57,7 +56,6 @@ int main() {
         nmpc.Solve();
         nmpc.Simulate();
         interpol_nmpc.InterpolateStep();
-
 
         // Initial value embedding by internal states and simulation.
         pg_state = nmpc.Update();

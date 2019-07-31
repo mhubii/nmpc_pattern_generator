@@ -87,7 +87,7 @@ int main(int argc, char *argv[]) {
     pg.SetInitialValues(pg_state);
     Interpolation ip(pg);
     ip.StoreTrajectories(true);
-    Eigen::Vector3d vel(0., 0.1, 0.);
+    Eigen::Vector3d vel(0.1, 0., 0.);
 
 
     // Pattern generator event loop.

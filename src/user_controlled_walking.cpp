@@ -92,6 +92,9 @@ class WalkingProcessor : public yarp::os::BufferedPort<yarp::sig::Matrix>
         // Force torque.
         bool simulation_;
         Eigen::MatrixXd ft_;
+
+        // Center of mass.
+        Eigen::MatrixXd com_;
 };
 
 
@@ -193,6 +196,7 @@ int main(int argc, char *argv[]) {
 
     // Save trajectories.
     WriteCsv("user_controlled_walking_trajectories.csv", pg_port.ip_.GetTrajectories().transpose());
+    WriteCsv("com.csv", pg_port.com_.transpose());
     
     if (!simulation) {
 
@@ -234,7 +238,8 @@ WalkingProcessor::WalkingProcessor(Eigen::VectorXd q_min, Eigen::VectorXd q_max,
     initialized_(false),
     
     simulation_(sim),
-    ft_(12, 0) {
+    ft_(12, 0),
+    com_(3, 0) {
 
     // Pattern generator preparation.
     pg_.SetSecurityMargin(pg_.SecurityMarginX(), 
@@ -324,6 +329,21 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
         // Set desired velocity.
         pg_.SetVelocityReference(vel_);
 
+        // Use forward kinematics to obtain the com feedback.
+        q_ << ki_.GetQTraj().topRows(6).col(0), yarp::eigen::toEigen(state.getCol(0)).bottomRows(15);
+
+        ki_.Forward(q_, dq_, ddq_);
+        com_pos_ = ki_.GetComPos();
+
+        com_.conservativeResize(com_.rows(), com_.cols() + 1);
+        com_.rightCols(1) = com_pos_;
+
+        // Generate pattern with com feedback.
+        // pg_state_.com_x(0) += 0.1*(com_pos_(0)-pg_state_.com_x(0));//, com_vel_(0), com_acc_(0);
+        // pg_state_.com_y(0) += 0.1*(com_pos_(1)-pg_state_.com_y(0));//, com_vel_(1), com_acc_(1);
+        // pg_state_.com_z = com_pos_(2);
+        pg_.SetInitialValues(pg_state_);
+
         // Solve QP.
         pg_.Solve();
         pg_.Simulate();
@@ -347,13 +367,13 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
         ki_.Forward(q_, dq_, ddq_);
         com_pos_ = ki_.GetComPos();
 
-        // Generate pattern with com feedback.
-        pg_state_.com_x(0) = com_pos_(0);//, com_vel_(0), com_acc_(0);
-        pg_state_.com_y(0) = com_pos_(1);//, com_vel_(1), com_acc_(1);
-        pg_state_.com_z = com_pos_(2);
+        // // Generate pattern with com feedback.
+        // pg_state_.com_x(0) = com_pos_(0);//, com_vel_(0), com_acc_(0);
+        // pg_state_.com_y(0) = com_pos_(1);//, com_vel_(1), com_acc_(1);
+        // pg_state_.com_z = com_pos_(2);
 
         pg_state_ = pg_.Update();
-        pg_.SetInitialValues(pg_state_);
+        // pg_.SetInitialValues(pg_state_);
 
         // Check for correctness of inverse kinematics.
         if (!ki_.GetStatus()) {

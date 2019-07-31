@@ -11,7 +11,7 @@ int main()
 
     int period_cam = 100;
     std::string io_config = "../../libs/io_module/configs.yaml";
-    std::string robot = "icub";
+    std::string robot = "icubGazeboSim";
 
     ReadCameras rc(period_cam, io_config, robot);
 

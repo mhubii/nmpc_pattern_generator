@@ -63,6 +63,7 @@ if (${BUILD_WITH_YARP})
         joint_angles_for_meshup
         keyboard_user_interface
         offline_walking
+        test_read_ft
         user_controlled_walking
     )
 

@@ -82,8 +82,10 @@ struct NMPCEnvironment
     // Environment.
     double x_size_; // x and y size of map in m
     double y_size_;
-    double dx_;     // map resolution
+    double dx_;
     double dy_;
+    double dx_img_;     // map resolution
+    double dy_img_;
     int nx_;        // number of pixels
     int ny_;
     int x_off_; // offset of the com in the image
@@ -122,10 +124,12 @@ struct NMPCEnvironment
 
         x_size_ = 6;
         y_size_ = 6;
-        dx_ = 1/100.; // cm resolution
-        dy_ = dx_;
-	    nx_ = int(x_size_/dx_);
-	    ny_ = int(y_size_/dy_);
+        dx_ = 1/10.;
+        dy_ = 1/10.;
+        dx_img_ = 1/100.; // cm resolution
+        dy_img_ = dx_img_;
+	    nx_ = int(x_size_/dx_img_);
+	    ny_ = int(y_size_/dy_img_);
         x_off_ = int(nx_/4.);
         y_off_ = int(ny_/2.);
 
@@ -189,7 +193,7 @@ struct NMPCEnvironment
             status = REACHEDGOAL;
             done[0][0] = 1.;
         }
-        else if ((goal_ - pos_).norm() > 4.0) {
+        else if ((goal_ - pos_).norm() > 40.0) {
             status = MISSEDGOAL;
             done[0][0] = 1.;
         }
@@ -197,7 +201,9 @@ struct NMPCEnvironment
             status = HITOBSTACLE;
             done[0][0] = 1.;
         }
-        else if ((40 < pos_[0]/dx_ || pos_[0]/dx_ < nx_-40) || (40 < pos_[1]/dy_ || pos_[1]/dy_ < ny_-40)) { 
+        else if ((40 > pos_[0]/dx_ + x_off_ || pos_[0]/dx_ + x_off_ > nx_-40) ||
+                 (40 > pos_[1]/dy_ + y_off_ || pos_[1]/dy_ + y_off_ > ny_-40)) { 
+        // else if (double(map_.at<uchar>(y_off_ + pos_[1]/dy_, x_off_ + pos_[0]/dx_)) != 0) {
             status = HITWALL;
             done[0][0] = 1.;
         }
@@ -219,7 +225,8 @@ struct NMPCEnvironment
         torch::Tensor reward = torch::full({1, 1}, goal_factor*(old_preview_dist_ - PreviewDist()), torch::kF64);
 
         // Negative reward for touching obstacles and walls.
-        reward[0][0] -= double(map_.at<uchar>(y_off_ + pos_[1]/dy_, x_off_ + pos_[0]/dx_));
+        double wall_factor = 1e1;
+        reward[0][0] -= double(map_.at<uchar>(y_off_ + pos_[1]/dy_, x_off_ + pos_[0]/dx_))*wall_factor;
 
         switch (status)
             {
@@ -237,10 +244,10 @@ struct NMPCEnvironment
                     reward[0][0] -= 1e2;
                     printf("hit obstacle, reward: %f\n", *(reward.cpu().data<double>()));
                     break;
-                // case HITWALL:
-                //     reward[0][0] -= 1e2;
-                //     printf("hit wall, reward: %f\n", *(reward.cpu().data<double>()));
-                //     break;
+                case HITWALL:
+                    reward[0][0] -= 1e2;
+                    printf("hit wall, reward: %f\n", *(reward.cpu().data<double>()));
+                    break;
             }
 
         return reward;
@@ -297,7 +304,7 @@ struct NMPCEnvironment
     auto SetGoal() -> void
     {
         int roi_x_size = int(nx_*2./3.);
-        goal_(0) = 3.*double(roi_x_size - 2*x_off_)*dx_;
+        goal_(0) = 2./5.*double(roi_x_size - 2*x_off_)*dx_;
         goal_(1) = 0.;
 
         old_dist_ = (goal_ - pos_).norm();
@@ -313,13 +320,13 @@ struct NMPCEnvironment
         int roi_x_pos = (nx_ - roi_x_size)/2.;
         int roi_y_pos = (ny_ - roi_y_size)/2.;
 
-        roi_x_pos += int(roi_x_size/2.); // compute the center of the gaussian distribution in image coordinates
+        roi_x_pos += int(roi_x_size/6.); // compute the center of the gaussian distribution in image coordinates
         roi_y_pos += int(roi_y_size/2.);
 
         obs_(0) = (roi_x_pos - x_off_)*dx_;
-        obs_(1) = (roi_y_pos - y_off_)*dy_;
+        obs_(1) = (roi_y_pos - y_off_)*dy_ + 0.1;
 
-        r_obs_ = roi_y_size/8.*dx_; // same size as sigmax (maybe a little smaller)  //double(roi_y_size)/4.*dx_; // roughly size of the roi/4
+        r_obs_ = double(roi_y_size)/60.*dx_; // same size as sigmax (maybe a little smaller)  //double(roi_y_size)/4.*dx_; // roughly size of the roi/4
         double r_margin = nmpc_.RMargin();
 
         Circle c{obs_(0), obs_(1), r_obs_, r_margin};
@@ -340,8 +347,8 @@ struct NMPCEnvironment
         roi.setTo(0);
 
         // Set gaussian at obstacle.
-        cv::Mat roi_g = roi(cv::Rect(roi.cols/2. - roi.rows/3., roi.rows/2. - roi.rows/3., roi.rows*2./3., roi.rows*2./3.));
-        cv::Mat gaussian = getGaussianKernel(roi.rows*2./3., roi.rows*2./3., roi.rows/8., roi.rows/8.);
+        cv::Mat roi_g = roi(cv::Rect(0., roi.rows/2. - roi.rows/3., roi.rows*2./3., roi.rows*2./3.));
+        cv::Mat gaussian = getGaussianKernel(roi.rows*2./3., roi.rows*2./3., roi.rows/20., roi.rows/20.);
         gaussian.copyTo(roi_g);
     };
 };
@@ -390,11 +397,11 @@ int main(int argc, char** argv)
 
     // Training loop.
     uint n_iter = 4000;
-    uint n_steps = 600;
-    uint n_epochs = 100;
+    uint n_steps = 500;
+    uint n_epochs = 10;
     uint mini_batch_size = 100;
     uint ppo_epochs = 6;
-    double beta = 1e-4;
+    double beta = 1e-3;
 
     VT states_pos;
     VT states_map;
@@ -424,7 +431,7 @@ int main(int argc, char** argv)
 
     // Save lost history.
     std::ofstream out_loss;
-    out_loss.open("ppo_nmpc_loss_hist.csv");
+    out_loss.open("../../out/ppo_nmpc/loss_hist.csv");
 
     for (uint e=0;e<n_epochs;e++)
     {
@@ -440,7 +447,7 @@ int main(int argc, char** argv)
             // Play.
             double vx_max = 1.0;
             double vy_max = 0.1;
-            double wz_max = 0.01;
+            double wz_max = 1.0;
 
             auto av = ac->forward(states_pos[c], states_map[c]);
             actions.push_back(std::get<0>(av));
@@ -448,7 +455,7 @@ int main(int argc, char** argv)
             log_probs.push_back(ac->log_prob(actions[c]));
 
             // Eigen::Vector3d vel(*(actions[c].data<double>()), *(actions[c].data<double>()+1), *(actions[c].data<double>()+2));
-            Eigen::Vector3d vel(*(actions[c].cpu().data<double>())*vx_max, *(actions[c].cpu().data<double>()+1)*vy_max, 0.);// *(actions[c].cpu().data<double>()+1), *(actions[c].cpu().data<double>()+2));
+            Eigen::Vector3d vel(*(actions[c].cpu().data<double>())*vx_max, 0., 0.);// *(actions[c].cpu().data<double>()+1), *(actions[c].cpu().data<double>()+2));
             auto sd = env.Act(vel);
 
             if (std::get<2>(sd) == STATUS::ERROR)
@@ -456,17 +463,17 @@ int main(int argc, char** argv)
                 error = true;
 
                 printf("Quitting episode on unsuccessful return.\n");
-                c = 0;
+                // c = 0;
 
-                states_pos.clear();
-                states_map.clear();
-                actions.clear();
-                rewards.clear();
-                dones.clear();
+                // states_pos.clear();
+                // states_map.clear();
+                // actions.clear();
+                // rewards.clear();
+                // dones.clear();
 
-                log_probs.clear();
-                returns.clear();
-                values.clear();
+                // log_probs.clear();
+                // returns.clear();
+                // values.clear();
 
                 break;
             }

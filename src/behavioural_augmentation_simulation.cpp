@@ -370,8 +370,10 @@ void  BehaviouralAugmentation::onRead(yarp::sig::Matrix& state) {
         cv::Mat c_img_d = Crop(wls_disp_);
 
         // Convert to tensor.
-        torch::Tensor rgb = torch::from_blob(c_img_rgb.data, {1, c_img_rgb.rows, c_img_rgb.cols, 3}, torch::kByte); // different order cv hxwxc -> torch cxhxw
-	    torch::Tensor d = torch::from_blob(c_img_d.data, {1, c_img_d.rows, c_img_d.cols, 1}, torch::kByte);
+        //torch::Tensor rgb = torch::from_blob(c_img_rgb.data, {1, c_img_rgb.rows, c_img_rgb.cols, 3}, torch::kByte); // different order cv hxwxc -> torch cxhxw
+	//torch::Tensor d = torch::from_blob(c_img_d.data, {1, c_img_d.rows, c_img_d.cols, 1}, torch::kByte);
+        torch::Tensor rgb = torch::from_blob(imgs_cv_rgb_["left"].data, {1, imgs_cv_rgb_["left"].rows, imgs_cv_rgb_["left"].cols, 3}, torch::kByte); // different order cv hxwxc -> torch cxhxw
+	torch::Tensor d = torch::from_blob(wls_disp_.data, {1, wls_disp_.rows, wls_disp_.cols, 1}, torch::kByte);
 
         rgb = rgb.to(torch::kF32); // of course convert to float
         d = d.to(torch::kF32);

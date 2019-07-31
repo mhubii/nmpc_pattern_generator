@@ -7,7 +7,7 @@
 
 int main() {
     // Instantiate pattern generator.
-    const std::string config_file_loc = "../../libs/pattern_generator/configs.yaml";
+    const std::string config_file_loc = "../../libs/pattern_generator/configs_hrp2.yaml";
 
     MPCGenerator mpc(config_file_loc);
 
@@ -28,24 +28,24 @@ int main() {
     mpc.SetInitialValues(pg_state);
     Interpolation interpol_mpc(mpc);
     interpol_mpc.StoreTrajectories(true);
-    Eigen::Vector3d velocity_reference(0.1, 0., 0.1);
+    Eigen::Vector3d velocity_reference(0.1, 0., 0.);
 
     Timer(START);
 
     // Pattern generator event loop.
-    for (int i = 0; i < 200; i++) {
+    for (int i = 0; i < 100; i++) {
         std::cout << "Iteration: " << i << std::endl;
 
-        // Change reference velocities.
-        if (25 <= i && i < 50) {
-        velocity_reference << 0.1, 0., 0.1;
-        }
-        else if (50 <= i && i < 150) {
-        velocity_reference << 0.1, 0.1, 0.1;
-        }
-        else if (150 <= i && i < 200) {
-        velocity_reference << 0., 0., 0.;
-        }
+        // // Change reference velocities.
+        // if (25 <= i && i < 50) {
+        //     velocity_reference << 0.1, 0., 0.05;
+        // }
+        // else if (50 <= i && i < 175) {
+        //     velocity_reference << 0.1, 0., 0.05;
+        // }
+        // else if (175 <= i && i < 200) {
+        //     velocity_reference << 0., 0., 0.;
+        // }
 
 
         // Set reference velocities.

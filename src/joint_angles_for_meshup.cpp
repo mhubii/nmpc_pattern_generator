@@ -6,7 +6,7 @@
 
 int main() {
     // Initialize pattern generator.
-    const std::string nmpc_config_file_loc = "../../libs/pattern_generator/configs_meshup.yaml";
+    const std::string nmpc_config_file_loc = "../../libs/pattern_generator/configs.yaml";
 
     NMPCGenerator nmpc(nmpc_config_file_loc);
 
@@ -63,11 +63,11 @@ int main() {
     nmpc.SetInitialValues(pg_state);
     Interpolation interpol_nmpc(nmpc);
     interpol_nmpc.StoreTrajectories(true);
-    Eigen::Vector3d velocity_reference(0.1, 0., 0.);
+    Eigen::Vector3d velocity_reference(0., 0., -0.2);
 
 
     // Pattern generator event loop.
-    for (int i = 0; i < 40; i++) {
+    for (int i = 0; i < 200; i++) {
         std::cout << "Iteration: " << i << std::endl;
 
 

@@ -1,5 +1,5 @@
 # Specifications.
-t_step: 3.2
+t_step: 1.6
 security_margin: [0.02, 0.02]
 left_foot_convex_hull: [-0.11, 0.14,
 		        -0.10, 0.16, 
@@ -18,8 +18,8 @@ foot_distance: 0.14
 # Interpolation.
 command_period: 0.01
 n_still: 0
-t_ds: 1.6
-step_height: 0.03
+t_ds: 1.0
+step_height: 0.02
 
 # Initial values.
 com_x: [0.0 , 0.0, 0.0]
@@ -36,15 +36,15 @@ gravity: 9.81
 
 # Obstacle.
 obstacle: false
-x_pos:  10
-y_pos:  10
-radius: 0.5
+x_pos:  100
+y_pos:  100
+radius: 0.1
 
 # Optimization.
 n: 16
-t: 0.4
-alpha: 1
-beta: 1e2
+t: 0.2
+alpha: 1.0
+beta: 4e1
 gamma: 1e-2
-cpu_time: 0.1
+cpu_time: 0.01
 nwsr: 1000

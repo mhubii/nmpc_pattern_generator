@@ -4,13 +4,13 @@ import matplotlib.animation as animation
 from matplotlib.patches import Circle
 
 # get data
-data = np.genfromtxt("../build/bin/example_ppo.csv", delimiter=",")
+data = np.genfromtxt("../out/ppo_nmpc/example_ppo.csv", delimiter=",")
 
 def animate():
 
     # plot everything
-    #epochs = np.array([1,5,10])
-    epochs = np.array([1])
+    #epochs = np.array([1,5,10,20, 50, 90])
+    epochs = np.array([1,2])
 
     for e in epochs:
 
@@ -26,8 +26,8 @@ def animate():
         ax.add_patch(goal)
         won_circle = plt.Circle((data[0,6], data[0,7]), 0.3, linestyle='--', color='r', fill=False)
         ax.add_patch(won_circle)
-        lost_circle = plt.Circle((data[0,6], data[0,7]), 5.0, linestyle='--', color='gray', fill=False, label='Maximum Goal Distance')
-        ax.add_patch(lost_circle)
+        #lost_circle = plt.Circle((data[0,6], data[0,7]), 5.0, linestyle='--', color='gray', fill=False, label='Maximum Goal Distance')
+        #ax.add_patch(lost_circle)
 
         agent, = ax.plot(data[0,1], data[0,2], 'o', c='b', label='Agent') # agent
         agent_line, = ax.plot(data[0,1], data[0,2], '-', c='b')           # small tail following the agent
@@ -35,8 +35,8 @@ def animate():
         # plot settings
         ax.set_xlabel('x / a.u.')
         ax.set_ylabel('y / a.u.')
-        ax.set_xlim(-4, 4)
-        ax.set_ylim(-4, 4)
+        ax.set_xlim(-5, 5)
+        ax.set_ylim(-5, 5)
         ax.set_title("Agent in Test Environment")
         ax.legend()
         title = ax.text(0.15,0.85, "", bbox={'facecolor':'w', 'alpha':0.5, 'pad':5},
@@ -57,9 +57,9 @@ def animate():
             obstacle.center = (epoch_data[i,3], epoch_data[i,4])
             goal.center = (epoch_data[i,6], epoch_data[i,7])
             won_circle.center = (epoch_data[i,6], epoch_data[i,7])
-            lost_circle.center = (epoch_data[i,6], epoch_data[i,7])
+            #lost_circle.center = (epoch_data[i,6], epoch_data[i,7])
             #title.set_text('Epoch {:1.0f}'.format(epoch_data[i,0]))
-            return agent, agent_line, obstacle, goal, won_circle, lost_circle
+            return agent, agent_line, obstacle, goal, won_circle
 
         ani = animation.FuncAnimation(fig, animate, blit=True, interval=5, frames=epoch_data.shape[0])
         plt.show()
