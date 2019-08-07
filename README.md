@@ -42,7 +42,7 @@ make
 To build with deep learning or support for the simulation and the real robot, add the following flags
 
 ```shell
-cmake -DBUILD_WITH_LEARNING=ON -DCMAKE_PREFIX_PATH= .. # to build with deep learning support
+cmake -DBUILD_WITH_LEARNING=ON -DCMAKE_PREFIX_PATH=/path/to/libtorch .. # to build with deep learning support
 cmake -DBUILD_WITH_YARP=ON .. # to build with simulation and real robot support
 ```
 
