@@ -23,7 +23,7 @@ Interpolation::Interpolation(BaseGenerator& base_generator)
   
       // Number of interpolation intervals.
       intervals_(int(cpu_time_/tc_)),
-      preview_intervals_(int(t_/tc_)),
+      preview_intervals_(int(cpu_time_/tc_)),
       current_interval_(0),
       
       // Number of intervals that the robot stays still in the beginning.
@@ -202,8 +202,8 @@ Eigen::Map<const Eigen::MatrixXd> Interpolation::InterpolateStep() {
     // Append by buffered trajectories.
     if (store_trajectories_) {
 
-        trajectories_.conservativeResize(trajectories_.rows(), trajectories_.cols() + preview_intervals_);
-        trajectories_.rightCols(preview_intervals_) = trajectories_buffer_.leftCols(preview_intervals_);
+        trajectories_.conservativeResize(trajectories_.rows(), trajectories_.cols() + int(preview_intervals_));
+        trajectories_.rightCols(int(preview_intervals_)) = trajectories_buffer_.leftCols(int(preview_intervals_));
     }
 
     return Eigen::Map<const Eigen::MatrixXd>(trajectories_buffer_.data(), trajectories_buffer_.rows(), trajectories_buffer_.cols() - 1);
@@ -571,7 +571,8 @@ void Interpolation::InterpolateFeetStep() {
         const double t_till_drop_down = base_generator_.Vkp10().sum()*t_ - t_transition;
 
         // Indicates the current time inside the single support phase.
-        const double t_current = t_ss_ - base_generator_.Vkp10().sum()*t_;
+        const double t_current = t_ss_ - base_generator_.Vkp10().sum()*t_ + base_generator_.InternalT();
+        const double t_discrete = t_current - base_generator_.InternalT();
 
         // Left or right foot.
         if (base_generator_.CurrentSupport().foot == "left") {
@@ -611,7 +612,7 @@ void Interpolation::InterpolateFeetStep() {
 
             for (int i = 0; i <= preview_intervals_; i++) {
 
-                if (t_current + i*tc_ > t_transition && t_current + i*tc_ < t_ss_ - t_transition) {
+                if (t_discrete + i*tc_ > t_transition && t_discrete + i*tc_ < t_ss_ - t_transition) {
 
                     // Evaluate interpolations for x, y, and q during the t_moving period.
                     rf_x_buffer_(0, i) = Eigen::poly_eval(f_coef_x_, i*tc_);
@@ -626,7 +627,7 @@ void Interpolation::InterpolateFeetStep() {
                     rf_ddy_buffer_(0, i) = Eigen::poly_eval(f_coef_ddy_, i*tc_);
                     rf_ddq_buffer_(0, i) = Eigen::poly_eval(f_coef_ddq_, i*tc_);
                 }
-                else if (t_current + i*tc_ <= t_transition) {
+                else if (t_discrete + i*tc_ <= t_transition) {
 
                     // Dont move in x, y, and q directions during lift off transitions.
                     rf_x_buffer_(0, i) = rf_x_buffer_(0, preview_intervals_);
@@ -641,7 +642,7 @@ void Interpolation::InterpolateFeetStep() {
                     rf_ddy_buffer_(0, i) = 0;
                     rf_ddq_buffer_(0, i) = 0;
                 }
-                else if (t_current + i*tc_ >= t_ss_ - t_transition) {
+                else if (t_discrete + i*tc_ >= t_ss_ - t_transition) {
 
                     // Dont move in x, y, and q directions during drop down transitions.
                     rf_x_buffer_(0, i) = rf_x_buffer_(0, i - 1);
@@ -700,7 +701,7 @@ void Interpolation::InterpolateFeetStep() {
 
             for (int i = 0; i <= preview_intervals_; i++) {
 
-                if (t_current + i*tc_ > t_transition && t_current + i*tc_ < t_ss_ - t_transition) {
+                if (t_discrete + i*tc_ > t_transition && t_discrete + i*tc_ < t_ss_ - t_transition) {
 
                     // Evaluate interpolations for x, y, and q during the t_moving period.
                     lf_x_buffer_(0, i) = Eigen::poly_eval(f_coef_x_, i*tc_);
@@ -715,7 +716,7 @@ void Interpolation::InterpolateFeetStep() {
                     lf_ddy_buffer_(0, i) = Eigen::poly_eval(f_coef_ddy_, i*tc_);
                     lf_ddq_buffer_(0, i) = Eigen::poly_eval(f_coef_ddq_, i*tc_);
                 }
-                else if (t_current + i*tc_ <= t_transition) {
+                else if (t_discrete + i*tc_ <= t_transition) {
 
                     // Dont move in x, y, and q directions during transitions.
                     lf_x_buffer_(0, i) = lf_x_buffer_(0, preview_intervals_);
@@ -730,7 +731,7 @@ void Interpolation::InterpolateFeetStep() {
                     lf_ddy_buffer_(0, i) = 0;
                     lf_ddq_buffer_(0, i) = 0;
                 }
-                else if (t_current + i*tc_ >= t_ss_ - t_transition) {
+                else if (t_discrete + i*tc_ >= t_ss_ - t_transition) {
 
                     // Dont move in x, y, and q directions during transitions.
                     lf_x_buffer_(0, i) = lf_x_buffer_(0, i - 1);
@@ -781,7 +782,7 @@ void Interpolation::InterpolateLIPMStep() {
     zmp_x_buffer_.col(0) = c_.transpose()*base_generator_.Ckx0();
     zmp_y_buffer_.col(0) = c_.transpose()*base_generator_.Cky0();
 
-    for (int i = 1; i < preview_intervals_; i++) {
+    for (int i = 1; i <= preview_intervals_; i++) {
 
         // Interpolate the COM under the assumption of a LIPM.
         com_x_buffer_.col(i) = a_*com_x_buffer_.col(i - 1) + b_*base_generator_.Dddckx().row(0);

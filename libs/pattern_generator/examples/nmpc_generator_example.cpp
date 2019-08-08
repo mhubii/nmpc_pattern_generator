@@ -29,12 +29,12 @@ int main() {
     nmpc.SetInitialValues(pg_state);
     Interpolation interpol_nmpc(nmpc);
     interpol_nmpc.StoreTrajectories(true);
-    Eigen::Vector3d velocity_reference(0.1, 0., 0.);
+    Eigen::Vector3d velocity_reference(0.01, 0., 0.);
 
     Timer(START);
 
     // Pattern generator event loop.
-    for (int i = 0; i < 10000; i++) {
+    for (int i = 0; i < 1000; i++) {
         std::cout << "Iteration: " << i << std::endl;
 
         // // Change reference velocities.
@@ -55,10 +55,29 @@ int main() {
         // Solve QP.
         nmpc.Solve();
         nmpc.Simulate();
-        interpol_nmpc.InterpolateStep();
+        auto inter = interpol_nmpc.InterpolateStep();
+        
+        auto preview = int(interpol_nmpc.preview_intervals_);
+        auto dt = nmpc.CpuTime();
+        auto com_x = inter.block(0, preview, 3, 1);// initial values not final
+        auto com_y = inter.block(3, preview, 3, 1);
+        auto lfx = inter(13, preview);
+        auto lfy = inter(14, preview);
+        auto rfx = inter(17, preview);
+        auto rfy = inter(18, preview);
 
         // Initial value embedding by internal states and simulation.
-        pg_state = nmpc.Update();
+        pg_state = nmpc.Update(dt);
+        pg_state.com_x = com_x;
+        pg_state.com_y = com_y;
+        if (nmpc.current_support_.foot == "left") {
+            pg_state.foot_x = lfx;
+            pg_state.foot_y = lfy;
+        }
+        else {
+            pg_state.foot_x = rfx;
+            pg_state.foot_y = rfy;
+        }
         nmpc.SetInitialValues(pg_state);
     }
 

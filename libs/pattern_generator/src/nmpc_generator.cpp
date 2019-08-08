@@ -80,6 +80,16 @@ PatternGeneratorState NMPCGenerator::Update() {
   return ret;
 }
 
+PatternGeneratorState NMPCGenerator::Update(double dt) {
+  // Define time dependent foot selections matrix.
+  PatternGeneratorState ret = BaseGenerator::Update(dt);
+
+  // Update selection matrix when something has changed.
+  UpdateFootSelectionMatrix();
+
+  return ret;
+}
+
 void NMPCGenerator::Example(const std::string config_file_loc, const std::string output_loc) {
   // Example() exemplarily implements a case on how
   // the NMPCGenerator class is ment to be used. 
