@@ -154,7 +154,7 @@ wget https://www.coin-or.org/download/source/qpOASES/qpOASES-3.2.1.zip
 unzip qpOASES-3.2.1.zip
 cd qpOASES-3.2.1
 ```
-Now since we want a shared library, in the `CMakeLists.txt` change `ADD_LIBRARY(qpOASES STATIC ${SRC})` to `ADD_LIBRARY(qpOASES SHARED ${SRC})`. Then procede with
+Now since we want a shared library, in the `CMakeLists.txt` change `ADD_LIBRARY(qpOASES STATIC ${SRC})` to `ADD_LIBRARY(qpOASES SHARED ${SRC})`. Then proceed with
 ```shell
 mkdir build && cd build
 cmake ..
@@ -212,7 +212,7 @@ sudo make install
 ```
 
 ### Gazebo YARP Plugins
-Plugins for Gazebo are used to clone the behaviour of the real robot into the simulation environment. Procede as below
+Plugins for Gazebo are used to clone the behavior of the real robot into the simulation environment. Proceed as below
 
 ```shell
 git clone https://github.com/robotology/gazebo-yarp-plugins.git
