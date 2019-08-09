@@ -568,7 +568,7 @@ void Interpolation::InterpolateFeetStep() {
         const double t_moving = t_ss_ - 2*t_transition;
 
         // Time left until the foot changes to the drop down transition.
-        const double t_till_drop_down = base_generator_.Vkp10().sum()*t_ - t_transition;
+        const double t_till_drop_down = base_generator_.Vkp10().sum()*t_ - base_generator_.InternalT() - t_transition;
 
         // Indicates the current time inside the single support phase.
         const double t_current = t_ss_ - base_generator_.Vkp10().sum()*t_ + base_generator_.InternalT();
@@ -615,17 +615,17 @@ void Interpolation::InterpolateFeetStep() {
                 if (t_discrete + i*tc_ > t_transition && t_discrete + i*tc_ < t_ss_ - t_transition) {
 
                     // Evaluate interpolations for x, y, and q during the t_moving period.
-                    rf_x_buffer_(0, i) = Eigen::poly_eval(f_coef_x_, i*tc_+base_generator_.InternalT());
-                    rf_y_buffer_(0, i) = Eigen::poly_eval(f_coef_y_, i*tc_+base_generator_.InternalT());
-                    rf_q_buffer_(0, i) = Eigen::poly_eval(f_coef_q_, i*tc_+base_generator_.InternalT());
+                    rf_x_buffer_(0, i) = Eigen::poly_eval(f_coef_x_, i*tc_);
+                    rf_y_buffer_(0, i) = Eigen::poly_eval(f_coef_y_, i*tc_);
+                    rf_q_buffer_(0, i) = Eigen::poly_eval(f_coef_q_, i*tc_);
 
-                    rf_dx_buffer_(0, i) = Eigen::poly_eval(f_coef_dx_, i*tc_+base_generator_.InternalT());
-                    rf_dy_buffer_(0, i) = Eigen::poly_eval(f_coef_dy_, i*tc_+base_generator_.InternalT());
-                    rf_dq_buffer_(0, i) = Eigen::poly_eval(f_coef_dq_, i*tc_+base_generator_.InternalT());
+                    rf_dx_buffer_(0, i) = Eigen::poly_eval(f_coef_dx_, i*tc_);
+                    rf_dy_buffer_(0, i) = Eigen::poly_eval(f_coef_dy_, i*tc_);
+                    rf_dq_buffer_(0, i) = Eigen::poly_eval(f_coef_dq_, i*tc_);
 
-                    rf_ddx_buffer_(0, i) = Eigen::poly_eval(f_coef_ddx_, i*tc_+base_generator_.InternalT());
-                    rf_ddy_buffer_(0, i) = Eigen::poly_eval(f_coef_ddy_, i*tc_+base_generator_.InternalT());
-                    rf_ddq_buffer_(0, i) = Eigen::poly_eval(f_coef_ddq_, i*tc_+base_generator_.InternalT());
+                    rf_ddx_buffer_(0, i) = Eigen::poly_eval(f_coef_ddx_, i*tc_);
+                    rf_ddy_buffer_(0, i) = Eigen::poly_eval(f_coef_ddy_, i*tc_);
+                    rf_ddq_buffer_(0, i) = Eigen::poly_eval(f_coef_ddq_, i*tc_);
                 }
                 else if (t_discrete + i*tc_ <= t_transition) {
 
@@ -704,17 +704,17 @@ void Interpolation::InterpolateFeetStep() {
                 if (t_discrete + i*tc_ > t_transition && t_discrete + i*tc_ < t_ss_ - t_transition) {
 
                     // Evaluate interpolations for x, y, and q during the t_moving period.
-                    lf_x_buffer_(0, i) = Eigen::poly_eval(f_coef_x_, i*tc_+base_generator_.InternalT());
-                    lf_y_buffer_(0, i) = Eigen::poly_eval(f_coef_y_, i*tc_+base_generator_.InternalT());
-                    lf_q_buffer_(0, i) = Eigen::poly_eval(f_coef_q_, i*tc_+base_generator_.InternalT());
+                    lf_x_buffer_(0, i) = Eigen::poly_eval(f_coef_x_, i*tc_);
+                    lf_y_buffer_(0, i) = Eigen::poly_eval(f_coef_y_, i*tc_);
+                    lf_q_buffer_(0, i) = Eigen::poly_eval(f_coef_q_, i*tc_);
 
-                    lf_dx_buffer_(0, i) = Eigen::poly_eval(f_coef_dx_, i*tc_+base_generator_.InternalT());
-                    lf_dy_buffer_(0, i) = Eigen::poly_eval(f_coef_dy_, i*tc_+base_generator_.InternalT());
-                    lf_dq_buffer_(0, i) = Eigen::poly_eval(f_coef_dq_, i*tc_+base_generator_.InternalT());
+                    lf_dx_buffer_(0, i) = Eigen::poly_eval(f_coef_dx_, i*tc_);
+                    lf_dy_buffer_(0, i) = Eigen::poly_eval(f_coef_dy_, i*tc_);
+                    lf_dq_buffer_(0, i) = Eigen::poly_eval(f_coef_dq_, i*tc_);
 
-                    lf_ddx_buffer_(0, i) = Eigen::poly_eval(f_coef_ddx_, i*tc_+base_generator_.InternalT());
-                    lf_ddy_buffer_(0, i) = Eigen::poly_eval(f_coef_ddy_, i*tc_+base_generator_.InternalT());
-                    lf_ddq_buffer_(0, i) = Eigen::poly_eval(f_coef_ddq_, i*tc_+base_generator_.InternalT());
+                    lf_ddx_buffer_(0, i) = Eigen::poly_eval(f_coef_ddx_, i*tc_);
+                    lf_ddy_buffer_(0, i) = Eigen::poly_eval(f_coef_ddy_, i*tc_);
+                    lf_ddq_buffer_(0, i) = Eigen::poly_eval(f_coef_ddq_, i*tc_);
                 }
                 else if (t_discrete + i*tc_ <= t_transition) {
 
