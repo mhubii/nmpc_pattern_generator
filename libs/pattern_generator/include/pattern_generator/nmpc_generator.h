@@ -43,10 +43,13 @@ public:
     
     PatternGeneratorState Update();
 
+    PatternGeneratorState Update(double dt);
+
     static void Example(const std::string config_file_loc, const std::string output_loc);
 
     // Getters.
-    inline const qpOASES::returnValue& GetStatus() const { return status_; };
+    inline const qpOASES::returnValue& GetStatus() const { return status_;      };
+    inline const double&               CpuTime()   const { return cpu_time_[0]; };
 
 public:
     void PreprocessSolution();

@@ -27,6 +27,7 @@ public:
     inline const int&                 N()               const { return n_;                 };
     inline const double&              T()               const { return t_;                 };
     inline const double&              TStep()           const { return t_step_;            };
+    inline const double&              InternalT()       const { return time_;              };
     inline const Eigen::Vector3d&     Ckx0()            const { return c_k_x_0_;           };
     inline const Eigen::Vector3d&     Cky0()            const { return c_k_y_0_;           };
     inline const Eigen::Vector3d&     Ckq0()            const { return c_k_q_0_;           };
@@ -76,6 +77,8 @@ public:
     void SetObstacle(Circle& circ);
 
     PatternGeneratorState Update();
+
+    PatternGeneratorState Update(double dt);
 
     void InitializeConstantMatrices();
 

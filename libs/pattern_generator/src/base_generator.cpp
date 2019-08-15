@@ -361,7 +361,64 @@ PatternGeneratorState BaseGenerator::Update() {
 
   // Update matrices.
   BaseTypeSupportFoot old_support = current_support_;
-  UpdateSelectionMatrices();
+  if (time_ >= t_) {
+    time_ = 0.;
+    UpdateSelectionMatrices();
+  }
+
+  if (f_k_x_0_ != current_support_.x ||
+      f_k_y_0_ != current_support_.y ||
+      f_k_q_0_ != current_support_.q) {
+        throw std::invalid_argument("Support foot order not implemented (in base_generator.cpp).");
+  }
+
+  // Provide copy of updated state as return value.
+  double f_k_q_0_temp = f_k_q_0_;
+
+  // Get data for initialization of next iteration.
+  Eigen::Vector3d c_k_x_0(c_kp1_x_(0), dc_kp1_x_(0), ddc_kp1_x_(0));
+  Eigen::Vector3d c_k_y_0(c_kp1_y_(0), dc_kp1_y_(0), ddc_kp1_y_(0));
+  Eigen::Vector3d c_k_q_0(c_kp1_q_(0), dc_kp1_q_(0), ddc_kp1_q_(0));
+
+  // Left foot.
+  f_k_ql_0_(0) =   f_kp1_ql_(0);
+  f_k_ql_0_(1) =  df_kp1_ql_(0);
+  f_k_ql_0_(2) = ddf_kp1_ql_(0);
+
+  // Right foot.
+  f_k_qr_0_(0) =   f_kp1_qr_(0);
+  f_k_qr_0_(1) =  df_kp1_qr_(0);
+  f_k_qr_0_(2) = ddf_kp1_qr_(0);
+
+  if (current_support_.foot == "left") {
+    f_k_q_0_ = f_k_ql_0_(0);
+  }
+  else {
+    f_k_q_0_ = f_k_qr_0_(0);
+  }
+  current_support_.q = f_k_q_0_;
+
+  SetVelocityReference(local_vel_ref_);
+
+  return {c_k_x_0, c_k_y_0, h_com_0_, f_k_x_0_, f_k_y_0_, f_k_q_0_temp, current_support_.foot, c_k_q_0};
+}
+
+PatternGeneratorState BaseGenerator::Update(double dt) {
+  // Update all interior matrices and vectors.
+  // Has to be used to prepare the QP after each iteration.
+  
+  // After solution simulate to get current states on horizon.
+  Simulate();
+
+  // Update internal time.
+  time_ += dt; 
+
+  // Update matrices.
+  BaseTypeSupportFoot old_support = current_support_;
+  if (time_ >= t_) {
+    time_ = 0.;
+    UpdateSelectionMatrices();
+  }
 
   if (f_k_x_0_ != current_support_.x ||
       f_k_y_0_ != current_support_.y ||
@@ -1010,8 +1067,8 @@ void BaseGenerator::BuildFootIneqConstraint() {
   // A0 R(theta) (Fx_k+1 - Fx_k) <= ubB0
   //             (Fy_k+1 - Fy_k)
 
-  Eigen::MatrixXi mat_selec = -Eigen::MatrixXi::Ones(nf_, nf_);
-  mat_selec = mat_selec.triangularView<Eigen::UnitLower>();
+  Eigen::MatrixXi mat_selec = Eigen::MatrixXi::Identity(nf_, nf_);
+  mat_selec.bottomLeftCorner(nf_-1, nf_-1) = -Eigen::MatrixXi::Identity(nf_-1, nf_-1);
 
   // Eigen::Matrix2d foot_selec;
   // foot_selec << f_k_x_0_, f_k_y_0_,

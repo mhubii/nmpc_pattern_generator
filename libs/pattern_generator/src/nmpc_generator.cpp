@@ -80,6 +80,16 @@ PatternGeneratorState NMPCGenerator::Update() {
   return ret;
 }
 
+PatternGeneratorState NMPCGenerator::Update(double dt) {
+  // Define time dependent foot selections matrix.
+  PatternGeneratorState ret = BaseGenerator::Update(dt);
+
+  // Update selection matrix when something has changed.
+  UpdateFootSelectionMatrix();
+
+  return ret;
+}
+
 void NMPCGenerator::Example(const std::string config_file_loc, const std::string output_loc) {
   // Example() exemplarily implements a case on how
   // the NMPCGenerator class is ment to be used. 
@@ -383,7 +393,14 @@ void NMPCGenerator::CalculateDerivatives() {
   b_kp1_.setZero();
 
   // Change entries according to support order changes in d_kp1
-  Eigen::Vector3d theta_vec(f_k_q_0_, f_k_q_(0), f_k_q_(1));
+  Eigen::VectorXd theta_vec(nf_ + 1);
+
+  theta_vec[0]=f_k_q_0_;
+  for(int i=0 ; i<nf_ ; ++i)
+  {
+    theta_vec[i+1]=f_k_q_(i);
+  }
+
 
   Eigen::MatrixXd  a0(n_foot_edge_, 2);
   Eigen::VectorXd  b0(n_foot_edge_);
@@ -393,6 +410,7 @@ void NMPCGenerator::CalculateDerivatives() {
   Eigen::Matrix2d rot_mat;
 
   for (int i = 0; i < n_; i++) {
+
     const double theta = theta_vec(support_deque_[i].step_number);
 
     // NOTE this changes due to applying the derivative.
@@ -464,59 +482,68 @@ void NMPCGenerator::CalculateDerivatives() {
     a_pos_q_.block(i, n_, 1, n_) = dummy1.transpose()*derv_a_cop_map_*e_fl_bar_*ppu_;
   }
 
-  // Foot position constraints defined on
-  // the horizon.
-  // Inequality constraint on both feet Au + B <= 0
-  // A0 R(theta) (Fx_k+1 - Fx_k) <= ubB0
-  //             (Fy_k+1 - Fy_k)
-  Eigen::Matrix2i mat_selec; 
-  mat_selec <<  1., 0.,
-               -1., 1.;
 
-  Eigen::Matrix2d foot_selec;
-  foot_selec << f_k_x_0_, f_k_y_0_,
-                0.      , 0.;
 
-  // Rotation matrix from F_k+1 to F_k
-  Eigen::Matrix2d rot_mat1;
-  Eigen::Matrix2d rot_mat2;
 
-  rot_mat1 << -sin(theta_vec(0)),  cos(theta_vec(0)),
-              -cos(theta_vec(0)), -sin(theta_vec(0));
 
-  rot_mat2 << -sin(theta_vec(1)),  cos(theta_vec(1)),
-              -cos(theta_vec(1)), -sin(theta_vec(1));
 
-  Eigen::MatrixXd a_f1(n_foot_pos_hull_edges_, 2);
-  Eigen::MatrixXd a_f2(n_foot_pos_hull_edges_, 2);
 
-  if (current_support_.foot == "left") {
-    a_f1 << a0r_*rot_mat1;
-    a_f2 << a0l_*rot_mat2;
-  }
-  else {
-    a_f1 << a0l_*rot_mat1;
-    a_f2 << a0r_*rot_mat2;
+
+
+
+
+  Eigen::MatrixXi mat_selec = Eigen::MatrixXi::Identity(nf_, nf_);
+  mat_selec.bottomLeftCorner(nf_-1, nf_-1) = -Eigen::MatrixXi::Identity(nf_-1, nf_-1);
+
+  Eigen::MatrixXd foot_selec(nf_, 2);
+  foot_selec.setZero();
+  foot_selec(0, 0) = f_k_x_0_;
+  foot_selec(0, 1) = f_k_y_0_;
+
+  theta_vec[0]=f_k_q_0_;
+  for(int i = 1; i < nf_; i++)
+  {
+    theta_vec[i]=f_k_q_(i-1);
   }
 
-  Eigen::MatrixXd tmp1(n_foot_pos_hull_edges_, 2);
-  Eigen::MatrixXd tmp2(n_foot_pos_hull_edges_, 2);
-  Eigen::MatrixXd tmp3(n_foot_pos_hull_edges_, 2);
-  Eigen::MatrixXd tmp4(n_foot_pos_hull_edges_, 2);
+  // Helping matrices.
+  Eigen::MatrixXd x_mat(nc_foot_position_, nf_); // rather nf than 2
+  Eigen::MatrixXd  a0_x(nc_foot_position_, nf_); // nf*n_foot_pos_hull_edges = nc_foot_position
+  Eigen::MatrixXd y_mat(nc_foot_position_, nf_);
+  Eigen::MatrixXd  a0_y(nc_foot_position_, nf_);
 
-  tmp1 << a_f1.col(0), Eigen::VectorXd::Zero(n_foot_pos_hull_edges_);
-  tmp2 << Eigen::VectorXd::Zero(n_foot_pos_hull_edges_), a_f2.col(0);
-  tmp3 << a_f1.col(1), Eigen::VectorXd::Zero(n_foot_pos_hull_edges_);
-  tmp4 << Eigen::VectorXd::Zero(n_foot_pos_hull_edges_), a_f2.col(1);
+  x_mat.setZero();
+  a0_x.setZero();
+  y_mat.setZero();
+  a0_y.setZero();
 
-  Eigen::MatrixXd x_mat(2*n_foot_pos_hull_edges_, 2);
-  Eigen::MatrixXd  a0_x(2*n_foot_pos_hull_edges_, 2);
-  Eigen::MatrixXd y_mat(2*n_foot_pos_hull_edges_, 2);
-  Eigen::MatrixXd  a0_y(2*n_foot_pos_hull_edges_, 2);
+  Eigen::MatrixXd a_f(n_foot_pos_hull_edges_, 2); // x and y
 
-  x_mat << tmp1, tmp2;
+  // iterate l -> r -> l -> r .... for nf_
+  for(int i = 0; i < nf_; i++)
+  {
+    double theta = theta_vec[i];
+
+    Eigen::Matrix2d rot_mat;
+
+    rot_mat << -cos(theta),  sin(theta),
+               -sin(theta), -cos(theta);
+
+    if (support_deque_[i].foot == "left") {
+
+      a_f << a0r_*rot_mat;
+    }
+    else {
+
+      a_f << a0l_*rot_mat;
+    }
+
+    // Set x and y mat.
+    x_mat.block(i*n_foot_pos_hull_edges_, i, n_foot_pos_hull_edges_, 1) = a_f.col(0);
+    y_mat.block(i*n_foot_pos_hull_edges_, i, n_foot_pos_hull_edges_, 1) = a_f.col(1);
+  }
+
   a0_x  << x_mat*mat_selec.cast<double>();
-  y_mat << tmp3, tmp4;
   a0_y  << y_mat*mat_selec.cast<double>();
 
   Eigen::MatrixXd dummy2(nc_foot_position_, 2*(n_ + nf_));
@@ -547,6 +574,95 @@ void NMPCGenerator::CalculateDerivatives() {
       }
     }
   }
+
+
+
+
+
+
+  // // Foot position constraints defined on
+  // // the horizon.
+  // // Inequality constraint on both feet Au + B <= 0
+  // // A0 R(theta) (Fx_k+1 - Fx_k) <= ubB0
+  // //             (Fy_k+1 - Fy_k)
+  // Eigen::Matrix2i mat_selec; 
+  // mat_selec <<  1., 0.,
+  //              -1., 1.;
+
+  // Eigen::Matrix2d foot_selec;
+  // foot_selec << f_k_x_0_, f_k_y_0_,
+  //               0.      , 0.;
+
+  // // Rotation matrix from F_k+1 to F_k
+  // Eigen::Matrix2d rot_mat1;
+  // Eigen::Matrix2d rot_mat2;
+
+  // rot_mat1 << -sin(theta_vec(0)),  cos(theta_vec(0)),
+  //             -cos(theta_vec(0)), -sin(theta_vec(0));
+
+  // rot_mat2 << -sin(theta_vec(1)),  cos(theta_vec(1)),
+  //             -cos(theta_vec(1)), -sin(theta_vec(1));
+
+  // Eigen::MatrixXd a_f1(n_foot_pos_hull_edges_, 2);
+  // Eigen::MatrixXd a_f2(n_foot_pos_hull_edges_, 2);
+
+  // if (current_support_.foot == "left") {
+  //   a_f1 << a0r_*rot_mat1;
+  //   a_f2 << a0l_*rot_mat2;
+  // }
+  // else {
+  //   a_f1 << a0l_*rot_mat1;
+  //   a_f2 << a0r_*rot_mat2;
+  // }
+
+  // Eigen::MatrixXd tmp1(n_foot_pos_hull_edges_, 2);
+  // Eigen::MatrixXd tmp2(n_foot_pos_hull_edges_, 2);
+  // Eigen::MatrixXd tmp3(n_foot_pos_hull_edges_, 2);
+  // Eigen::MatrixXd tmp4(n_foot_pos_hull_edges_, 2);
+
+  // tmp1 << a_f1.col(0), Eigen::VectorXd::Zero(n_foot_pos_hull_edges_);
+  // tmp2 << Eigen::VectorXd::Zero(n_foot_pos_hull_edges_), a_f2.col(0);
+  // tmp3 << a_f1.col(1), Eigen::VectorXd::Zero(n_foot_pos_hull_edges_);
+  // tmp4 << Eigen::VectorXd::Zero(n_foot_pos_hull_edges_), a_f2.col(1);
+
+  // Eigen::MatrixXd x_mat(2*n_foot_pos_hull_edges_, 2);
+  // Eigen::MatrixXd  a0_x(2*n_foot_pos_hull_edges_, 2);
+  // Eigen::MatrixXd y_mat(2*n_foot_pos_hull_edges_, 2);
+  // Eigen::MatrixXd  a0_y(2*n_foot_pos_hull_edges_, 2);
+
+  // x_mat << tmp1, tmp2;
+  // a0_x  << x_mat*mat_selec.cast<double>();
+  // y_mat << tmp3, tmp4;
+  // a0_y  << y_mat*mat_selec.cast<double>();
+
+  // Eigen::MatrixXd dummy2(nc_foot_position_, 2*(n_ + nf_));
+
+  // dummy2 << Eigen::MatrixXd::Zero(nc_foot_position_, n_), a0_x,
+  //           Eigen::MatrixXd::Zero(nc_foot_position_, n_), a0_y;
+
+  // dummy2 = dummy2*dofs_.head(2*(n_ + nf_));
+
+  // // Foot inequality constraints.
+  // for (int i = nc_cop_; i < nc_cop_ + nc_foot_position_; i++) {
+  //   a_pos_q_.block(i, 0, 1, n_) = dummy2.transpose()*derv_a_foot_map_*e_fr_bar_*ppu_;
+  //   a_pos_q_.block(i, n_, 1, n_) = dummy2.transpose()*derv_a_foot_map_*e_fl_bar_*ppu_;
+  // }
+
+  // // Obstacle position constraints defined 
+  // // on the horizon.
+  // // Inequality constraint on both feet u^T H u + A u + B >= 0
+  // // Jac = 2*H*X + A
+  // a_obs_.setZero();
+
+  // for (int i = 0; i < nc_obs_; i++) {
+  //   for (int j = 0; j < 2*(n_ + nf_); j++) {
+  //       a_obs_(i, j) += BaseGenerator::a_obs_(i, j);
+
+  //     for (int k = 0; k < 2*(n_ + nf_); k++) {
+  //       a_obs_(i, j) += 2*dofs_(k)*h_obs_(i, k, j);
+  //     }
+  //   }
+  // }
 }
 
 void NMPCGenerator::SolveQP() {
