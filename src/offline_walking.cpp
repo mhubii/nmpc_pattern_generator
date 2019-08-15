@@ -91,15 +91,15 @@ int main(int argc, char *argv[]) {
 
 
     // Pattern generator event loop.
-    for (int i = 0; i < 200; i++) {
+    for (int i = 0; i < 2000; i++) {
         std::cout << "Iteration: " << i << std::endl;
 
 
         // Change reference velocities.
-        if (50 <= i && i < 150) {
+        if (50 <= i && i < 1500) {
             vel << 0.1, 0., 0.;
         }
-        else if (150 <= i && i < 200) {
+        else if (150 <= i && i < 2000) {
             vel << 0., 0., 0.;
         }
 
@@ -110,11 +110,34 @@ int main(int argc, char *argv[]) {
         // Solve QP.
         pg.Solve();
         pg.Simulate();
-        ip.InterpolateStep();
+        // ip.InterpolateStep();
 
+        auto inter = ip.InterpolateStep();
+        
+        auto preview = int(ip.preview_intervals_);
+        auto dt = pg.CpuTime();
+        auto com_x = inter.block(0, preview, 3, 1);// initial values not final
+        auto com_y = inter.block(3, preview, 3, 1);
+        auto lfx = inter(13, preview);
+        auto lfy = inter(14, preview);
+        auto rfx = inter(17, preview);
+        auto rfy = inter(18, preview);
 
         // Initial value embedding by internal states and simulation.
-        pg_state = pg.Update();
+        pg_state = pg.Update(dt);
+        pg_state.com_x = com_x;
+        pg_state.com_y = com_y;
+        if (pg.current_support_.foot == "left") {
+            pg_state.foot_x = lfx;
+            pg_state.foot_y = lfy;
+        }
+        else {
+            pg_state.foot_x = rfx;
+            pg_state.foot_y = rfy;
+        }
+
+        // Initial value embedding by internal states and simulation.
+        // pg_state = pg.Update();
         pg.SetInitialValues(pg_state);
     }
 

@@ -16,7 +16,7 @@ foot_length: 0.2
 foot_distance: 0.14
 
 # Interpolation.
-command_period: 0.001
+command_period: 0.002
 n_still: 0
 t_ds: 0.8
 step_height: 0.04
@@ -46,5 +46,5 @@ t: 0.2
 alpha: 1.0
 beta: 1e1
 gamma: 1e-3
-cpu_time: 0.1
+cpu_time: 0.01
 nwsr: 1000

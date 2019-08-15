@@ -233,24 +233,24 @@ def plot_with_obstacle(loc):
 
 if __name__ == '__main__':
     #loc_in = '/home/martin/Downloads/nmpc_pattern_generator/out/behavioural_augmentation_measurements/trajectories.csv'
-    #loc_in = '../build/bin/example_nmpc_generator_interpolated_results.csv'
-    loc_in = '../build/bin/user_controlled_walking_trajectories.csv'
+    loc_in = '../build/bin/example_nmpc_generator_interpolated_results.csv'
+    #loc_in = '../build/bin/user_controlled_walking_trajectories.csv'
     #loc_in = '../out/interpolated_states.csv'
     #loc_in = '../build/bin/test_com_feedback.csv'
     loc_out = '../img/interpolated_results.png'
     data = load_csv(loc_in)
     #plot_trajectories(data, loc_out)
-    #plot_3d(data, loc_out)
+    plot_3d(data, loc_out)
 
     #loc_in = '../out/raw_states.csv'
     #loc_out = '../img/raw_results.png'
     #data = load_csv(loc_in)
     #plot_raw_3d(data, loc_out)
     #plot_with_obstacle(loc_in)
-    #plot_z(data)
+    plot_z(data)
     #plot_o(data)
 
     # CoM feedback.
-    loc_com = '../build/bin/com.csv'
-    data_feedback = load_csv(loc_com)
-    plot_3d_with_feedback(data, data_feedback, loc_out)
+    #loc_com = '../build/bin/com.csv'
+    #data_feedback = load_csv(loc_com)
+    #plot_3d_with_feedback(data, data_feedback, loc_out)

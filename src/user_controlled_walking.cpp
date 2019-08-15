@@ -342,6 +342,7 @@ void  WalkingProcessor::onRead(yarp::sig::Matrix& state) {
         // pg_state_.com_x(0) += 0.1*(com_pos_(0)-pg_state_.com_x(0));//, com_vel_(0), com_acc_(0);
         // pg_state_.com_y(0) += 0.1*(com_pos_(1)-pg_state_.com_y(0));//, com_vel_(1), com_acc_(1);
         // pg_state_.com_z = com_pos_(2);
+        std::cout << "delta x: " << (com_pos_(0)-pg_state_.com_x(0)) << " delta y: " << (com_pos_(1)-pg_state_.com_y(0)) << std::endl;
         pg_.SetInitialValues(pg_state_);
 
         // Solve QP.
