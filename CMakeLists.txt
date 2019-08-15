@@ -130,7 +130,7 @@ if (${BUILD_WITH_YARP} AND ${BUILD_WITH_LEARNING})
         behavioural_cloning_external_data
         behavioural_cloning
         #ppo_nmpc     
-        thesis_generate_depth_map   
+        #thesis_generate_depth_map   
         tune_disp_map
         generate_calib_imgs
     )
