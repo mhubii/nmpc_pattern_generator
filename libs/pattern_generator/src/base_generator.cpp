@@ -1067,8 +1067,8 @@ void BaseGenerator::BuildFootIneqConstraint() {
   // A0 R(theta) (Fx_k+1 - Fx_k) <= ubB0
   //             (Fy_k+1 - Fy_k)
 
-  Eigen::MatrixXi mat_selec = -Eigen::MatrixXi::Ones(nf_, nf_);
-  mat_selec = mat_selec.triangularView<Eigen::UnitLower>();
+  Eigen::MatrixXi mat_selec = Eigen::MatrixXi::Identity(nf_, nf_);
+  mat_selec.bottomLeftCorner(nf_-1, nf_-1) = -Eigen::MatrixXi::Identity(nf_-1, nf_-1);
 
   // Eigen::Matrix2d foot_selec;
   // foot_selec << f_k_x_0_, f_k_y_0_,

@@ -492,8 +492,8 @@ void NMPCGenerator::CalculateDerivatives() {
 
 
 
-  Eigen::MatrixXi mat_selec = -Eigen::MatrixXi::Ones(nf_, nf_);
-  mat_selec = mat_selec.triangularView<Eigen::UnitLower>();
+  Eigen::MatrixXi mat_selec = Eigen::MatrixXi::Identity(nf_, nf_);
+  mat_selec.bottomLeftCorner(nf_-1, nf_-1) = -Eigen::MatrixXi::Identity(nf_-1, nf_-1);
 
   Eigen::MatrixXd foot_selec(nf_, 2);
   foot_selec.setZero();
