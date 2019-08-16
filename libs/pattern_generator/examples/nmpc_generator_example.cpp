@@ -67,7 +67,7 @@ int main() {
         auto rfy = inter(18, preview);
 
         // Initial value embedding by internal states and simulation.
-        pg_state = nmpc.Update(dt);
+        pg_state = nmpc.Update();
         pg_state.com_x = com_x;
         pg_state.com_y = com_y;
         if (nmpc.current_support_.foot == "left") {
