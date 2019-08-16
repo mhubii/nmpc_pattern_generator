@@ -478,8 +478,8 @@ void NMPCGenerator::CalculateDerivatives() {
 
   // CoP constraints.
   for (int i = 0; i < nc_cop_; i++) {
-    a_pos_q_.block(i, 0, 1, n_) = dummy1.transpose()*derv_a_cop_map_*e_fr_bar_*ppu_;
-    a_pos_q_.block(i, n_, 1, n_) = dummy1.transpose()*derv_a_cop_map_*e_fl_bar_*ppu_;
+    a_pos_q_.block(i, 0, 1, n_) = dummy1.transpose()*derv_a_cop_map_*e_fr_bar_;
+    a_pos_q_.block(i, n_, 1, n_) = dummy1.transpose()*derv_a_cop_map_*e_fl_bar_;
   }
 
 
@@ -555,8 +555,8 @@ void NMPCGenerator::CalculateDerivatives() {
 
   // Foot inequality constraints.
   for (int i = nc_cop_; i < nc_cop_ + nc_foot_position_; i++) {
-    a_pos_q_.block(i, 0, 1, n_) = dummy2.transpose()*derv_a_foot_map_*e_fr_bar_*ppu_;
-    a_pos_q_.block(i, n_, 1, n_) = dummy2.transpose()*derv_a_foot_map_*e_fl_bar_*ppu_;
+    a_pos_q_.block(i, 0, 1, n_) = dummy2.transpose()*derv_a_foot_map_*e_fr_bar_;
+    a_pos_q_.block(i, n_, 1, n_) = dummy2.transpose()*derv_a_foot_map_*e_fl_bar_;
   }
 
   // Obstacle position constraints defined 

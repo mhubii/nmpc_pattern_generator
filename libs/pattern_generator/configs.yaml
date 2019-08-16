@@ -43,6 +43,7 @@ radius: 0.5
 # Optimization.
 n: 16
 t: 0.4
+t_feedback: 0.4
 alpha: 1
 beta: 1e2
 gamma: 1e-2

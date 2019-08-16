@@ -13,6 +13,7 @@ Interpolation::Interpolation(BaseGenerator& base_generator)
       t_(base_generator.T()),
       cpu_time_(base_generator.configs_["cpu_time"].as<double>()),
       tc_(base_generator.configs_["command_period"].as<double>()),
+      t_fb_(base_generator.t_fb_),
 
       // Double support time.
       t_ds_(base_generator_.configs_["t_ds"].as<double>()),
@@ -23,7 +24,7 @@ Interpolation::Interpolation(BaseGenerator& base_generator)
   
       // Number of interpolation intervals.
       intervals_(int(cpu_time_/tc_)),
-      preview_intervals_(int(t_/tc_)),
+      preview_intervals_(int(t_fb_/tc_)),
       current_interval_(0),
       
       // Number of intervals that the robot stays still in the beginning.

@@ -129,6 +129,7 @@ public:
     const int n_;                 // #
     const double t_;              // s
     const double t_step_;         // s
+    const double t_fb_;           // s
     
     // For internal usage.
     const double t_window_;       // s
