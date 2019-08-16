@@ -35,14 +35,15 @@ foot_q: 0.0
 gravity: 9.81
 
 # Obstacle.
-obstacle: false
-x_pos:  100
-y_pos:  100
+obstacle: true
+x_pos:  0.41
+y_pos:  0.47
 radius: 0.1
 
 # Optimization.
 n: 16
 t: 0.2
+t_feedback: 0.2
 alpha: 1.0
 beta: 1e1
 gamma: 1e-3

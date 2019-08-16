@@ -10,6 +10,7 @@ BaseGenerator::BaseGenerator(const std::string config_file_loc)
       n_(configs_["n"].as<double>()),
       t_(configs_["t"].as<double>()), 
       t_step_(configs_["t_step"].as<double>()),
+      t_fb_(configs_["t_feedback"].as<double>()),
       t_window_(n_*t_), nf_(int(t_window_/t_step_)),
       time_(0.),
       
@@ -357,7 +358,7 @@ PatternGeneratorState BaseGenerator::Update() {
   Simulate();
 
   // Update internal time.
-  time_ += t_; 
+  time_ += t_fb_; 
 
   // Update matrices.
   BaseTypeSupportFoot old_support = current_support_;

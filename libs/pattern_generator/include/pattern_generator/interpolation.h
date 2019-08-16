@@ -73,6 +73,7 @@ public:
     const double t_;
     const double cpu_time_;
     const double tc_;
+    const double t_fb_;
 
     // Double and single support time.
     const double t_ds_;
