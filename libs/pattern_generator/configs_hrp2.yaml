@@ -18,7 +18,7 @@ foot_distance: 0.2
 # Interpolation.
 command_period: 0.005
 n_still: 10
-t_ds: 0.1
+t_ds: 0.4
 step_height: 0.05
 
 # Initial values.
