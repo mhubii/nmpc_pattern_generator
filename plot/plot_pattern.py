@@ -146,18 +146,59 @@ def plot_z(data):
     a = 0
     z = data.shape[0]
 
+    left_x = data[a:z, 13]
+    left_y = data[a:z, 14]
+    left_z = data[a:z, 15] 
+
     right_x = data[a:z, 17]
     right_y = data[a:z, 18]
-    right_z = data[a:z, 19]
+    right_z = data[a:z, 19] 
 
-    time = np.linspace(0, right_x.shape[0]*0.01, right_x.shape[0]) 
+    time = np.linspace(0, right_x.shape[0]*0.005, right_x.shape[0]) 
 
-    plt.plot(time, right_x, label='right x')
-    plt.plot(time, right_y, label='right y')
-    plt.plot(time, right_z, label='right z')
+    #plt.subplot(131)
+    plt.ylim([-0.1, 0.6])
+    plt.plot(time, left_x, label='Left Foot', c='C1')
+    plt.plot(time, right_x, label='Right Foot', c='C2')
+
+    plt.title('x-Trjacetories')
+    plt.xlabel(r'$\text{T}\,/\,\text{s}$')
+    plt.ylabel(r'$\text{x}\,/\,\text{m}$')
+
     plt.grid()
     plt.legend()
-    plt.show()
+    plt.savefig('img/interpolated_x_trajectories.pdf')
+    plt.clf()
+
+    #plt.subplot(132)
+    plt.ylim([-0.2, 0.4])
+    plt.plot(time, left_y, label='Left Foot', c='C1')
+    plt.plot(time, right_y, label='Right Foot', c='C2')
+
+    plt.title('y-Trjacetories')
+    plt.xlabel(r'$\text{T}\,/\,\text{s}$')
+    plt.ylabel(r'$\text{y}\,/\,\text{m}$')
+
+    plt.grid()
+    plt.legend()
+    plt.savefig('img/interpolated_y_trajectories.pdf')
+    plt.clf()
+
+    #plt.subplot(133)
+    plt.ylim([-0.05, 0.2])
+    plt.plot(time, left_z, label='Left Foot', c='C1')
+    plt.plot(time, right_z, label='Right Foot', c='C2')
+
+    plt.title('z-Trjacetories')
+    plt.xlabel(r'$\text{T}\,/\,\text{s}$')
+    plt.ylabel(r'$\text{z}\,/\,\text{m}$')
+
+    plt.grid()
+    plt.legend()
+    plt.savefig('img/interpolated_z_trajectories.pdf')
+    plt.clf()
+
+    #plt.show()
 
 def plot_o(data):
     a = 0
@@ -240,7 +281,7 @@ if __name__ == '__main__':
     loc_out = '../img/interpolated_results.png'
     data = load_csv(loc_in)
     #plot_trajectories(data, loc_out)
-    plot_3d(data, loc_out)
+    #plot_3d(data, loc_out)
 
     #loc_in = '../out/raw_states.csv'
     #loc_out = '../img/raw_results.png'
