@@ -2,7 +2,7 @@
 #include <qpOASES.hpp>
 #include <random>
 #include <cmath>
-#include <opencv2/core/core.hpp>
+#include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
 #include <torch/torch.h>
 

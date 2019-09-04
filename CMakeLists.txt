@@ -92,27 +92,28 @@ if (${BUILD_WITH_LEARNING})
     add_subdirectory(libs/learning)
 
     # Source.
-#    set(SOURCES 
+    set(SOURCES 
 #        learn_nmpc_fc
-#        ppo_nmpc
+        train_ppo_nmpc
+        test_ppo_nmpc
 #        predict_nmpc
-#    )
+    )
 
-#    foreach (source ${SOURCES})
-#        add_executable(${source}
-#            src/${source}.cpp
-#        )
+    foreach (source ${SOURCES})
+        add_executable(${source}
+            src/${source}.cpp
+        )
 
-#        target_include_directories(${source}
-#            PRIVATE libs/pattern_generator/include/pattern_generator
-#            PRIVATE libs/learning/include/learning
-#        )
+        target_include_directories(${source}
+            PRIVATE libs/pattern_generator/include/pattern_generator
+            PRIVATE libs/learning/include/learning
+        )
 
-#        target_link_libraries(${source}
-#            pattern_generator
-#            learning
-#        )
-#    endforeach(source ${SOURCES})
+        target_link_libraries(${source}
+            pattern_generator
+            learning
+        )
+    endforeach(source ${SOURCES})
 endif(${BUILD_WITH_LEARNING})
 
 # Autonomous navigation sources.
@@ -133,6 +134,7 @@ if (${BUILD_WITH_YARP} AND ${BUILD_WITH_LEARNING})
         #ppo_nmpc     
         thesis_generate_depth_map   
         tune_disp_map
+        disp_map_benchmarking
         generate_calib_imgs
     )
 

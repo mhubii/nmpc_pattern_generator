@@ -4,13 +4,16 @@ import matplotlib.animation as animation
 from matplotlib.patches import Circle
 
 # get data
-data = np.genfromtxt("../out/ppo_nmpc/example_ppo.csv", delimiter=",")
+data = np.genfromtxt("../out/ppo_nmpc/test_example_ppo.csv", delimiter=",")
 
-def animate():
+# tail for the agent
+tail = 0
+
+def ani():
 
     # plot everything
     #epochs = np.array([1,5,10,20, 50, 90])
-    epochs = np.array([1,2])
+    epochs = np.array([1])
 
     for e in epochs:
 
@@ -20,8 +23,8 @@ def animate():
         ax.plot(0, 0, 'x', c='black', label='Spawn')                      # spawn of the agent
 
         # adding a circle around the goal that indicates maximum distance to goal before the environment gets reset
-        obstacle = plt.Circle((data[0,3], data[0,4]), data[0,5], linestyle='-', color='black', fill=True, label='Obstacle')
-        ax.add_patch(obstacle)
+        #obstacle = plt.Circle((data[0,3], data[0,4]), data[0,5], linestyle='-', color='black', fill=True, label='Obstacle')
+        #ax.add_patch(obstacle)
         goal = plt.Circle((data[0,6], data[0,7]), data[0,5], linestyle='-', color='r', fill=True, label='Goal')
         ax.add_patch(goal)
         won_circle = plt.Circle((data[0,6], data[0,7]), 0.3, linestyle='--', color='r', fill=False)
@@ -43,23 +46,22 @@ def animate():
                     transform=ax.transAxes, ha="center")
 
         epoch_data = data[np.where(data[:,0]==e)]
-        # tail for the agent
-        tail = 0
 
         def animate(i):
             agent.set_data(epoch_data[i,1], epoch_data[i,2])
+            #agent_line.set_data(epoch_data[0:i,1], epoch_data[0:i,2])
             global tail
             if (epoch_data[i,8] == 5): # STATUS enum in main.cpp, 5 = RESETTING
                 tail = 0
             agent_line.set_data(epoch_data[i-tail:i,1], epoch_data[i-tail:i,2])
             if (tail <= 50):
                 tail += 1
-            obstacle.center = (epoch_data[i,3], epoch_data[i,4])
+            #obstacle.center = (epoch_data[i,3], epoch_data[i,4])
             goal.center = (epoch_data[i,6], epoch_data[i,7])
             won_circle.center = (epoch_data[i,6], epoch_data[i,7])
             #lost_circle.center = (epoch_data[i,6], epoch_data[i,7])
             #title.set_text('Epoch {:1.0f}'.format(epoch_data[i,0]))
-            return agent, agent_line, obstacle, goal, won_circle
+            return agent, agent_line, goal, won_circle
 
         ani = animation.FuncAnimation(fig, animate, blit=True, interval=5, frames=epoch_data.shape[0])
         plt.show()
@@ -81,14 +83,16 @@ def plot():
         ax.plot(0, 0, 'x', c='black', label='Spawn')                      # spawn of the agent
 
         # adding a circle around the goal that indicates maximum distance to goal before the environment gets reset
-        obstacle = plt.Circle((epoch_data[0,3], epoch_data[0,4]), epoch_data[0,5], linestyle='-', color='black', fill=True, label='Obstacle')
-        ax.add_patch(obstacle)
+        #obstacle = plt.Circle((epoch_data[0,3], epoch_data[0,4]), epoch_data[0,5], linestyle='-', color='black', fill=True, label='Obstacle')
+        #ax.add_patch(obstacle)
         goal = plt.Circle((epoch_data[0,6], epoch_data[0,7]), epoch_data[0,5], linestyle='-', color='r', fill=True, label='Goal')
         ax.add_patch(goal)
-        circle = plt.Circle((epoch_data[0,6], epoch_data[0,7]), 2.5, linestyle='--', color='gray', fill=False, label='Maximum Goal Distance')
-        ax.add_patch(circle)
+        won_circle = plt.Circle((data[0,6], data[0,7]), 0.4, linestyle='--', color='r', fill=False, label='Finish')
+        ax.add_patch(won_circle)
+        #circle = plt.Circle((epoch_data[0,6], epoch_data[0,7]), 10, linestyle='--', color='gray', fill=False, label='Maximum Goal Distance')
+        #ax.add_patch(circle)
 
-        agent, = ax.plot(epoch_data[:-1,1], epoch_data[:-1,2], 'o', c='b', label='Agent') # agent
+        agent, = ax.plot(epoch_data[-1,1], epoch_data[-1,2], 'o', c='b', label='Agent') # agent
         agent_line, = ax.plot(epoch_data[:-1,1], epoch_data[:-1,2], '-', c='b')           # small tail following the agent
 
         # plot settings
@@ -107,5 +111,5 @@ def plot():
 
 if __name__ == "__main__":
     
-    animate()
+    ani()
     #plot()
