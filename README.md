@@ -10,6 +10,12 @@ This project implements [A Reactive Walking Pattern Generator Based on Nonlinear
 
 The [quickstart](#quickstart) section explains to you, how to setup everything.
 
+## Example Videos
+As an example, we trained a neural network via behavioral cloning to find a fire extinguisher within a room. Results can be found below
+
+ - [Finding a fire extinguisher](https://drive.google.com/open?id=1f9nqhSbklc_exYMI5HlA63RCs40-q5_2)
+ - [Robot-Human-Interaction](https://drive.google.com/open?id=1zm-9apobNmsXAcLXB5e9lGqIU7NMHzVl)
+
 ## Quickstart
 You can go through the [build](#build) section to get everything going. To see if your installation worked as expected, you may want to check out the [run tests](#run-tests) section. The [library usage](#library-usage) section explains the code in more depth.
 
